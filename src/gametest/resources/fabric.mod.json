@@ -6,9 +6,13 @@
 	"environment": "*",
 	"entrypoints": {
 		"fabric-gametest": [
-			"net.ragnar.fmscraft.gametest.FragmentGameTests"
+			"net.ragnar.fmscraft.gametest.FragmentGameTests",
+			"net.ragnar.fmscraft.gametest.FightGameTests"
 		]
 	},
+	"mixins": [
+		"fmscraft-gametest.mixins.json"
+	],
 	"depends": {
 		"fmscraft": "*",
 		"fabric-gametest-api-v1": "*"

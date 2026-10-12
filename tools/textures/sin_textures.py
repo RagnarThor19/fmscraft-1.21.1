@@ -221,6 +221,24 @@ def soul(colors):
     return img
 
 
+def portal_frames(frames=32):
+    """Grayscale swirling sheet for the sin portal, tinted per sin in-game. Stacked vertically for animation."""
+    import math
+    sheet = Image.new("RGBA", (16, 16 * frames), (0, 0, 0, 0))
+    for f in range(frames):
+        t = 2 * math.pi * f / frames
+        for y in range(16):
+            for x in range(16):
+                dx, dy = x - 7.5, y - 7.5
+                r = math.hypot(dx, dy)
+                a = math.atan2(dy, dx)
+                v = (math.sin(a * 2 + r * 0.9 - t) + math.sin(x * 0.7 + t) * 0.5 + math.cos(y * 0.6 - t * 2) * 0.5) / 2
+                level = int(170 + 70 * v)  # stays light so the tint shows the sin's color
+                alpha = int(190 + 40 * v)
+                sheet.putpixel((x, f * 16 + y), (level, level, level, max(0, min(255, alpha))))
+    return sheet
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     images = []
@@ -234,6 +252,11 @@ def main():
         shard.save(OUT / f"{sin}_fragment.png")
         orb.save(OUT / f"soul_of_{sin}.png")
         images.append((shard, key, orb))
+
+    block_dir = OUT.parent / "block"
+    block_dir.mkdir(parents=True, exist_ok=True)
+    portal_frames().save(block_dir / "sin_portal.png")
+    (block_dir / "sin_portal.png.mcmeta").write_text('{\n  "animation": {\n    "frametime": 2\n  }\n}\n')
 
     if len(sys.argv) > 1:
         scale, pad = 12, 8

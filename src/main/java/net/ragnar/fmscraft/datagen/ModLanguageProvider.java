@@ -3,6 +3,8 @@ package net.ragnar.fmscraft.datagen;
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricLanguageProvider;
 import net.minecraft.registry.RegistryWrapper;
+import net.ragnar.fmscraft.block.ModBlocks;
+import net.ragnar.fmscraft.boss.ModBossEntities;
 import net.ragnar.fmscraft.item.ModItems;
 import net.ragnar.fmscraft.sin.Sin;
 
@@ -30,6 +32,19 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add("bossbar.fmscraft.wrath", "Wrath  %s/%s  %s");
         builder.add("message.fmscraft.wrath_failed", "The Wrath fades...");
         builder.add("message.fmscraft.lust_progress", "Lust: bred %s (%s/%s)");
+
+        builder.add(ModBlocks.SIN_PORTAL, "Sin Portal");
+        builder.add(ModBossEntities.TEST_BOSS, "Test Boss");
+        builder.add("bossbar.fmscraft.fight_starts", "The fight begins in %s");
+        builder.add("message.fmscraft.boss_defeated", "%s, the Sin of %s, has been defeated!");
+        builder.add("message.fmscraft.fight_failed", "%s has fallen. The Sin of %s endures.");
+        builder.add("message.fmscraft.fight_ended", "The fight against the Sin of %s has ended.");
+
+        builder.add("message.fmscraft.portal_closing", "The portal is closing!");
+        builder.add("wheel.fmscraft.title", "Spoils of %s");
+        builder.add("wheel.fmscraft.tier.beginner", "Beginner Tome");
+        builder.add("wheel.fmscraft.tier.advanced", "Advanced Tome");
+        builder.add("wheel.fmscraft.tier.master", "Master Tome");
 
         builder.add("advancements.fmscraft.root.title", "The Seven Sins");
         builder.add("advancements.fmscraft.root.description", "Obtain your first sin fragment");

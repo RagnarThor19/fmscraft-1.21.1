@@ -48,17 +48,43 @@ Open questions:
 - One per sin, titled just the sin name ("Greed"), granted the first time you hold that sin's fragment. Done (data-driven, `inventory_changed`).
 - "True Ending", granted from code when all 7 souls are placed. Advancement exists; the trigger is TODO.
 
-## Boss fight rules
+## Boss fight rules (built: `fight/BossFights.java`)
 
-- Everyone who enters the portal is in the fight.
-- **If any player dies**: everyone is kicked out, the portal closes, and each dead player's loot is put in a chest near the overworld portal.
-- Boss fully resets each attempt (needs a new key).
-- On a win: XP + Soul of <Sin>; the world records the sin as defeated (`FmsWorldState`).
+- Using the key opens a 2x3 **sin portal** (tinted in the sin's color) for **30 seconds**. Everyone who steps
+  through waits in the arena; a bar shows "The fight begins in N". Then the portal closes behind them and the
+  boss spawns. If nobody went through, the key is wasted.
+- Only one fight per sin at a time. Each sin has its own arena dimension (`fmscraft:<sin>_arena`), wiped and
+  rebuilt before every fight, so the boss always starts fresh.
+- **If any participant dies or disconnects**: the attempt ends for everyone, the boss is removed, the others are
+  sent back to the portal, and the fallen player's items go into chests next to the portal.
+  (A totem of undying still saves you. A server shutdown doesn't count as a loss.)
+- **5 seconds before the portal closes**: a bell tolls at the portal ("The portal is closing!" for anyone nearby),
+  then rising chimes on 3, 2, 1, and it closes with a beacon-off sound and a puff of particles. Players waiting
+  inside hear the bell and chimes too.
+- **On a win**: XP + Soul of <Sin>, the sin is marked defeated (`FmsWorldState`), a server-wide message, and an
+  exit portal opens in the arena to go home.
+- **Tome wheel** (`reward/TomeWheel.java`): everyone in the fight spins their own wheel, 50% Beginner / 30%
+  Advanced / 20% Master, then gets a random Ragnars Magic Mod tome of that tier. 10 slices (5/3/2), drawn as pixel art, clicks as
+  slices pass, tier sound on landing. The server rolls the result first and gives the tome itself when the 10-second spin ends;
+  the wheel only animates toward it, so lag or quitting can't change or lose the prize. Tomes are found by reading
+  the magic mod's `TomeItem` tiers at runtime (`compat/MagicTomes.java`).
 - Defeated bosses can be fought again with another key.
+- Players left in an arena after a restart are sent back to their portal when they log in.
+- Test without structures: `/fmscraft fight <sin>`, `/fmscraft end <sin>`, `/fmscraft status`, `/fmscraft undefeat <sin>`.
+
+**How each structure hooks in (decided per structure, together):** whatever the structure's lock mechanic is,
+it consumes the key and calls `BossFights.open(sin, world, portalBasePos, axis)`.
+
+**Arenas:** build an arena in-game, save it with a structure block as `fmscraft:arena/<sin>` (centered on x/z 0,
+floor at y 63) and put the `.nbt` in `data/fmscraft/structure/arena/`. Until then a plain deepslate platform is used.
+
+**Music:** boss themes play on the **Jukebox/Note Blocks** volume slider (so players who turned background music
+off still hear them), loop, and pause vanilla music. The test boss uses Pigstep, then Otherside in phase 2.
 
 ## Boss template
 
-Every boss extends `boss/SinBossEntity`:
+Every boss extends `boss/SinBossEntity` and is swapped in for its sin in `boss/ModBossEntities.forSin`
+(all sins use the stand-in `TestBossEntity` for now):
 - Boss bar named after the friend.
 - **Phase 2 at half health** (`onPhaseTwo`) — switch songs and behaviour here.
 - **Beat clock**: each phase has a `BossSong(soundId, bpm, firstBeatTick)`; `onBeat(phase, beat)` fires on each beat so attacks can land on the music.
@@ -90,12 +116,12 @@ Special mechanics:
 
 ## Implementation roadmap
 
-**Phase 1: Fragments and keys (short)**
+**Phase 1: Fragments and keys (short)** - done
 1. Settle the open questions above.
 2. Item textures for fragments, keys and souls.
 3. The six remaining fragment triggers, one sin at a time, each tested in-game.
 
-**Phase 2: The boss fight framework (built once, used by all 7)**
+**Phase 2: The boss fight framework (built once, used by all 7)** - done, except the per-structure lock (step 4), which is designed with each structure
 4. Portal block: right-click with the matching key to consume it and open the portal once.
 5. Boss arena dimensions, one per sin (a void dimension with a saved arena structure).
 6. Fight manager: who's in the fight, any death kicks everyone out and closes the portal, dead players' loot goes

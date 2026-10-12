@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "axis=x": { "model": "fmscraft:block/sin_portal_ns" },
+    "axis=z": { "model": "fmscraft:block/sin_portal_ew" }
+  }
+}

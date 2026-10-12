@@ -7,7 +7,9 @@
 		"BredAnimalsCriterionMixin",
 		"PlayerEntityMixin"
 	],
-	"client": [],
+	"client": [
+		"client.MusicTrackerMixin"
+	],
 	"injectors": {
 		"defaultRequire": 1
 	},

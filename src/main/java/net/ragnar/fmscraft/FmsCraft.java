@@ -1,9 +1,17 @@
 package net.ragnar.fmscraft;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.ragnar.fmscraft.block.ModBlocks;
+import net.ragnar.fmscraft.boss.ModBossEntities;
+import net.ragnar.fmscraft.command.FmsCommands;
+import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fragment.FragmentTriggers;
 import net.ragnar.fmscraft.item.ModItemGroups;
 import net.ragnar.fmscraft.item.ModItems;
+import net.ragnar.fmscraft.network.BossMusicPayload;
+import net.ragnar.fmscraft.network.TomeWheelPayload;
+import net.ragnar.fmscraft.reward.TomeWheel;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,8 +27,16 @@ public class FmsCraft implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		ModItems.initialize();
+		ModBlocks.initialize();
 		ModItemGroups.initialize();
+		ModBossEntities.initialize();
+		PayloadTypeRegistry.playS2C().register(BossMusicPayload.ID, BossMusicPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(TomeWheelPayload.ID, TomeWheelPayload.CODEC);
+
 		FragmentTriggers.register();
+		BossFights.register();
+		TomeWheel.register();
+		FmsCommands.register();
 
 		LOGGER.info("FMSCraft loaded");
 	}

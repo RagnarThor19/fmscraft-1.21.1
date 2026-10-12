@@ -4,6 +4,11 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.GlobalPos;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.PersistentState;
@@ -15,12 +20,13 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 /**
  * World-wide progress, saved with the overworld. This is the "tag that lets the world know a boss was defeated".
- * Add new saved fields here (wrath warden timer, lust breeding progress, placed souls, ...).
+ * Also holds Lust breeding progress and where players in a boss arena return to.
  */
 public class FmsWorldState extends PersistentState {
     private static final Type<FmsWorldState> TYPE = new Type<>(FmsWorldState::new, FmsWorldState::fromNbt, null);
@@ -28,6 +34,8 @@ public class FmsWorldState extends PersistentState {
     private final Set<Sin> defeated = EnumSet.noneOf(Sin.class);
     // Lust: entity type ids each player has bred since their last Lust reward
     private final Map<UUID, Set<String>> lustProgress = new HashMap<>();
+    // Where each player in a boss arena goes back to (the overworld-side portal), kept across restarts
+    private final Map<UUID, GlobalPos> returnPositions = new HashMap<>();
 
     public static FmsWorldState get(MinecraftServer server) {
         return server.getWorld(World.OVERWORLD).getPersistentStateManager().getOrCreate(TYPE, FmsCraft.MOD_ID);
@@ -60,6 +68,23 @@ public class FmsWorldState extends PersistentState {
         if (lustProgress.remove(player) != null) markDirty();
     }
 
+    public void setReturn(UUID player, GlobalPos pos) {
+        returnPositions.put(player, pos);
+        markDirty();
+    }
+
+    public Optional<GlobalPos> getReturn(UUID player) {
+        return Optional.ofNullable(returnPositions.get(player));
+    }
+
+    public void clearReturn(UUID player) {
+        if (returnPositions.remove(player) != null) markDirty();
+    }
+
+    public void clearDefeated(Sin sin) {
+        if (defeated.remove(sin)) markDirty();
+    }
+
     @Override
     public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup lookup) {
         NbtList list = new NbtList();
@@ -73,6 +98,15 @@ public class FmsWorldState extends PersistentState {
             lust.put(player.toString(), bredList);
         });
         nbt.put("lust", lust);
+
+        NbtCompound returns = new NbtCompound();
+        returnPositions.forEach((player, pos) -> {
+            NbtCompound entry = new NbtCompound();
+            entry.putString("dimension", pos.dimension().getValue().toString());
+            entry.putLong("pos", pos.pos().asLong());
+            returns.put(player.toString(), entry);
+        });
+        nbt.put("returns", returns);
         return nbt;
     }
 
@@ -90,6 +124,14 @@ public class FmsWorldState extends PersistentState {
             Set<String> bred = new HashSet<>();
             for (int i = 0; i < bredList.size(); i++) bred.add(bredList.getString(i));
             state.lustProgress.put(UUID.fromString(key), bred);
+        }
+
+        NbtCompound returns = nbt.getCompound("returns");
+        for (String key : returns.getKeys()) {
+            NbtCompound entry = returns.getCompound(key);
+            RegistryKey<net.minecraft.world.World> dimension =
+                    RegistryKey.of(RegistryKeys.WORLD, Identifier.of(entry.getString("dimension")));
+            state.returnPositions.put(UUID.fromString(key), GlobalPos.create(dimension, BlockPos.fromLong(entry.getLong("pos"))));
         }
         return state;
     }

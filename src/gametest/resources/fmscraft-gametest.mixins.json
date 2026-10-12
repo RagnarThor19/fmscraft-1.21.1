@@ -1,0 +1,11 @@
+{
+	"required": true,
+	"package": "net.ragnar.fmscraft.gametest.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [
+		"TestServerMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
