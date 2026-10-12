@@ -1,0 +1,36 @@
+{
+	"schemaVersion": 1,
+	"id": "fmscraft",
+	"version": "${version}",
+	"name": "FMSCraft",
+	"description": "A mod for me and my friends",
+	"authors": [
+		"Ragnar Thor Melsted"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"net.ragnar.fmscraft.FmsCraft"
+		],
+		"fabric-datagen": [
+			"net.ragnar.fmscraft.FmsCraftDataGenerator"
+		],
+		"client": [
+			"net.ragnar.fmscraft.FmsCraftClient"
+		]
+	},
+	"mixins": [
+		"fmscraft.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
