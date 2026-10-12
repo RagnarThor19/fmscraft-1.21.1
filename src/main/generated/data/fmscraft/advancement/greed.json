@@ -1,0 +1,33 @@
+{
+  "parent": "fmscraft:root",
+  "criteria": {
+    "has_fragment": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fmscraft:greed_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.fmscraft.greed.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fmscraft:greed_fragment"
+    },
+    "title": {
+      "translate": "advancements.fmscraft.greed.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_fragment"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

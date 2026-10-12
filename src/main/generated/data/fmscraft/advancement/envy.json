@@ -1,0 +1,33 @@
+{
+  "parent": "fmscraft:root",
+  "criteria": {
+    "has_fragment": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fmscraft:envy_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.fmscraft.envy.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fmscraft:envy_fragment"
+    },
+    "title": {
+      "translate": "advancements.fmscraft.envy.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_fragment"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

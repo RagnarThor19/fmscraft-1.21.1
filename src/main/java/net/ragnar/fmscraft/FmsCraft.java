@@ -1,6 +1,7 @@
 package net.ragnar.fmscraft;
 
 import net.fabricmc.api.ModInitializer;
+import net.ragnar.fmscraft.fragment.FragmentTriggers;
 import net.ragnar.fmscraft.item.ModItemGroups;
 import net.ragnar.fmscraft.item.ModItems;
 
@@ -19,6 +20,7 @@ public class FmsCraft implements ModInitializer {
 	public void onInitialize() {
 		ModItems.initialize();
 		ModItemGroups.initialize();
+		FragmentTriggers.register();
 
 		LOGGER.info("FMSCraft loaded");
 	}

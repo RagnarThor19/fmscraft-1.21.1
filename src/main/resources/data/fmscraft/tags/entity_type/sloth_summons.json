@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    { "id": "ragnarsmagicmod:steve", "required": false },
+    { "id": "ragnarsmagicmod:knight", "required": false },
+    { "id": "ragnarsmagicmod:clone", "required": false }
+  ]
+}

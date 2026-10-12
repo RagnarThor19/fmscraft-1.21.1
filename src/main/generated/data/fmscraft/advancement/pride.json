@@ -1,0 +1,33 @@
+{
+  "parent": "fmscraft:root",
+  "criteria": {
+    "has_fragment": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fmscraft:pride_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.fmscraft.pride.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fmscraft:pride_fragment"
+    },
+    "title": {
+      "translate": "advancements.fmscraft.pride.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_fragment"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

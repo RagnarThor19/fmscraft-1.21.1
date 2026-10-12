@@ -1,0 +1,118 @@
+# FMSCraft — The Seven Deadly Sins
+
+Seven friends, seven sins, seven boss fights. The game is finished when all seven sins are defeated
+and their souls are placed in the True Ending structure.
+
+## Golden rule: it should feel like vanilla Minecraft
+
+Everything added to this mod (items, blocks, structures, bosses, arenas, sounds, UI) should feel like it could be
+part of vanilla Minecraft:
+- **Textures**: 16x16 pixel art, vanilla color palette and shading style. Keys look like trial keys, souls look
+  like something next to the nether star or echo shard.
+- **Models**: blocky, made of cubes like vanilla mobs. No smooth or high-poly shapes.
+- **Structures**: built from vanilla blocks (plus the twilight mod's blocks where it fits), styled like ancient
+  cities, bastions, trial chambers.
+- **Mechanics**: reuse vanilla systems: advancements, loot tables, boss bars, structure generation, vanilla-style
+  particles and sounds. Names in plain vanilla style ("Wrath Key", "Soul of Greed").
+- **Bosses**: like the Wither, Ender Dragon and Warden: telegraphed attacks, readable patterns, fair to learn.
+  Custom music is the one intentional step beyond vanilla, and it should still sit well next to C418 / Lena Raine.
+
+## Core loop
+
+1. Do the sin's challenge to get **fragments** (5 needed per key).
+2. Put 5 fragments in a **plus shape** in a crafting table to get a **key** (e.g. Wrath Key).
+3. Find that sin's **portal structure** and use the key on it. Each key opens the portal **once**.
+4. The portal leads to that sin's **boss arena dimension**.
+5. Beat the boss with **nobody dying** to get XP and the **Soul of <Sin>**.
+6. Place all 7 souls in the overworld **True Ending** structure → music + credits + "True Ending" advancement for everyone.
+
+## The sins
+
+| Sin | Boss (friend) | How to get fragments | Fragments per success | Portal structure dimension | Status |
+|---|---|---|---|---|---|
+| Greed | Ragnar Thor | 10% chance in each ancient city chest | 1 | Twilight (`ragnarstwilightdimension:twilight`) | Done |
+| Wrath | Aron Eggert | Kill 3 wardens within **4 minutes** (any players). A red boss bar counts down for everyone online; the 3rd warden drops the fragment | 1 | Nether | Done |
+| Pride | Leo Gunnlaugsson | Put full netherite armor on an armor stand. The armor crumbles into 5 fragments (so one set can't be reused forever) | 5 | Overworld | Done |
+| Gluttony | Larus Armann | Eat an enchanted golden apple | 1 | Nether | Done |
+| Envy | Gudmundur Sigurdsson | Rare chest loot: end city 5%, bastion treasure 8%, other bastion chests 3%, woodland mansion 8% | 1 | Overworld | Done |
+| Lust | Karl Phillip | The same player breeds all 25 "Two by Two" animals (tag `fmscraft:lust_breedables`). Progress shows in the action bar and resets after the reward, so it can be repeated | 5 | Twilight | Done |
+| Sloth | Patrik Atanaia | A tamed wolf (or tome summon from Ragnars Magic Mod) kills a mob: 5% chance | 1 | End | Done |
+
+Tuning knobs: chances in `fragment/LootFragments.java`, `SlothTrigger.CHANCE`, `WrathTracker.WINDOW_TICKS`.
+
+Open questions:
+- Wrath: the timer currently shows for everyone online. Change to nearby players only?
+
+## Advancements
+
+- One per sin, titled just the sin name ("Greed"), granted the first time you hold that sin's fragment. Done (data-driven, `inventory_changed`).
+- "True Ending", granted from code when all 7 souls are placed. Advancement exists; the trigger is TODO.
+
+## Boss fight rules
+
+- Everyone who enters the portal is in the fight.
+- **If any player dies**: everyone is kicked out, the portal closes, and each dead player's loot is put in a chest near the overworld portal.
+- Boss fully resets each attempt (needs a new key).
+- On a win: XP + Soul of <Sin>; the world records the sin as defeated (`FmsWorldState`).
+- Defeated bosses can be fought again with another key.
+
+## Boss template
+
+Every boss extends `boss/SinBossEntity`:
+- Boss bar named after the friend.
+- **Phase 2 at half health** (`onPhaseTwo`) — switch songs and behaviour here.
+- **Beat clock**: each phase has a `BossSong(soundId, bpm, firstBeatTick)`; `onBeat(phase, beat)` fires on each beat so attacks can land on the music.
+
+Per boss, fill in:
+
+```
+Boss: <friend> — Sin of <sin>
+Song (phase 1): <file>, BPM <n>, first beat at <seconds>
+Song (phase 2): <file or same>, BPM <n>
+Arena: <description>
+Phase 1 attacks: <attack> on every <n> beats / at beat <n> ...
+Phase 2 attacks: ...
+Health / armor:
+Special mechanics:
+```
+
+## Structures
+
+- 7 portal structures, each different, in the dimensions listed above.
+- 1 overworld True Ending structure with 7 end-gateway-like soul pedestals.
+- Build them in-game, save with structure blocks, and generate them via worldgen jsons (`data/fmscraft/worldgen/structure/...`).
+
+## Compatibility with the other two mods
+
+- **Ragnars Twilight Dimension** (`ragnarstwilightdimension`): Greed and Lust portals generate in `ragnarstwilightdimension:twilight`. Referenced by id only.
+- **Ragnars Magic Mod** (`ragnarsmagicmod`): its summons count as pets for Sloth via the entity tag `data/fmscraft/tags/entity_type/sloth_summons.json` (currently `steve`, `knight`, `clone`; entries are `required: false` so nothing breaks if the mod is missing).
+- Neither mod is a hard dependency (`recommends` in `fabric.mod.json`), but the server is meant to run all three.
+
+## Implementation roadmap
+
+**Phase 1: Fragments and keys (short)**
+1. Settle the open questions above.
+2. Item textures for fragments, keys and souls.
+3. The six remaining fragment triggers, one sin at a time, each tested in-game.
+
+**Phase 2: The boss fight framework (built once, used by all 7)**
+4. Portal block: right-click with the matching key to consume it and open the portal once.
+5. Boss arena dimensions, one per sin (a void dimension with a saved arena structure).
+6. Fight manager: who's in the fight, any death kicks everyone out and closes the portal, dead players' loot goes
+   into a chest near the overworld portal, a win drops XP and the soul and marks the sin defeated, arena resets.
+7. Music system: play, stop and switch a boss's song from the server, plus the beat clock (already in `SinBossEntity`).
+8. A throwaway **test boss** that uses all of the above, so the framework is proven before real bosses.
+
+**Phase 3: Boss fights (the long part)**, one boss at a time. For each one:
+9. Design it together: song(s), BPM, arena, phases, attacks on the beat.
+10. Model and textures (blocky, vanilla style), animations.
+11. Attacks and AI, then tuning in playtests with friends.
+
+Suggested order: start with the simplest idea to learn the workflow, save the most ambitious for last.
+
+**Phase 4: Structures**
+12. Seven portal structures plus worldgen in their dimensions (can be built in-game in parallel with phase 3).
+13. True Ending structure, soul pedestals, credits and music, "True Ending" advancement.
+
+**Phase 5: Release**
+14. Full playthrough on a test server with all three mods, balancing, then the real server.

@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_envy_fragment": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fmscraft:envy_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "fmscraft:envy_key"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_envy_fragment"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "fmscraft:envy_key"
+    ]
+  }
+}

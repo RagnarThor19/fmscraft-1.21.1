@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_lust_fragment": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fmscraft:lust_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "fmscraft:lust_key"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_lust_fragment"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "fmscraft:lust_key"
+    ]
+  }
+}

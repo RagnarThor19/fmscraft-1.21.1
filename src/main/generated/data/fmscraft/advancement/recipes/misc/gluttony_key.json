@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_gluttony_fragment": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fmscraft:gluttony_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "fmscraft:gluttony_key"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_gluttony_fragment"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "fmscraft:gluttony_key"
+    ]
+  }
+}

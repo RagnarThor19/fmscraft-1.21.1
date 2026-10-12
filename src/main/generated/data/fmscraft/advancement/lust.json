@@ -1,0 +1,33 @@
+{
+  "parent": "fmscraft:root",
+  "criteria": {
+    "has_fragment": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fmscraft:lust_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.fmscraft.lust.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fmscraft:lust_fragment"
+    },
+    "title": {
+      "translate": "advancements.fmscraft.lust.title"
+    }
+  },
+  "requirements": [
+    [
+      "has_fragment"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

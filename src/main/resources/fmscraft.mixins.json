@@ -2,7 +2,11 @@
 	"required": true,
 	"package": "net.ragnar.fmscraft.mixin",
 	"compatibilityLevel": "JAVA_21",
-	"mixins": [],
+	"mixins": [
+		"ArmorStandEntityMixin",
+		"BredAnimalsCriterionMixin",
+		"PlayerEntityMixin"
+	],
 	"client": [],
 	"injectors": {
 		"defaultRequire": 1

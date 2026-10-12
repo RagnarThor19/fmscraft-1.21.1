@@ -1,0 +1,28 @@
+{
+  "parent": "fmscraft:root",
+  "criteria": {
+    "placed_all_souls": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.fmscraft.true_ending.description"
+    },
+    "frame": "challenge",
+    "hidden": true,
+    "icon": {
+      "count": 1,
+      "id": "fmscraft:soul_of_pride"
+    },
+    "title": {
+      "translate": "advancements.fmscraft.true_ending.title"
+    }
+  },
+  "requirements": [
+    [
+      "placed_all_souls"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

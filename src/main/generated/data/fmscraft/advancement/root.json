@@ -1,0 +1,101 @@
+{
+  "criteria": {
+    "envy": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fmscraft:envy_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "gluttony": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fmscraft:gluttony_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "greed": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fmscraft:greed_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "lust": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fmscraft:lust_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "pride": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fmscraft:pride_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "sloth": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fmscraft:sloth_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "wrath": {
+      "conditions": {
+        "items": [
+          {
+            "items": "fmscraft:wrath_fragment"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "display": {
+    "announce_to_chat": false,
+    "background": "minecraft:textures/gui/advancements/backgrounds/nether.png",
+    "description": {
+      "translate": "advancements.fmscraft.root.description"
+    },
+    "icon": {
+      "count": 1,
+      "id": "fmscraft:wrath_key"
+    },
+    "show_toast": false,
+    "title": {
+      "translate": "advancements.fmscraft.root.title"
+    }
+  },
+  "requirements": [
+    [
+      "greed",
+      "wrath",
+      "pride",
+      "gluttony",
+      "envy",
+      "lust",
+      "sloth"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

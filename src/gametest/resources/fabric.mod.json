@@ -1,0 +1,16 @@
+{
+	"schemaVersion": 1,
+	"id": "fmscraft-gametest",
+	"version": "1.0.0",
+	"name": "FMSCraft Game Tests",
+	"environment": "*",
+	"entrypoints": {
+		"fabric-gametest": [
+			"net.ragnar.fmscraft.gametest.FragmentGameTests"
+		]
+	},
+	"depends": {
+		"fmscraft": "*",
+		"fabric-gametest-api-v1": "*"
+	}
+}
