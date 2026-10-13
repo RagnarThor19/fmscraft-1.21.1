@@ -36,7 +36,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * The statue of Envy that patrols the Envy maze. It has no animation and never stops: it slides exactly 5 blocks
+ * The statue of Envy that patrols the Envy maze. It stands still until a player comes within
+ * {@link EnvyMazes#WAKE_DISTANCE} blocks of its maze. Then it has no animation and never stops: it slides exactly 5 blocks
  * (one maze unit) at a time along the middle of the walkway, and at a junction, turn or dead end it slowly grinds
  * round to face its new direction. Anything it touches takes heavy damage and is thrown aside.
  *
@@ -58,6 +59,7 @@ public class EnvyStatueEntity extends Entity {
     public static final int STATE_SLIDING = 1;
     public static final int STATE_TURNING = 2;
     private static final TrackedData<Integer> STATE = DataTracker.registerData(EnvyStatueEntity.class, TrackedDataHandlerRegistry.INTEGER);
+    private static final TrackedData<Boolean> AWAKE = DataTracker.registerData(EnvyStatueEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
 
     /** Set by the client entrypoint: grinding sound and dust. Kept as a hook so this class never touches client code. */
     public static Consumer<EnvyStatueEntity> clientTick = statue -> { };
@@ -109,10 +111,16 @@ public class EnvyStatueEntity extends Entity {
     @Override
     protected void initDataTracker(DataTracker.Builder builder) {
         builder.add(STATE, 0);
+        builder.add(AWAKE, true);
     }
 
     public int getState() {
         return dataTracker.get(STATE);
+    }
+
+    /** False while no player is near its maze: it waits where it is, silent. Statues placed by hand are always awake. */
+    public boolean isAwake() {
+        return dataTracker.get(AWAKE);
     }
 
     // ---- Ticking ----
@@ -159,6 +167,11 @@ public class EnvyStatueEntity extends Entity {
                 discard();
                 return;
             }
+        }
+
+        if (mazeOrigin != null && getWorld() instanceof ServerWorld world) {
+            dataTracker.set(AWAKE, EnvyMazes.playerNear(world, mazeOrigin));
+            if (!isAwake()) return;
         }
 
         if (getState() == STATE_SLIDING) {

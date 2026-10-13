@@ -1,0 +1,7 @@
+{
+  "type": "fmscraft:tower_of_pride",
+  "biomes": "#fmscraft:has_structure/tower_of_pride",
+  "step": "surface_structures",
+  "spawn_overrides": {},
+  "terrain_adaptation": "none"
+}

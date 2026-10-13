@@ -40,7 +40,7 @@ public final class EnvyMazeLayout {
     public final int doorDir;
     /** Chests: dead-end cells, dir points at the wall the chest stands against. */
     public final List<Spot> chests = new ArrayList<>();
-    /** Statue starting cells, dir is an open direction to start sliding in. */
+    /** Statue starting cells, one in each corner; dir is an open direction to start sliding in. */
     public final List<Spot> statues = new ArrayList<>();
 
     private EnvyMazeLayout(Random random) {
@@ -58,7 +58,7 @@ public final class EnvyMazeLayout {
         }
 
         placeChests(random);
-        placeStatues(random);
+        placeStatues();
     }
 
     public static EnvyMazeLayout generate(long seed) {
@@ -156,25 +156,17 @@ public final class EnvyMazeLayout {
         chests.addAll(deadEnds.subList(0, Math.min(MAX_CHESTS, deadEnds.size())));
     }
 
-    private void placeStatues(Random random) {
-        List<Spot> options = new ArrayList<>();
-        for (int x = 1; x < N - 1; x += 2) {
-            for (int z = 1; z < N - 1; z += 2) {
-                if (!isPath(x, z) || Math.abs(x - CENTER) + Math.abs(z - CENTER) < 10) continue;
-                for (int d = 0; d < 4; d++) {
-                    if (isPath(x + DIRS[d][0], z + DIRS[d][1])) {
-                        options.add(new Spot(x, z, d));
-                        break;
-                    }
+    /** One statue per corner of the maze, as far from each other as they can start. */
+    private void placeStatues() {
+        int far = N - 2;
+        for (int[] corner : new int[][]{{1, 1}, {far, far}, {far, 1}, {1, far}}) {
+            if (!isPath(corner[0], corner[1])) continue;
+            for (int d = 0; d < 4; d++) {
+                if (isPath(corner[0] + DIRS[d][0], corner[1] + DIRS[d][1])) {
+                    statues.add(new Spot(corner[0], corner[1], d));
+                    break;
                 }
             }
-        }
-        Collections.shuffle(options, random);
-        for (Spot spot : options) {
-            if (statues.size() >= STATUES) break;
-            // Keep them spread out
-            boolean tooClose = statues.stream().anyMatch(s -> Math.abs(s.x() - spot.x()) + Math.abs(s.z() - spot.z()) < 12);
-            if (!tooClose) statues.add(spot);
         }
     }
 }

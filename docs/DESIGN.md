@@ -104,14 +104,20 @@ Special mechanics:
 
 ## Structures
 
-- 7 portal structures, each different, in the dimensions listed above. Each one's lock consumes the key and
-  calls `BossFights.open(...)`.
+- 7 portal structures, each different, in the dimensions listed above.
+- **Every structure uses the same lock, the Sin Portal Frame** (`block/SinPortalFrameBlock`, textures from
+  `tools/textures/frame_textures.py`). It's built on the vanilla end portal frame: same end stone body and height,
+  but a keyhole socket instead of the eye socket, an obsidian-dark band instead of the teal one, and trim tinted in
+  its sin's color (`sin` block state). Use that sin's key on it: the key is used up, slots in and stands upright out
+  of the keyhole (the key's own item texture), and a 3x3 portal fills the frame 4 blocks behind the lock
+  (`BossFights.open(...)`). Other keys don't fit. When the fight ends the key crumbles away.
+  Place one with `SinPortalFrameBlock.of(sin, facing)`, facing the way players stand to use it.
 - 1 overworld True Ending structure with 7 end-gateway-like soul pedestals.
 
 ### Envy: the buried maze (built)
 
-`structure/envy/` + `entity/EnvyStatueEntity` + `block/EnviousEyeBlock`. Map of one maze: `docs/envy-maze-example.png`
-(gold = chests, red = statue starts, teal = safe room, yellow = tunnel, green = the Envious Eye).
+`structure/envy/` + `entity/EnvyStatueEntity`. Map of one maze: `docs/envy-maze-example.png`
+(gold = chests, red = statue starts, teal = safe room, yellow = tunnel, green = the lock).
 
 - **Where:** overworld only, fully buried (floor at y = -40, no entrance: dig in). Caves are carved before
   structures, and the maze is generated after mineshafts, trial chambers, strongholds and ores, replacing every block
@@ -126,21 +132,21 @@ Special mechanics:
 - **Loot:** up to 10 chests in dead ends (`loot_table/chests/envy_maze.json`): emeralds, gold, diamonds,
   golden apples, enchanted books, XP, a rare god apple, and a 15% Envy Fragment.
 - **Safe room:** 3x3 units in the middle, double-walled, reached only through a 1-wide, 2-high, 10-block tunnel
-  the statue can't fit through. The **Envious Eye** sits in the middle facing the tunnel: use the Envy Key on it,
-  its carved eye opens and glows, and a 3x3 portal fills the green oxidized copper frame 4 blocks behind it
-  (the frame stands empty until then). The eye closes again when the fight ends.
+  the statue can't fit through. The Envy **Sin Portal Frame** sits in the middle facing the tunnel: use the Envy Key
+  on it and a 3x3 portal fills the green oxidized copper frame 4 blocks behind it (the frame stands empty until then).
   - A double chest against one side wall: average loot (`chests/envy_safe_room_plain`) plus, in one half,
     a 10% Advanced and a 2% Master tome (`chests/envy_safe_room`).
   - A barrel in each corner, sometimes with a second stacked on one (4-5 total): junk loot with a 3% Beginner
     and 1% Advanced tome each (`chests/envy_barrel`).
   - Tomes come from the `fmscraft:random_tome` loot function (`"tier": "beginner" | "advanced" | "master"`),
     which picks a random Ragnars Magic Mod tome of that tier.
-- **The Statue of Envy** (always exactly 4 per maze, kept up by `structure/envy/EnvyMazes.java`: when a player is in
-  or above a maze that has fewer, new ones appear on corridors at least 24 blocks from any player; extras from old
-  saves crumble when they load), after Giotto's *Invidia* (Scrovegni Chapel, c. 1306): huge ears, a serpent
+- **The Statue of Envy** (always exactly 4 per maze, kept up by `structure/envy/EnvyMazes.java`: when a player comes
+  within 50 blocks (measured flat) of a maze that has fewer, new ones appear in its four corners, one per corner, at
+  least 24 blocks from any player; extras from old saves crumble when they load), after Giotto's *Invidia* (Scrovegni Chapel, c. 1306): huge ears, a serpent
   from her mouth biting back at her own glowing green eyes, a purse clutched in one hand, the other clawing
   upward, green copper flames at her feet, all carved in mossy stone on a plinth.
-  - No animation, never stops. Slides exactly 5 blocks (one unit) in 12 ticks (0.6 s), always down the middle of
+  - Stands still and silent until a player is within 50 blocks (flat) of its maze, then starts roaming.
+  - No animation, never stops while awake. Slides exactly 5 blocks (one unit) in 12 ticks (0.6 s), always down the middle of
     the walkway and always facing squarely along it, with a deep grinding rumble and stone dust. At junctions it picks a way at random (55% straight on);
     at turns and dead ends it grinds slowly round (1.5 s per quarter turn) and carries on.
   - Touching it deals 20 damage (10 hearts) and throws you aside. It can't be hurt, burned, blown up or pushed.
@@ -148,6 +154,30 @@ Special mechanics:
     leave the maze or pass through a wall, even one that has been dug out. Any gap with 3+ solid blocks also stops
     it; a block or two that players put in its way is smashed. Statues from before this rule find their maze on
     load and, if they've strayed, are put back on the nearest corridor.
+
+### Pride: the Tower of Pride (built)
+
+`structure/pride/`. After Bruegel's *Tower of Babel* and the spiral minaret of Samarra.
+- **Where:** overworld, very rare: one chance per 300x300 chunks (~4800 blocks apart, `worldgen/structure_set/tower_of_pride.json`),
+  and only where the ground is dry and level (within 20 blocks) in plains, sunflower plains, meadow, savanna,
+  desert, badlands, snowy plains, forest, birch forest or taiga (`tags/worldgen/biome/has_structure/tower_of_pride.json`),
+  so in practice further apart than that. Kept 8 chunks from villages. `/locate structure fmscraft:tower_of_pride`.
+- **Shape** (`PrideTowerShape`, pure logic, unit tested): a cone 97 blocks across at the foot, 210 blocks tall
+  (less if the ground is high, never under 150), with one ramp winding 5 times round the outside up to a round summit.
+  Each turn steps in 6 blocks (5 to walk + a battlemented parapet). The ramp climbs in half-block steps (slabs),
+  so you never have to jump, and every open edge has a parapet.
+- **Look:** the walls between turns are arcades: storeys of round-topped arches with dark recesses, a ledge between
+  storeys, and keystones. The stone gets prouder as you climb: mossy, cracked stone bricks with vines at the foot,
+  then sandstone with terracotta recesses, then white quartz with blackstone recesses, blended in clumps. Lanterns
+  stand on the parapet. The foot sits on a paved, levelled plaza that blends back into the land.
+- **Summit:** a ring of quartz columns carrying a lintel; every other column rises into a point of the crown, capped
+  with gold and an end rod. The Pride **Sin Portal Frame** stands in the middle, facing south, with a gold-cornered
+  quartz frame 4 blocks behind it: use the Pride Key on it and a 3x3 portal fills the frame.
+- **Loot:** a chest halfway round every turn of the ramp, backed against the parapet (`chests/tower_of_pride`: gold,
+  golden carrots, diamonds, enchanted books, golden horse armor..., plus a 5% Beginner and a 5% Advanced tome) and two by the lock (`chests/tower_of_pride_summit`: gold blocks,
+  diamonds, god apple, level-30 books, netherite scrap, Pigstep, and the same 10% Advanced / 2% Master tome
+  chance as the Envy safe room).
+- Not built yet: the mirror hazard (reflections of you that only move when you aren't looking).
 
 ## Compatibility with the other two mods
 

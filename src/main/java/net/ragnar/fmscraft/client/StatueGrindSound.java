@@ -44,7 +44,7 @@ public class StatueGrindSound extends MovingSoundInstance {
         x = statue.getX();
         y = statue.getY() + 1;
         z = statue.getZ();
-        int state = statue.getState();
+        int state = statue.isAwake() ? statue.getState() : 0;
         float target = state == EnvyStatueEntity.STATE_SLIDING ? 1.4f : state == EnvyStatueEntity.STATE_TURNING ? 0.9f : 0f;
         volume += (target - volume) * 0.2f;
         pitch = state == EnvyStatueEntity.STATE_TURNING ? 0.3f : 0.42f;

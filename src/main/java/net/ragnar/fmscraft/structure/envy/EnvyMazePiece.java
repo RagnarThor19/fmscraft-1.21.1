@@ -26,9 +26,9 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
 import net.ragnar.fmscraft.FmsCraft;
-import net.ragnar.fmscraft.block.EnviousEyeBlock;
-import net.ragnar.fmscraft.block.ModBlocks;
+import net.ragnar.fmscraft.block.SinPortalFrameBlock;
 import net.ragnar.fmscraft.fight.BossFights;
+import net.ragnar.fmscraft.sin.Sin;
 import net.ragnar.fmscraft.structure.ModStructures;
 import net.ragnar.fmscraft.structure.envy.EnvyMazeLayout.Kind;
 
@@ -125,9 +125,9 @@ public class EnvyMazePiece extends StructurePiece {
             }
         }
 
-        BlockPos eye = unitCenter(EnvyMazeLayout.CENTER, EnvyMazeLayout.CENTER);
-        if (chunkBox.contains(eye)) {
-            world.setBlockState(eye, ModBlocks.ENVIOUS_EYE.getDefaultState().with(EnviousEyeBlock.FACING, direction(maze.doorDir)), Block.NOTIFY_LISTENERS);
+        BlockPos lock = unitCenter(EnvyMazeLayout.CENTER, EnvyMazeLayout.CENTER);
+        if (chunkBox.contains(lock)) {
+            world.setBlockState(lock, SinPortalFrameBlock.of(Sin.ENVY, direction(maze.doorDir)), Block.NOTIFY_LISTENERS);
         }
         furnishSafeRoom(world, chunkBox, random, maze);
 
@@ -135,16 +135,16 @@ public class EnvyMazePiece extends StructurePiece {
 
     /**
      * The safe room: a double chest against one side wall, barrels in the corners, and the copper portal frame.
-     * Positions are in the room's own frame: "forward" points at the tunnel, the Eye is at 0,0, the portal opens
+     * Positions are in the room's own frame: "forward" points at the tunnel, the lock is at 0,0, the portal opens
      * at forward -4, and the room spans -7..7 both ways.
      */
     private void furnishSafeRoom(StructureWorldAccess world, BlockBox chunkBox, Random random, EnvyMazeLayout maze) {
-        BlockPos eye = unitCenter(EnvyMazeLayout.CENTER, EnvyMazeLayout.CENTER);
+        BlockPos lock = unitCenter(EnvyMazeLayout.CENTER, EnvyMazeLayout.CENTER);
         Direction forward = direction(maze.doorDir);
         Direction right = forward.rotateYClockwise();
 
         Direction chestFacing = right.getOpposite();
-        BlockPos left = eye.offset(right, 7);
+        BlockPos left = lock.offset(right, 7);
         BlockPos rightHalf = left.offset(chestFacing.rotateYClockwise());
         BlockState chest = Blocks.CHEST.getDefaultState().with(ChestBlock.FACING, chestFacing);
         placeContainer(world, chunkBox, random, left, chest.with(ChestBlock.CHEST_TYPE, ChestType.LEFT), SAFE_ROOM_LOOT);
@@ -152,20 +152,20 @@ public class EnvyMazePiece extends StructurePiece {
 
         // A barrel in each corner, and now and then a second one stacked on top: 4 or 5 in all
         BlockState barrel = Blocks.BARREL.getDefaultState().with(BarrelBlock.FACING, Direction.UP);
-        int stacked = noise(eye.getX(), 0, eye.getZ(), 8) < 0.6 ? (int) (noise(eye.getX(), 1, eye.getZ(), 9) * 4) : -1;
+        int stacked = noise(lock.getX(), 0, lock.getZ(), 8) < 0.6 ? (int) (noise(lock.getX(), 1, lock.getZ(), 9) * 4) : -1;
         int corner = 0;
         for (int f = -7; f <= 7; f += 14) {
             for (int r = -7; r <= 7; r += 14) {
-                BlockPos at = eye.offset(forward, f).offset(right, r);
+                BlockPos at = lock.offset(forward, f).offset(right, r);
                 placeContainer(world, chunkBox, random, at, barrel, BARREL_LOOT);
                 if (corner++ == stacked) placeContainer(world, chunkBox, random, at.up(), barrel, BARREL_LOOT);
             }
         }
 
-        // The portal frame: 5x5 of green copper behind the Eye; the 3x3 inside fills with the portal when the key is used
+        // The portal frame: 5x5 of green copper behind the lock; the 3x3 inside fills with the portal when the key is used
         Direction.Axis axis = forward.rotateYClockwise().getAxis();
         Direction lateral = BossFights.along(axis);
-        BlockPos frameCenter = eye.offset(forward.getOpposite(), EnviousEyeBlock.PORTAL_DISTANCE).down();
+        BlockPos frameCenter = lock.offset(forward.getOpposite(), SinPortalFrameBlock.PORTAL_DISTANCE).down();
         for (int l = -2; l <= 2; l++) {
             for (int h = 0; h <= 4; h++) {
                 boolean edge = Math.abs(l) == 2 || h == 0 || h == 4;

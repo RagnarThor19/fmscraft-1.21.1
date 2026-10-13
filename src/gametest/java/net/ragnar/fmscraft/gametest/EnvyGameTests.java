@@ -26,7 +26,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
-import net.ragnar.fmscraft.block.EnviousEyeBlock;
+import net.ragnar.fmscraft.block.SinPortalFrameBlock;
 import net.ragnar.fmscraft.block.ModBlocks;
 import net.ragnar.fmscraft.entity.EnvyStatueEntity;
 import net.ragnar.fmscraft.entity.ModEntities;
@@ -142,8 +142,8 @@ public class EnvyGameTests implements FabricGameTest {
 
     // ---- The lock ----
 
-    private static BlockState eyeAt(TestContext ctx, BlockPos pos) {
-        ctx.setBlockState(pos, ModBlocks.ENVIOUS_EYE.getDefaultState().with(EnviousEyeBlock.FACING, Direction.SOUTH));
+    private static BlockState frameAt(TestContext ctx, BlockPos pos, Sin sin) {
+        ctx.setBlockState(pos, SinPortalFrameBlock.of(sin, Direction.SOUTH));
         return ctx.getWorld().getBlockState(ctx.getAbsolutePos(pos));
     }
 
@@ -155,25 +155,26 @@ public class EnvyGameTests implements FabricGameTest {
     }
 
     @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 100)
-    public void envyKeyOpensThePortalBehindTheEye(TestContext ctx) {
-        BlockPos eye = new BlockPos(3, 1, 6);
-        eyeAt(ctx, eye);
+    public void sinKeyOpensThePortalBehindItsFrame(TestContext ctx) {
+        BlockPos lock = new BlockPos(3, 1, 6);
+        frameAt(ctx, lock, Sin.ENVY);
         ServerPlayerEntity player = ctx.createMockCreativeServerPlayerInWorld();
 
-        useKey(ctx, player, eye, Sin.GREED);
+        useKey(ctx, player, lock, Sin.GREED);
         ctx.assertTrue(BossFights.session(Sin.ENVY) == null, "the Greed key must not open the Envy portal");
+        ctx.assertFalse(ctx.getWorld().getBlockState(ctx.getAbsolutePos(lock)).get(SinPortalFrameBlock.KEY), "a wrong key doesn't go in");
 
-        useKey(ctx, player, eye, Sin.ENVY);
+        useKey(ctx, player, lock, Sin.ENVY);
         ctx.assertTrue(BossFights.session(Sin.ENVY) != null, "the Envy key should open the fight");
-        BlockPos portalCenter = eye.north(EnviousEyeBlock.PORTAL_DISTANCE);
+        BlockPos portalCenter = lock.north(SinPortalFrameBlock.PORTAL_DISTANCE);
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = 0; dy <= 2; dy++) ctx.expectBlock(ModBlocks.SIN_PORTAL, portalCenter.east(dx).up(dy));
         }
-        ctx.assertTrue(ctx.getWorld().getBlockState(ctx.getAbsolutePos(eye)).get(EnviousEyeBlock.LIT), "the eye should open");
+        ctx.assertTrue(ctx.getWorld().getBlockState(ctx.getAbsolutePos(lock)).get(SinPortalFrameBlock.KEY), "the key should stand in the lock");
 
         BossFights.forceEnd(ctx.getWorld().getServer(), Sin.ENVY);
         ctx.runAtTick(30, () -> {
-            ctx.assertFalse(ctx.getWorld().getBlockState(ctx.getAbsolutePos(eye)).get(EnviousEyeBlock.LIT), "the eye closes after the fight");
+            ctx.assertFalse(ctx.getWorld().getBlockState(ctx.getAbsolutePos(lock)).get(SinPortalFrameBlock.KEY), "the key crumbles away after the fight");
             ctx.complete();
         });
     }
@@ -224,8 +225,10 @@ public class EnvyGameTests implements FabricGameTest {
         EnvyMazeLayout layout = piece.layout();
 
         int c = EnvyMazeLayout.CENTER * EnvyMazePiece.UNIT + 2;
-        BlockPos eye = new BlockPos(origin + c, EnvyMazePiece.FLOOR_Y + 1, origin + c);
-        ctx.assertTrue(world.getBlockState(eye).isOf(ModBlocks.ENVIOUS_EYE), "Envious Eye should be in the middle of the safe room");
+        BlockPos lock = new BlockPos(origin + c, EnvyMazePiece.FLOOR_Y + 1, origin + c);
+        BlockState lockState = world.getBlockState(lock);
+        ctx.assertTrue(lockState.isOf(ModBlocks.SIN_PORTAL_FRAME) && lockState.get(SinPortalFrameBlock.SIN) == Sin.ENVY,
+                "the Envy lock should be in the middle of the safe room, got " + lockState);
 
         // Sealed above and below
         for (int y : new int[]{EnvyMazePiece.FLOOR_Y - 1, EnvyMazePiece.FLOOR_Y - 2,
@@ -233,10 +236,10 @@ public class EnvyGameTests implements FabricGameTest {
             ctx.assertTrue(world.getBlockState(new BlockPos(origin + 12, y, origin + 12)).isOf(Blocks.DEEPSLATE_TILES), "shell at y " + y);
         }
 
-        // The copper frame around an empty 3x3 behind the Eye
+        // The copper frame around an empty 3x3 behind the lock
         Direction facing = EnvyMazePiece.direction(layout.doorDir);
         Direction lateral = BossFights.along(facing.rotateYClockwise().getAxis());
-        BlockPos frame = eye.offset(facing.getOpposite(), EnviousEyeBlock.PORTAL_DISTANCE).down();
+        BlockPos frame = lock.offset(facing.getOpposite(), SinPortalFrameBlock.PORTAL_DISTANCE).down();
         for (int l = -2; l <= 2; l += 4) {
             ctx.assertTrue(world.getBlockState(frame.offset(lateral, l)).isOf(Blocks.OXIDIZED_CHISELED_COPPER), "frame corner");
             ctx.assertTrue(world.getBlockState(frame.offset(lateral, l).up(4)).isOf(Blocks.OXIDIZED_CHISELED_COPPER), "frame corner");
@@ -247,7 +250,7 @@ public class EnvyGameTests implements FabricGameTest {
         }
 
         int barrels = 0, doubleChestHalves = 0;
-        for (BlockPos pos : BlockPos.iterate(eye.add(-7, 0, -7), eye.add(7, 3, 7))) {
+        for (BlockPos pos : BlockPos.iterate(lock.add(-7, 0, -7), lock.add(7, 3, 7))) {
             BlockState state = world.getBlockState(pos);
             if (state.isOf(Blocks.BARREL)) barrels++;
             if (state.isOf(Blocks.CHEST) && state.get(ChestBlock.CHEST_TYPE) != ChestType.SINGLE) doubleChestHalves++;
@@ -276,10 +279,16 @@ public class EnvyGameTests implements FabricGameTest {
         EnvyMazes.ensureStatues(world, piece.origin(), seed);
         var statues = world.getEntitiesByClass(EnvyStatueEntity.class, maze, e -> true);
         ctx.assertEquals(statues.size(), EnvyMazes.STATUES, "statues after the first visit");
+        java.util.Set<BlockPos> corners = new java.util.HashSet<>();
+        for (EnvyMazeLayout.Spot spot : piece.layout().statues) corners.add(piece.unitCenter(spot.x(), spot.z()));
+        java.util.Set<BlockPos> used = new java.util.HashSet<>();
         for (EnvyStatueEntity statue : statues) {
             BlockPos at = statue.getBlockPos();
             for (int h = 0; h <= 3; h++) ctx.assertTrue(world.getBlockState(at.up(h)).isAir(), "statue should start in a clear walkway");
+            ctx.assertTrue(corners.contains(at), "statue should start in a corner, at " + at);
+            used.add(at);
         }
+        ctx.assertEquals(used.size(), EnvyMazes.STATUES, "one statue per corner");
 
         // Dig a wall next to a statue right out (as a mineshaft or a player might): it still won't go that way
         EnvyStatueEntity statue = statues.get(0);
@@ -301,7 +310,7 @@ public class EnvyGameTests implements FabricGameTest {
 
         // A fifth one turning up (say, from an old save) crumbles away when it checks in
         EnvyStatueEntity extra = ModEntities.ENVY_STATUE.create(world);
-        extra.place(piece.unitCenter(1, 1), Direction.SOUTH, piece.origin(), seed);
+        extra.place(piece.unitCenter(3, 1), Direction.SOUTH, piece.origin(), seed);
         world.spawnEntity(extra);
         ctx.runAtTick(5, () -> {
             ctx.assertTrue(extra.isRemoved() && extra.getRemovalReason() == Entity.RemovalReason.DISCARDED, "a fifth statue should crumble: removed=" + extra.isRemoved() + " reason=" + extra.getRemovalReason() + " age=" + extra.age
@@ -309,6 +318,39 @@ public class EnvyGameTests implements FabricGameTest {
                     + " alive=" + world.getEntitiesByClass(EnvyStatueEntity.class, maze, e -> e.isAlive()).size());
             ctx.assertEquals(world.getEntitiesByClass(EnvyStatueEntity.class, maze, e -> e.isAlive()).size(), EnvyMazes.STATUES, "still four");
             for (EnvyStatueEntity e : world.getEntitiesByClass(EnvyStatueEntity.class, maze, e -> true)) e.discard();
+            forceLoad(world, piece, false);
+            ctx.complete();
+        });
+    }
+
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
+    public void statuesWaitUntilAPlayerComesNear(TestContext ctx) {
+        ServerWorld world = ctx.getWorld();
+        int origin = -16384; // far from the other tests (and their players)
+        long seed = 5L;
+        EnvyMazePiece piece = buildMaze(world, origin, seed);
+        Box maze = new Box(origin, EnvyMazePiece.FLOOR_Y, origin, origin + EnvyMazePiece.SIZE, EnvyMazePiece.FLOOR_Y + EnvyMazePiece.HEIGHT, origin + EnvyMazePiece.SIZE);
+        forceLoad(world, piece, true);
+        EnvyMazes.ensureStatues(world, piece.origin(), seed);
+        var statues = world.getEntitiesByClass(EnvyStatueEntity.class, maze, e -> true);
+        java.util.Map<EnvyStatueEntity, Vec3d> start = new java.util.HashMap<>();
+        for (EnvyStatueEntity statue : statues) start.put(statue, statue.getPos());
+
+        ctx.runAtTick(40, () -> {
+            for (EnvyStatueEntity statue : statues) {
+                ctx.assertFalse(statue.isAwake(), "statue should be asleep with nobody near");
+                ctx.assertTrue(statue.getPos().squaredDistanceTo(start.get(statue)) < 0.01, "statue moved with nobody near");
+            }
+            // A player turns up on the surface, 40 blocks off the maze's west side
+            ServerPlayerEntity player = ctx.createMockCreativeServerPlayerInWorld();
+            player.refreshPositionAndAngles(origin - 40, 70, origin + 60, 0, 0);
+        });
+        ctx.runAtTick(100, () -> {
+            for (EnvyStatueEntity statue : statues) {
+                ctx.assertTrue(statue.isAwake(), "statue should wake with a player within 50 blocks");
+                ctx.assertTrue(statue.getPos().squaredDistanceTo(start.get(statue)) > 1, "statue should have started roaming");
+            }
+            for (EnvyStatueEntity statue : statues) statue.discard();
             forceLoad(world, piece, false);
             ctx.complete();
         });

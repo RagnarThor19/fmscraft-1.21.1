@@ -34,8 +34,8 @@ public class ModItems {
         }
     }
 
-    // Creative-only, for building and testing; in survival it only exists in the Envy maze
-    public static final Item ENVIOUS_EYE = register("envious_eye", new BlockItem(ModBlocks.ENVIOUS_EYE, new Item.Settings().rarity(Rarity.EPIC)));
+    // Creative-only, for building and testing; in survival it only exists in the sin structures
+    public static final Item SIN_PORTAL_FRAME = register("sin_portal_frame", new BlockItem(ModBlocks.SIN_PORTAL_FRAME, new Item.Settings().rarity(Rarity.EPIC)));
 
     private static Item register(String name, Item item) {
         return Registry.register(Registries.ITEM, Identifier.of(FmsCraft.MOD_ID, name), item);

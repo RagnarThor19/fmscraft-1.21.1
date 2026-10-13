@@ -1,0 +1,6 @@
+{
+  "parent": "fmscraft:block/sin_portal_frame_keyed",
+  "textures": {
+    "key": "fmscraft:item/wrath_key"
+  }
+}

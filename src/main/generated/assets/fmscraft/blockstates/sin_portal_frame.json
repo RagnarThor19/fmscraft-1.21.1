@@ -1,0 +1,228 @@
+{
+  "variants": {
+    "facing=east,key=false,sin=envy": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 90
+    },
+    "facing=east,key=false,sin=gluttony": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 90
+    },
+    "facing=east,key=false,sin=greed": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 90
+    },
+    "facing=east,key=false,sin=lust": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 90
+    },
+    "facing=east,key=false,sin=pride": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 90
+    },
+    "facing=east,key=false,sin=sloth": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 90
+    },
+    "facing=east,key=false,sin=wrath": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 90
+    },
+    "facing=east,key=true,sin=envy": {
+      "model": "fmscraft:block/sin_portal_frame_envy",
+      "y": 90
+    },
+    "facing=east,key=true,sin=gluttony": {
+      "model": "fmscraft:block/sin_portal_frame_gluttony",
+      "y": 90
+    },
+    "facing=east,key=true,sin=greed": {
+      "model": "fmscraft:block/sin_portal_frame_greed",
+      "y": 90
+    },
+    "facing=east,key=true,sin=lust": {
+      "model": "fmscraft:block/sin_portal_frame_lust",
+      "y": 90
+    },
+    "facing=east,key=true,sin=pride": {
+      "model": "fmscraft:block/sin_portal_frame_pride",
+      "y": 90
+    },
+    "facing=east,key=true,sin=sloth": {
+      "model": "fmscraft:block/sin_portal_frame_sloth",
+      "y": 90
+    },
+    "facing=east,key=true,sin=wrath": {
+      "model": "fmscraft:block/sin_portal_frame_wrath",
+      "y": 90
+    },
+    "facing=north,key=false,sin=envy": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 0
+    },
+    "facing=north,key=false,sin=gluttony": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 0
+    },
+    "facing=north,key=false,sin=greed": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 0
+    },
+    "facing=north,key=false,sin=lust": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 0
+    },
+    "facing=north,key=false,sin=pride": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 0
+    },
+    "facing=north,key=false,sin=sloth": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 0
+    },
+    "facing=north,key=false,sin=wrath": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 0
+    },
+    "facing=north,key=true,sin=envy": {
+      "model": "fmscraft:block/sin_portal_frame_envy",
+      "y": 0
+    },
+    "facing=north,key=true,sin=gluttony": {
+      "model": "fmscraft:block/sin_portal_frame_gluttony",
+      "y": 0
+    },
+    "facing=north,key=true,sin=greed": {
+      "model": "fmscraft:block/sin_portal_frame_greed",
+      "y": 0
+    },
+    "facing=north,key=true,sin=lust": {
+      "model": "fmscraft:block/sin_portal_frame_lust",
+      "y": 0
+    },
+    "facing=north,key=true,sin=pride": {
+      "model": "fmscraft:block/sin_portal_frame_pride",
+      "y": 0
+    },
+    "facing=north,key=true,sin=sloth": {
+      "model": "fmscraft:block/sin_portal_frame_sloth",
+      "y": 0
+    },
+    "facing=north,key=true,sin=wrath": {
+      "model": "fmscraft:block/sin_portal_frame_wrath",
+      "y": 0
+    },
+    "facing=south,key=false,sin=envy": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 180
+    },
+    "facing=south,key=false,sin=gluttony": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 180
+    },
+    "facing=south,key=false,sin=greed": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 180
+    },
+    "facing=south,key=false,sin=lust": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 180
+    },
+    "facing=south,key=false,sin=pride": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 180
+    },
+    "facing=south,key=false,sin=sloth": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 180
+    },
+    "facing=south,key=false,sin=wrath": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 180
+    },
+    "facing=south,key=true,sin=envy": {
+      "model": "fmscraft:block/sin_portal_frame_envy",
+      "y": 180
+    },
+    "facing=south,key=true,sin=gluttony": {
+      "model": "fmscraft:block/sin_portal_frame_gluttony",
+      "y": 180
+    },
+    "facing=south,key=true,sin=greed": {
+      "model": "fmscraft:block/sin_portal_frame_greed",
+      "y": 180
+    },
+    "facing=south,key=true,sin=lust": {
+      "model": "fmscraft:block/sin_portal_frame_lust",
+      "y": 180
+    },
+    "facing=south,key=true,sin=pride": {
+      "model": "fmscraft:block/sin_portal_frame_pride",
+      "y": 180
+    },
+    "facing=south,key=true,sin=sloth": {
+      "model": "fmscraft:block/sin_portal_frame_sloth",
+      "y": 180
+    },
+    "facing=south,key=true,sin=wrath": {
+      "model": "fmscraft:block/sin_portal_frame_wrath",
+      "y": 180
+    },
+    "facing=west,key=false,sin=envy": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 270
+    },
+    "facing=west,key=false,sin=gluttony": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 270
+    },
+    "facing=west,key=false,sin=greed": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 270
+    },
+    "facing=west,key=false,sin=lust": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 270
+    },
+    "facing=west,key=false,sin=pride": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 270
+    },
+    "facing=west,key=false,sin=sloth": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 270
+    },
+    "facing=west,key=false,sin=wrath": {
+      "model": "fmscraft:block/sin_portal_frame",
+      "y": 270
+    },
+    "facing=west,key=true,sin=envy": {
+      "model": "fmscraft:block/sin_portal_frame_envy",
+      "y": 270
+    },
+    "facing=west,key=true,sin=gluttony": {
+      "model": "fmscraft:block/sin_portal_frame_gluttony",
+      "y": 270
+    },
+    "facing=west,key=true,sin=greed": {
+      "model": "fmscraft:block/sin_portal_frame_greed",
+      "y": 270
+    },
+    "facing=west,key=true,sin=lust": {
+      "model": "fmscraft:block/sin_portal_frame_lust",
+      "y": 270
+    },
+    "facing=west,key=true,sin=pride": {
+      "model": "fmscraft:block/sin_portal_frame_pride",
+      "y": 270
+    },
+    "facing=west,key=true,sin=sloth": {
+      "model": "fmscraft:block/sin_portal_frame_sloth",
+      "y": 270
+    },
+    "facing=west,key=true,sin=wrath": {
+      "model": "fmscraft:block/sin_portal_frame_wrath",
+      "y": 270
+    }
+  }
+}

@@ -18,12 +18,12 @@ public class ModBlocks {
             .sounds(BlockSoundGroup.GLASS)
             .pistonBehavior(PistonBehavior.BLOCK)));
 
-    /** The lock in the Envy maze. Unbreakable so it can't be carried off. */
-    public static final Block ENVIOUS_EYE = register("envious_eye", new EnviousEyeBlock(AbstractBlock.Settings.create()
+    /** The key lock in every sin's structure. Unbreakable so it can't be carried off. */
+    public static final Block SIN_PORTAL_FRAME = register("sin_portal_frame", new SinPortalFrameBlock(AbstractBlock.Settings.create()
             .strength(-1.0f, 3600000.0f)
             .dropsNothing()
-            .luminance(state -> state.get(EnviousEyeBlock.LIT) ? 12 : 3)
-            .sounds(BlockSoundGroup.DEEPSLATE_BRICKS)
+            .luminance(state -> state.get(SinPortalFrameBlock.KEY) ? 10 : 1)
+            .sounds(BlockSoundGroup.GLASS)
             .pistonBehavior(PistonBehavior.BLOCK)));
 
     private static Block register(String name, Block block) {

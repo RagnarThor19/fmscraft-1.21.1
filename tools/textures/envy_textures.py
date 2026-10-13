@@ -1,5 +1,6 @@
 """
-Paints the Envy maze textures: the Statue of Envy (entity + glowing eyes layer) and the Envious Eye lock block.
+Paints the Envy maze textures: the Statue of Envy (entity + glowing eyes layer).
+The maze's key lock is the shared Sin Portal Frame (frame_textures.py).
 
 Usage:  python tools/textures/envy_textures.py [preview.png]
 The BOXES list must match the cuboids in EnvyStatueModel.java (uv offset and size).
@@ -144,92 +145,16 @@ def statue():
     return img, eyes
 
 
-# ---- Envious Eye block ----
-
-OPEN_EYE = [
-    ".....KKKKKK.....",
-    "...KKWWWWWWKK...",
-    "..KWWGGGGGGWWK..",
-    ".KWWGGDPPDGGWWK.",
-    ".KWWGGDPPHGGWWK.",
-    "..KWWGGGGGGWWK..",
-    "...KKWWWWWWKK...",
-    ".....KKKKKK.....",
-]
-CLOSED_EYE = [
-    "................",
-    "................",
-    ".KK..........KK.",
-    "..KKK......KKK..",
-    "....KKKKKKKK....",
-    "....K.K..K.K....",
-    "................",
-    "................",
-]
-
-
-def block_base(rng, copper_band=False):
-    img = Image.new("RGBA", (16, 16))
-    for y in range(16):
-        for x in range(16):
-            c = stone_pixel(rng, 2)
-            if x in (0, 15) or y in (0, 15):
-                c = STONE[1]
-            elif rng.random() < 0.12:
-                c = rng.choice(MOSS)
-            if copper_band and y in (7, 8) and 0 < x < 15:
-                c = COPPER[2 if y == 7 else 1]
-            img.putpixel((x, y), c + (255,))
-    return img
-
-
-def eye_front(rng, lit):
-    img = block_base(rng)
-    pal = {"K": (0x1e, 0x22, 0x1c), "W": (0xc8, 0xd6, 0xb8), "G": (0x3a, 0xb0, 0x4c), "D": (0x1f, 0x6a, 0x2c),
-           "P": (0x0a, 0x10, 0x0a), "H": (0xe8, 0xff, 0xe0)}
-    if lit:
-        pal.update({"W": (0xd8, 0xf0, 0xc8), "G": (0x6d, 0xf0, 0x6a), "D": (0x2f, 0xa0, 0x3c)})
-    rows = OPEN_EYE if lit else CLOSED_EYE
-    for y, row in enumerate(rows):
-        assert len(row) == 16, row
-        for x, ch in enumerate(row):
-            if ch != ".":
-                img.putpixel((x, y + 4), pal[ch] + (255,))
-    return img
-
-
-def eye_top(rng):
-    img = block_base(rng)
-    for y in range(4, 12):
-        for x in range(4, 12):
-            if x in (4, 11) or y in (4, 11):
-                img.putpixel((x, y), COPPER[2] + (255,))
-    img.putpixel((7, 7), COPPER[3] + (255,))
-    img.putpixel((8, 8), COPPER[1] + (255,))
-    return img
-
-
 def main():
     (ROOT / "entity").mkdir(parents=True, exist_ok=True)
-    (ROOT / "block").mkdir(parents=True, exist_ok=True)
     tex, eyes = statue()
     tex.save(ROOT / "entity/envy_statue.png")
     eyes.save(ROOT / "entity/envy_statue_eyes.png")
 
-    rng = random.Random(77)
-    front, front_lit = eye_front(rng, False), eye_front(rng, True)
-    side, top = block_base(rng, copper_band=True), eye_top(rng)
-    front.save(ROOT / "block/envious_eye_front.png")
-    front_lit.save(ROOT / "block/envious_eye_front_lit.png")
-    side.save(ROOT / "block/envious_eye_side.png")
-    top.save(ROOT / "block/envious_eye_top.png")
-
     if len(sys.argv) > 1:
-        sheet = Image.new("RGBA", (256 * 3 + 16, 128 * 3 * 2 + 16 + 16 * 10), (110, 110, 110, 255))
+        sheet = Image.new("RGBA", (256 * 3 + 16, 128 * 3 * 2 + 16), (110, 110, 110, 255))
         sheet.alpha_composite(tex.resize((768, 384), Image.NEAREST), (8, 8))
         sheet.alpha_composite(eyes.resize((768, 384), Image.NEAREST), (8, 400))
-        for i, b in enumerate((front, front_lit, side, top)):
-            sheet.alpha_composite(b.resize((160, 160), Image.NEAREST), (8 + i * 170, 792))
         sheet.save(sys.argv[1])
 
 

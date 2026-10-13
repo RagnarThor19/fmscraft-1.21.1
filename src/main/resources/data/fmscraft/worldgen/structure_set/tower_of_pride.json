@@ -1,0 +1,15 @@
+{
+  "structures": [
+    { "structure": "fmscraft:tower_of_pride", "weight": 1 }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "spacing": 300,
+    "separation": 150,
+    "salt": 1716294903,
+    "exclusion_zone": {
+      "other_set": "minecraft:villages",
+      "chunk_count": 8
+    }
+  }
+}

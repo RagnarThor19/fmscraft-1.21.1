@@ -95,15 +95,19 @@ class EnvyMazeLayoutTest {
     }
 
     @Test
-    void statuesStartSpreadOutAndAwayFromTheRoom() {
+    void statuesStartInTheFourCorners() {
+        int far = N - 2;
         for (long seed = 0; seed < SEEDS; seed++) {
             EnvyMazeLayout maze = EnvyMazeLayout.generate(seed);
             assertEquals(EnvyMazeLayout.STATUES, maze.statues.size(), "statues, seed " + seed);
+            java.util.Set<String> corners = new java.util.HashSet<>();
             for (EnvyMazeLayout.Spot s : maze.statues) {
+                assertTrue((s.x() == 1 || s.x() == far) && (s.z() == 1 || s.z() == far), "statue not in a corner, seed " + seed);
                 assertTrue(maze.isPath(s.x(), s.z()));
                 assertTrue(maze.isPath(s.x() + DIRS[s.dir()][0], s.z() + DIRS[s.dir()][1]), "statue starts facing a wall");
-                assertTrue(Math.abs(s.x() - CENTER) + Math.abs(s.z() - CENTER) >= 10, "statue too close to the room");
+                corners.add(s.x() + "," + s.z());
             }
+            assertEquals(4, corners.size(), "two statues share a corner, seed " + seed);
         }
     }
 

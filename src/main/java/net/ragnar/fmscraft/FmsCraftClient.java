@@ -21,6 +21,8 @@ import net.minecraft.client.render.entity.model.EntityModelLayers;
 import net.minecraft.util.Identifier;
 import net.ragnar.fmscraft.block.ModBlocks;
 import net.ragnar.fmscraft.block.SinPortalBlock;
+import net.ragnar.fmscraft.block.SinPortalFrameBlock;
+import net.ragnar.fmscraft.item.ModItems;
 import net.ragnar.fmscraft.boss.ModBossEntities;
 import net.ragnar.fmscraft.boss.TestBossEntity;
 import net.ragnar.fmscraft.client.ClientBossMusic;
@@ -39,6 +41,11 @@ public class FmsCraftClient implements ClientModInitializer {
         BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.SIN_PORTAL, RenderLayer.getTranslucent());
         ColorProviderRegistry.BLOCK.register((state, world, pos, tintIndex) -> 0xFF000000 | state.get(SinPortalBlock.SIN).color(),
                 ModBlocks.SIN_PORTAL);
+        // The frame's trim layer (tint 0) takes its sin's color; the key standing in it is cut out of its item texture
+        BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.SIN_PORTAL_FRAME, RenderLayer.getCutout());
+        ColorProviderRegistry.BLOCK.register((state, world, pos, tintIndex) ->
+                tintIndex == 0 ? 0xFF000000 | state.get(SinPortalFrameBlock.SIN).color() : -1, ModBlocks.SIN_PORTAL_FRAME);
+        ColorProviderRegistry.ITEM.register((stack, tintIndex) -> tintIndex == 0 ? 0xFF8A7AA8 : -1, ModItems.SIN_PORTAL_FRAME);
 
         // Placeholder look for the test boss: a Steve-skinned zombie body
         Identifier steve = Identifier.ofVanilla("textures/entity/player/wide/steve.png");
@@ -75,7 +82,7 @@ public class FmsCraftClient implements ClientModInitializer {
             statue.clientSoundStarted = true;
             client.getSoundManager().play(new StatueGrindSound(statue));
         }
-        if (statue.getState() != EnvyStatueEntity.STATE_SLIDING || statue.age % 2 != 0) return;
+        if (!statue.isAwake() || statue.getState() != EnvyStatueEntity.STATE_SLIDING || statue.age % 2 != 0) return;
         BlockState floor = statue.getWorld().getBlockState(statue.getBlockPos().down());
         if (floor.isAir()) return;
         Direction back = Direction.fromRotation(statue.getYaw()).getOpposite();
