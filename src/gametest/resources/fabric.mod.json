@@ -7,7 +7,8 @@
 	"entrypoints": {
 		"fabric-gametest": [
 			"net.ragnar.fmscraft.gametest.FragmentGameTests",
-			"net.ragnar.fmscraft.gametest.FightGameTests"
+			"net.ragnar.fmscraft.gametest.FightGameTests",
+			"net.ragnar.fmscraft.gametest.EnvyGameTests"
 		]
 	},
 	"mixins": [

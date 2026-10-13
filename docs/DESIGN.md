@@ -104,9 +104,50 @@ Special mechanics:
 
 ## Structures
 
-- 7 portal structures, each different, in the dimensions listed above.
+- 7 portal structures, each different, in the dimensions listed above. Each one's lock consumes the key and
+  calls `BossFights.open(...)`.
 - 1 overworld True Ending structure with 7 end-gateway-like soul pedestals.
-- Build them in-game, save with structure blocks, and generate them via worldgen jsons (`data/fmscraft/worldgen/structure/...`).
+
+### Envy: the buried maze (built)
+
+`structure/envy/` + `entity/EnvyStatueEntity` + `block/EnviousEyeBlock`. Map of one maze: `docs/envy-maze-example.png`
+(gold = chests, red = statue starts, teal = safe room, yellow = tunnel, green = the Envious Eye).
+
+- **Where:** overworld only, fully buried (floor at y = -40, no entrance: dig in). Caves are carved before
+  structures, and the maze is generated after mineshafts, trial chambers, strongholds and ores, replacing every block
+  in its box; a 2-block deepslate tile shell above and below seals it. Nothing generates into it. Rare: one per roughly
+  64x64 chunks (`worldgen/structure_set/envy_maze.json`), kept away from ancient cities. `/locate structure fmscraft:envy_maze`.
+- **Size:** 31x31 grid of 5-block units, about 155x155 blocks. Every walkway is 5 wide and 5 high; walls are
+  5 thick. Generated from a seed (recursive backtracker, then about a third of dead ends knocked through so there
+  are loops to get cut off in).
+- **Look:** mossy/cracked stone bricks, oxidized copper baseboards, oxidized chiseled copper "watching eyes" in
+  the walls, moss and mossy cobble floors, vines and glow lichen along the walls and ceiling only (walkways stay
+  clear), verdant froglights.
+- **Loot:** up to 10 chests in dead ends (`loot_table/chests/envy_maze.json`): emeralds, gold, diamonds,
+  golden apples, enchanted books, XP, a rare god apple, and a 15% Envy Fragment.
+- **Safe room:** 3x3 units in the middle, double-walled, reached only through a 1-wide, 2-high, 10-block tunnel
+  the statue can't fit through. The **Envious Eye** sits in the middle facing the tunnel: use the Envy Key on it,
+  its carved eye opens and glows, and a 3x3 portal fills the green oxidized copper frame 4 blocks behind it
+  (the frame stands empty until then). The eye closes again when the fight ends.
+  - A double chest against one side wall: average loot (`chests/envy_safe_room_plain`) plus, in one half,
+    a 10% Advanced and a 2% Master tome (`chests/envy_safe_room`).
+  - A barrel in each corner, sometimes with a second stacked on one (4-5 total): junk loot with a 3% Beginner
+    and 1% Advanced tome each (`chests/envy_barrel`).
+  - Tomes come from the `fmscraft:random_tome` loot function (`"tier": "beginner" | "advanced" | "master"`),
+    which picks a random Ragnars Magic Mod tome of that tier.
+- **The Statue of Envy** (always exactly 4 per maze, kept up by `structure/envy/EnvyMazes.java`: when a player is in
+  or above a maze that has fewer, new ones appear on corridors at least 24 blocks from any player; extras from old
+  saves crumble when they load), after Giotto's *Invidia* (Scrovegni Chapel, c. 1306): huge ears, a serpent
+  from her mouth biting back at her own glowing green eyes, a purse clutched in one hand, the other clawing
+  upward, green copper flames at her feet, all carved in mossy stone on a plinth.
+  - No animation, never stops. Slides exactly 5 blocks (one unit) in 12 ticks (0.6 s), always down the middle of
+    the walkway and always facing squarely along it, with a deep grinding rumble and stone dust. At junctions it picks a way at random (55% straight on);
+    at turns and dead ends it grinds slowly round (1.5 s per quarter turn) and carries on.
+  - Touching it deals 20 damage (10 hearts) and throws you aside. It can't be hurt, burned, blown up or pushed.
+  - Each statue remembers its maze (origin + seed) and only ever moves into that maze's corridors, so it can never
+    leave the maze or pass through a wall, even one that has been dug out. Any gap with 3+ solid blocks also stops
+    it; a block or two that players put in its way is smashed. Statues from before this rule find their maze on
+    load and, if they've strayed, are put back on the nearest corridor.
 
 ## Compatibility with the other two mods
 

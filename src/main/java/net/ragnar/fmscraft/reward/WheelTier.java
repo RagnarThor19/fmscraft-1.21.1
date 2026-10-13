@@ -1,12 +1,16 @@
 package net.ragnar.fmscraft.reward;
 
+import com.mojang.serialization.Codec;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.StringIdentifiable;
 
 /** Tome tiers on the reward wheel, matching Ragnars Magic Mod's TomeTier (and its tooltip colors). */
-public enum WheelTier {
+public enum WheelTier implements StringIdentifiable {
     BEGINNER(0.50, Formatting.GREEN, 0x5E8A3C),
     ADVANCED(0.30, Formatting.AQUA, 0x3E8088),
     MASTER(0.20, Formatting.LIGHT_PURPLE, 0x7E5296);
+
+    public static final Codec<WheelTier> CODEC = StringIdentifiable.createCodec(WheelTier::values);
 
     public final double chance;
     public final Formatting textColor;
@@ -27,6 +31,11 @@ public enum WheelTier {
             if (roll < acc) return tier;
         }
         return MASTER;
+    }
+
+    @Override
+    public String asString() {
+        return name().toLowerCase();
     }
 
     public String translationKey() {

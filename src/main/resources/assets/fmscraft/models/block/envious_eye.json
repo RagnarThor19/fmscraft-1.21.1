@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/orientable",
+  "textures": {
+    "top": "fmscraft:block/envious_eye_top",
+    "front": "fmscraft:block/envious_eye_front",
+    "side": "fmscraft:block/envious_eye_side"
+  }
+}

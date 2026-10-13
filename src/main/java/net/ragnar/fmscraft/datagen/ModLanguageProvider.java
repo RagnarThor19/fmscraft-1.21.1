@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.datagen.v1.provider.FabricLanguageProvider;
 import net.minecraft.registry.RegistryWrapper;
 import net.ragnar.fmscraft.block.ModBlocks;
 import net.ragnar.fmscraft.boss.ModBossEntities;
+import net.ragnar.fmscraft.entity.ModEntities;
 import net.ragnar.fmscraft.item.ModItems;
 import net.ragnar.fmscraft.sin.Sin;
 
@@ -45,6 +46,14 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add("wheel.fmscraft.tier.beginner", "Beginner Tome");
         builder.add("wheel.fmscraft.tier.advanced", "Advanced Tome");
         builder.add("wheel.fmscraft.tier.master", "Master Tome");
+
+        builder.add(ModBlocks.ENVIOUS_EYE, "Envious Eye");
+        builder.add(ModEntities.ENVY_STATUE, "Statue of Envy");
+        builder.add("death.attack.fmscraft.envy_statue", "%1$s was crushed by the Statue of Envy");
+        builder.add("death.attack.fmscraft.envy_statue.player", "%1$s was crushed by the Statue of Envy while fleeing %2$s");
+        builder.add("message.fmscraft.wrong_key", "This key does not fit.");
+        builder.add("message.fmscraft.eye_open", "The Envious Eye is already open.");
+        builder.add("message.fmscraft.eye_hungers", "The Envious Eye covets the Envy Key...");
 
         builder.add("advancements.fmscraft.root.title", "The Seven Sins");
         builder.add("advancements.fmscraft.root.description", "Obtain your first sin fragment");

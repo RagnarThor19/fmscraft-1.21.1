@@ -82,6 +82,15 @@ dependencies {
 
 // Collects everything the server's mods folder needs into build/server-mods:
 // this mod, the twilight and magic mods, and Fabric API. Players need the same jars in their own mods folder.
+// Every game test run starts from a fresh world, so nothing saved by an earlier run can leak into the results
+afterEvaluate {
+	tasks.named('runGametest') {
+		doFirst {
+			delete layout.buildDirectory.dir('gametest/world')
+		}
+	}
+}
+
 tasks.register('prepareServer', Sync) {
 	group = 'fmscraft'
 	description = 'Copies all server mod jars into build/server-mods'

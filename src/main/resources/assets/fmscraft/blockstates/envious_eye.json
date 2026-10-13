@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "facing=north,lit=false": { "model": "fmscraft:block/envious_eye" },
+    "facing=east,lit=false": { "model": "fmscraft:block/envious_eye", "y": 90 },
+    "facing=south,lit=false": { "model": "fmscraft:block/envious_eye", "y": 180 },
+    "facing=west,lit=false": { "model": "fmscraft:block/envious_eye", "y": 270 },
+    "facing=north,lit=true": { "model": "fmscraft:block/envious_eye_lit" },
+    "facing=east,lit=true": { "model": "fmscraft:block/envious_eye_lit", "y": 90 },
+    "facing=south,lit=true": { "model": "fmscraft:block/envious_eye_lit", "y": 180 },
+    "facing=west,lit=true": { "model": "fmscraft:block/envious_eye_lit", "y": 270 }
+  }
+}

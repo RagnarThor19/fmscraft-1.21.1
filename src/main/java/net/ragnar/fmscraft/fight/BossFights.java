@@ -94,11 +94,16 @@ public final class BossFights {
         return open(sin, world, base, axis, JOIN_TICKS);
     }
 
-    /**
-     * Opens the portal for {@code sin} with its bottom-left block at {@code base}. Returns false (and the caller
-     * should keep the key) if that sin's fight is already running.
-     */
     public static boolean open(Sin sin, ServerWorld world, BlockPos base, Direction.Axis axis, int joinTicks) {
+        return open(sin, world, base, axis, joinTicks, 2, 3);
+    }
+
+    /**
+     * Opens a {@code width} x {@code height} portal for {@code sin} with its bottom-left block at {@code base},
+     * running along {@code axis}. Returns false (and the caller should keep the key) if that sin's fight is
+     * already running.
+     */
+    public static boolean open(Sin sin, ServerWorld world, BlockPos base, Direction.Axis axis, int joinTicks, int width, int height) {
         if (SESSIONS.containsKey(sin)) return false;
         MinecraftServer server = world.getServer();
         ServerWorld arena = Arenas.world(server, sin);
@@ -108,28 +113,32 @@ public final class BossFights {
         }
 
         Arenas.reset(arena, sin);
-        placePortal(world, base, axis, sin);
-        SESSIONS.put(sin, new FightSession(sin, GlobalPos.create(world.getRegistryKey(), base), axis, server.getTicks(), joinTicks));
+        placePortal(world, base, axis, sin, width, height);
+        SESSIONS.put(sin, new FightSession(sin, GlobalPos.create(world.getRegistryKey(), base), axis, width, height, server.getTicks(), joinTicks));
         world.playSound(null, base, SoundEvents.BLOCK_END_PORTAL_SPAWN, SoundCategory.BLOCKS, 1.0f, 0.8f);
         return true;
     }
 
-    public static void placePortal(ServerWorld world, BlockPos base, Direction.Axis axis, Sin sin) {
+    public static void placePortal(ServerWorld world, BlockPos base, Direction.Axis axis, Sin sin, int width, int height) {
         BlockState portal = ModBlocks.SIN_PORTAL.getDefaultState().with(SinPortalBlock.AXIS, axis).with(SinPortalBlock.SIN, sin);
-        for (BlockPos pos : portalBlocks(base, axis)) world.setBlockState(pos, portal);
+        for (BlockPos pos : portalBlocks(base, axis, width, height)) world.setBlockState(pos, portal);
     }
 
-    public static void removePortal(ServerWorld world, BlockPos base, Direction.Axis axis) {
-        for (BlockPos pos : portalBlocks(base, axis)) {
+    public static void removePortal(ServerWorld world, BlockPos base, Direction.Axis axis, int width, int height) {
+        for (BlockPos pos : portalBlocks(base, axis, width, height)) {
             if (world.getBlockState(pos).isOf(ModBlocks.SIN_PORTAL)) world.removeBlock(pos, false);
         }
     }
 
-    private static List<BlockPos> portalBlocks(BlockPos base, Direction.Axis axis) {
-        Direction along = axis == Direction.Axis.X ? Direction.EAST : Direction.SOUTH;
+    /** The direction a portal along {@code axis} extends in from its base block. */
+    public static Direction along(Direction.Axis axis) {
+        return axis == Direction.Axis.X ? Direction.EAST : Direction.SOUTH;
+    }
+
+    private static List<BlockPos> portalBlocks(BlockPos base, Direction.Axis axis, int width, int height) {
         List<BlockPos> blocks = new ArrayList<>();
-        for (int w = 0; w < 2; w++) {
-            for (int h = 0; h < 3; h++) blocks.add(base.offset(along, w).up(h));
+        for (int w = 0; w < width; w++) {
+            for (int h = 0; h < height; h++) blocks.add(base.offset(along(axis), w).up(h));
         }
         return blocks;
     }
@@ -248,15 +257,14 @@ public final class BossFights {
     }
 
     private static Vec3d portalCenter(FightSession session) {
-        Direction along = session.axis == Direction.Axis.X ? Direction.EAST : Direction.SOUTH;
-        return Vec3d.of(session.portal.pos()).add(0.5, 1.5, 0.5).offset(along, 0.5);
+        return Vec3d.of(session.portal.pos()).add(0.5, session.height / 2.0, 0.5).offset(along(session.axis), (session.width - 1) / 2.0);
     }
 
     private static void closeEntry(MinecraftServer server, FightSession session) {
         session.countdown.clearPlayers();
         ServerWorld world = server.getWorld(session.portal.dimension());
         if (world == null) return;
-        removePortal(world, session.portal.pos(), session.axis);
+        removePortal(world, session.portal.pos(), session.axis, session.width, session.height);
         Vec3d center = portalCenter(session);
         world.playSound(null, center.x, center.y, center.z, SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.BLOCKS, 1.5f, 0.7f);
         world.spawnParticles(ParticleTypes.REVERSE_PORTAL, center.x, center.y, center.z, 60, 0.6, 1.2, 0.6, 0.05);
@@ -309,7 +317,7 @@ public final class BossFights {
         for (ServerPlayerEntity player : online(server, session)) {
             player.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 1.0f, 1.0f);
         }
-        placePortal(Arenas.world(server, session.sin), Arenas.EXIT_PORTAL, Direction.Axis.X, session.sin);
+        placePortal(Arenas.world(server, session.sin), Arenas.EXIT_PORTAL, Direction.Axis.X, session.sin, 2, 3);
         for (ServerPlayerEntity player : online(server, session)) TomeWheel.spin(player, session.sin);
     }
 

@@ -26,6 +26,8 @@ public class FightSession {
     public final Sin sin;
     public final GlobalPos portal;
     public final Direction.Axis axis;
+    public final int width;
+    public final int height;
     public final long openedTick;
     public final int joinTicks;
     public final Set<UUID> participants = new LinkedHashSet<>();
@@ -34,10 +36,12 @@ public class FightSession {
     Stage stage = Stage.JOINING;
     UUID bossId;
 
-    FightSession(Sin sin, GlobalPos portal, Direction.Axis axis, long openedTick, int joinTicks) {
+    FightSession(Sin sin, GlobalPos portal, Direction.Axis axis, int width, int height, long openedTick, int joinTicks) {
         this.sin = sin;
         this.portal = portal;
         this.axis = axis;
+        this.width = width;
+        this.height = height;
         this.openedTick = openedTick;
         this.joinTicks = joinTicks;
     }

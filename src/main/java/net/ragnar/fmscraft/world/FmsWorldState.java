@@ -36,6 +36,8 @@ public class FmsWorldState extends PersistentState {
     private final Map<UUID, Set<String>> lustProgress = new HashMap<>();
     // Where each player in a boss arena goes back to (the overworld-side portal), kept across restarts
     private final Map<UUID, GlobalPos> returnPositions = new HashMap<>();
+    // Envy mazes (keyed by their corner position) and the statues that roam each one
+    private final Map<Long, Set<UUID>> envyStatues = new HashMap<>();
 
     public static FmsWorldState get(MinecraftServer server) {
         return server.getWorld(World.OVERWORLD).getPersistentStateManager().getOrCreate(TYPE, FmsCraft.MOD_ID);
@@ -81,6 +83,19 @@ public class FmsWorldState extends PersistentState {
         if (returnPositions.remove(player) != null) markDirty();
     }
 
+    public Set<UUID> envyStatues(long maze) {
+        return java.util.Collections.unmodifiableSet(envyStatues.getOrDefault(maze, Set.of()));
+    }
+
+    public void addEnvyStatue(long maze, UUID statue) {
+        if (envyStatues.computeIfAbsent(maze, k -> new HashSet<>()).add(statue)) markDirty();
+    }
+
+    public void removeEnvyStatue(long maze, UUID statue) {
+        Set<UUID> statues = envyStatues.get(maze);
+        if (statues != null && statues.remove(statue)) markDirty();
+    }
+
     public void clearDefeated(Sin sin) {
         if (defeated.remove(sin)) markDirty();
     }
@@ -107,6 +122,14 @@ public class FmsWorldState extends PersistentState {
             returns.put(player.toString(), entry);
         });
         nbt.put("returns", returns);
+
+        NbtCompound mazes = new NbtCompound();
+        envyStatues.forEach((maze, statues) -> {
+            NbtList ids = new NbtList();
+            for (UUID id : statues) ids.add(NbtString.of(id.toString()));
+            mazes.put(Long.toString(maze), ids);
+        });
+        nbt.put("envy_statues", mazes);
         return nbt;
     }
 
@@ -132,6 +155,14 @@ public class FmsWorldState extends PersistentState {
             RegistryKey<net.minecraft.world.World> dimension =
                     RegistryKey.of(RegistryKeys.WORLD, Identifier.of(entry.getString("dimension")));
             state.returnPositions.put(UUID.fromString(key), GlobalPos.create(dimension, BlockPos.fromLong(entry.getLong("pos"))));
+        }
+
+        NbtCompound mazes = nbt.getCompound("envy_statues");
+        for (String key : mazes.getKeys()) {
+            NbtList ids = mazes.getList(key, NbtElement.STRING_TYPE);
+            Set<UUID> statues = new HashSet<>();
+            for (int i = 0; i < ids.size(); i++) statues.add(UUID.fromString(ids.getString(i)));
+            state.envyStatues.put(Long.parseLong(key), statues);
         }
         return state;
     }

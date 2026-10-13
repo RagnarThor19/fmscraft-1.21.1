@@ -5,6 +5,10 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.ragnar.fmscraft.block.ModBlocks;
 import net.ragnar.fmscraft.boss.ModBossEntities;
 import net.ragnar.fmscraft.command.FmsCommands;
+import net.ragnar.fmscraft.entity.ModEntities;
+import net.ragnar.fmscraft.loot.ModLoot;
+import net.ragnar.fmscraft.structure.ModStructures;
+import net.ragnar.fmscraft.structure.envy.EnvyMazes;
 import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fragment.FragmentTriggers;
 import net.ragnar.fmscraft.item.ModItemGroups;
@@ -30,12 +34,16 @@ public class FmsCraft implements ModInitializer {
 		ModBlocks.initialize();
 		ModItemGroups.initialize();
 		ModBossEntities.initialize();
+		ModEntities.initialize();
+		ModStructures.initialize();
+		ModLoot.initialize();
 		PayloadTypeRegistry.playS2C().register(BossMusicPayload.ID, BossMusicPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(TomeWheelPayload.ID, TomeWheelPayload.CODEC);
 
 		FragmentTriggers.register();
 		BossFights.register();
 		TomeWheel.register();
+		EnvyMazes.register();
 		FmsCommands.register();
 
 		LOGGER.info("FMSCraft loaded");

@@ -1,0 +1,7 @@
+{
+  "type": "fmscraft:envy_maze",
+  "biomes": "#minecraft:is_overworld",
+  "step": "underground_decoration",
+  "spawn_overrides": {},
+  "terrain_adaptation": "none"
+}

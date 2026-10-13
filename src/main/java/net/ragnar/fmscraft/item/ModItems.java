@@ -1,7 +1,9 @@
 package net.ragnar.fmscraft.item;
 
 import net.minecraft.component.DataComponentTypes;
+import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
+import net.ragnar.fmscraft.block.ModBlocks;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
@@ -31,6 +33,9 @@ public class ModItems {
                             .component(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true))));
         }
     }
+
+    // Creative-only, for building and testing; in survival it only exists in the Envy maze
+    public static final Item ENVIOUS_EYE = register("envious_eye", new BlockItem(ModBlocks.ENVIOUS_EYE, new Item.Settings().rarity(Rarity.EPIC)));
 
     private static Item register(String name, Item item) {
         return Registry.register(Registries.ITEM, Identifier.of(FmsCraft.MOD_ID, name), item);

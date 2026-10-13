@@ -1,0 +1,15 @@
+{
+  "structures": [
+    { "structure": "fmscraft:envy_maze", "weight": 1 }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "spacing": 64,
+    "separation": 36,
+    "salt": 1488829617,
+    "exclusion_zone": {
+      "other_set": "minecraft:ancient_cities",
+      "chunk_count": 10
+    }
+  }
+}

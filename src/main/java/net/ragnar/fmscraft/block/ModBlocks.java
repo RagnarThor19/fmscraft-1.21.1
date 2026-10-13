@@ -18,6 +18,14 @@ public class ModBlocks {
             .sounds(BlockSoundGroup.GLASS)
             .pistonBehavior(PistonBehavior.BLOCK)));
 
+    /** The lock in the Envy maze. Unbreakable so it can't be carried off. */
+    public static final Block ENVIOUS_EYE = register("envious_eye", new EnviousEyeBlock(AbstractBlock.Settings.create()
+            .strength(-1.0f, 3600000.0f)
+            .dropsNothing()
+            .luminance(state -> state.get(EnviousEyeBlock.LIT) ? 12 : 3)
+            .sounds(BlockSoundGroup.DEEPSLATE_BRICKS)
+            .pistonBehavior(PistonBehavior.BLOCK)));
+
     private static Block register(String name, Block block) {
         return Registry.register(Registries.BLOCK, Identifier.of(FmsCraft.MOD_ID, name), block);
     }

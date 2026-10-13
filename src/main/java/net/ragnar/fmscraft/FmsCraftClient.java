@@ -7,7 +7,13 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.EntityModelLayerRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.block.BlockState;
+import net.minecraft.particle.BlockStateParticleEffect;
+import net.minecraft.particle.ParticleTypes;
+import net.minecraft.util.math.Direction;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.entity.BipedEntityRenderer;
 import net.minecraft.client.render.entity.model.BipedEntityModel;
@@ -18,6 +24,11 @@ import net.ragnar.fmscraft.block.SinPortalBlock;
 import net.ragnar.fmscraft.boss.ModBossEntities;
 import net.ragnar.fmscraft.boss.TestBossEntity;
 import net.ragnar.fmscraft.client.ClientBossMusic;
+import net.ragnar.fmscraft.client.EnvyStatueModel;
+import net.ragnar.fmscraft.client.EnvyStatueRenderer;
+import net.ragnar.fmscraft.client.StatueGrindSound;
+import net.ragnar.fmscraft.entity.EnvyStatueEntity;
+import net.ragnar.fmscraft.entity.ModEntities;
 import net.ragnar.fmscraft.client.TomeWheelHud;
 import net.ragnar.fmscraft.network.BossMusicPayload;
 import net.ragnar.fmscraft.network.TomeWheelPayload;
@@ -40,6 +51,10 @@ public class FmsCraftClient implements ClientModInitializer {
                     }
                 });
 
+        EntityModelLayerRegistry.registerModelLayer(EnvyStatueModel.LAYER, EnvyStatueModel::getTexturedModelData);
+        EntityRendererRegistry.register(ModEntities.ENVY_STATUE, EnvyStatueRenderer::new);
+        EnvyStatueEntity.clientTick = FmsCraftClient::statueEffects;
+
         ClientPlayNetworking.registerGlobalReceiver(BossMusicPayload.ID,
                 (payload, context) -> context.client().execute(() -> ClientBossMusic.play(payload.sound())));
         ClientPlayNetworking.registerGlobalReceiver(TomeWheelPayload.ID,
@@ -51,5 +66,24 @@ public class FmsCraftClient implements ClientModInitializer {
             ClientBossMusic.stop();
             TomeWheelHud.clear();
         }));
+    }
+
+    /** Grinding rumble that follows each statue, and stone dust kicked up from the floor while it slides. */
+    private static void statueEffects(EnvyStatueEntity statue) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (!statue.clientSoundStarted) {
+            statue.clientSoundStarted = true;
+            client.getSoundManager().play(new StatueGrindSound(statue));
+        }
+        if (statue.getState() != EnvyStatueEntity.STATE_SLIDING || statue.age % 2 != 0) return;
+        BlockState floor = statue.getWorld().getBlockState(statue.getBlockPos().down());
+        if (floor.isAir()) return;
+        Direction back = Direction.fromRotation(statue.getYaw()).getOpposite();
+        Direction side = back.rotateYClockwise();
+        for (int s = -1; s <= 1; s += 2) {
+            double x = statue.getX() + back.getOffsetX() * 1.4 + side.getOffsetX() * 1.3 * s;
+            double z = statue.getZ() + back.getOffsetZ() * 1.4 + side.getOffsetZ() * 1.3 * s;
+            statue.getWorld().addParticle(new BlockStateParticleEffect(ParticleTypes.BLOCK, floor), x, statue.getY() + 0.1, z, 0, 0.05, 0);
+        }
     }
 }
