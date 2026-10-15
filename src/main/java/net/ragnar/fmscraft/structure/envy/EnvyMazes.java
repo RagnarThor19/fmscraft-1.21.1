@@ -1,6 +1,7 @@
 package net.ragnar.fmscraft.structure.envy;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
@@ -100,7 +101,8 @@ public final class EnvyMazes {
 
     /**
      * Tops the maze up to {@link #STATUES} statues. New ones only ever appear in a free corner (the one farthest from
-     * the statues already there first), in a loaded chunk and away from every player; if none fits, it waits.
+     * the statues already there first), on a built cell in a loaded chunk and away from every player; if none fits,
+     * it waits.
      */
     public static void ensureStatues(ServerWorld world, BlockPos origin, long seed) {
         FmsWorldState state = FmsWorldState.get(world.getServer());
@@ -118,12 +120,13 @@ public final class EnvyMazes {
             BlockPos best = null;
             int bestDir = 0;
             double bestDistance = -1;
-            for (EnvyMazeLayout.Spot spot : layout(seed).statues) {
+            for (EnvyMazeLayout.Spot corner : layout(seed).statues) {
+                EnvyMazeLayout.Spot spot = builtCellNear(world, origin, layout(seed), corner);
+                if (spot == null) continue;
                 BlockPos center = unitCenter(origin, spot.x(), spot.z());
                 Vec3d pos = center.toCenterPos();
                 double nearest = statues.stream().mapToDouble(p -> p.squaredDistanceTo(pos)).min().orElse(Double.MAX_VALUE);
                 if (nearest < CORNER_TAKEN * CORNER_TAKEN || nearest <= bestDistance) continue;
-                if (!world.isChunkLoaded(ChunkSectionPos.getSectionCoord(center.getX()), ChunkSectionPos.getSectionCoord(center.getZ()))) continue;
                 if (world.getPlayers().stream().anyMatch(p -> p.squaredDistanceTo(pos) < SPAWN_DISTANCE * SPAWN_DISTANCE)) continue;
                 best = center;
                 bestDir = spot.dir();
@@ -139,6 +142,33 @@ public final class EnvyMazes {
             statues.add(statue.getPos());
             missing--;
         }
+    }
+
+    /**
+     * The maze cell nearest {@code corner} that has really been built: loaded, open, with the chiseled stone that
+     * marks the middle of every cell under it. Mazes generated before they were centered on their start chunk are
+     * missing their east and south edges (the game never built that far), so their corners may be plain stone.
+     */
+    private static EnvyMazeLayout.Spot builtCellNear(ServerWorld world, BlockPos origin, EnvyMazeLayout layout, EnvyMazeLayout.Spot corner) {
+        EnvyMazeLayout.Spot best = null;
+        int bestDistance = Integer.MAX_VALUE;
+        for (int x = 1; x < EnvyMazeLayout.N; x += 2) {
+            for (int z = 1; z < EnvyMazeLayout.N; z += 2) {
+                int distance = Math.abs(x - corner.x()) + Math.abs(z - corner.z());
+                if (distance >= bestDistance || !layout.isPath(x, z)) continue;
+                BlockPos center = unitCenter(origin, x, z);
+                if (!world.isChunkLoaded(ChunkSectionPos.getSectionCoord(center.getX()), ChunkSectionPos.getSectionCoord(center.getZ()))) continue;
+                if (!world.getBlockState(center).isAir() || !world.getBlockState(center.down()).isOf(Blocks.CHISELED_STONE_BRICKS)) continue;
+                for (int d = 0; d < 4; d++) {
+                    if (layout.isPath(x + EnvyMazeLayout.DIRS[d][0], z + EnvyMazeLayout.DIRS[d][1])) {
+                        best = new EnvyMazeLayout.Spot(x, z, d);
+                        bestDistance = distance;
+                        break;
+                    }
+                }
+            }
+        }
+        return best;
     }
 
     private static BlockPos unitCenter(BlockPos origin, int ux, int uz) {

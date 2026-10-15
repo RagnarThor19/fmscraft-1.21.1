@@ -1,219 +1,37 @@
 {
   "parent": "minecraft:block/block",
   "textures": {
-    "particle": "fmscraft:block/sin_portal_frame_side",
-    "bottom": "minecraft:block/end_stone",
-    "top": "fmscraft:block/sin_portal_frame_top",
-    "side": "fmscraft:block/sin_portal_frame_side",
-    "top_trim": "fmscraft:block/sin_portal_frame_top_trim",
-    "side_trim": "fmscraft:block/sin_portal_frame_side_trim"
+    "particle": "#side"
   },
   "elements": [
     {
-      "from": [
-        0,
-        0,
-        0
-      ],
-      "to": [
-        16,
-        13,
-        16
-      ],
+      "from": [0, 0, 0],
+      "to": [16, 13, 16],
       "faces": {
-        "down": {
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ],
-          "texture": "#bottom",
-          "cullface": "down"
-        },
-        "up": {
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ],
-          "texture": "#top"
-        },
-        "north": {
-          "uv": [
-            0,
-            3,
-            16,
-            16
-          ],
-          "texture": "#side",
-          "cullface": "north"
-        },
-        "south": {
-          "uv": [
-            0,
-            3,
-            16,
-            16
-          ],
-          "texture": "#side",
-          "cullface": "south"
-        },
-        "west": {
-          "uv": [
-            0,
-            3,
-            16,
-            16
-          ],
-          "texture": "#side",
-          "cullface": "west"
-        },
-        "east": {
-          "uv": [
-            0,
-            3,
-            16,
-            16
-          ],
-          "texture": "#side",
-          "cullface": "east"
-        }
+        "down": {"uv": [0, 0, 16, 16], "texture": "#bottom", "cullface": "down"},
+        "up": {"uv": [0, 0, 16, 16], "texture": "#top"},
+        "north": {"uv": [0, 3, 16, 16], "texture": "#side", "cullface": "north"},
+        "south": {"uv": [0, 3, 16, 16], "texture": "#side", "cullface": "south"},
+        "west": {"uv": [0, 3, 16, 16], "texture": "#side", "cullface": "west"},
+        "east": {"uv": [0, 3, 16, 16], "texture": "#side", "cullface": "east"}
       }
     },
     {
-      "from": [
-        0,
-        0,
-        0
-      ],
-      "to": [
-        16,
-        13,
-        16
-      ],
-      "faces": {
-        "up": {
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ],
-          "texture": "#top_trim",
-          "tintindex": 0
-        },
-        "north": {
-          "uv": [
-            0,
-            3,
-            16,
-            16
-          ],
-          "texture": "#side_trim",
-          "cullface": "north",
-          "tintindex": 0
-        },
-        "south": {
-          "uv": [
-            0,
-            3,
-            16,
-            16
-          ],
-          "texture": "#side_trim",
-          "cullface": "south",
-          "tintindex": 0
-        },
-        "west": {
-          "uv": [
-            0,
-            3,
-            16,
-            16
-          ],
-          "texture": "#side_trim",
-          "cullface": "west",
-          "tintindex": 0
-        },
-        "east": {
-          "uv": [
-            0,
-            3,
-            16,
-            16
-          ],
-          "texture": "#side_trim",
-          "cullface": "east",
-          "tintindex": 0
-        }
-      }
-    },
-    {
-      "from": [
-        0,
-        8,
-        8
-      ],
-      "to": [
-        16,
-        24,
-        8
-      ],
+      "from": [0, 8, 8],
+      "to": [16, 24, 8],
       "shade": false,
       "faces": {
-        "north": {
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ],
-          "texture": "#key"
-        },
-        "south": {
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ],
-          "texture": "#key"
-        }
+        "north": {"uv": [0, 0, 16, 16], "texture": "#key"},
+        "south": {"uv": [0, 0, 16, 16], "texture": "#key"}
       }
     },
     {
-      "from": [
-        8,
-        8,
-        0
-      ],
-      "to": [
-        8,
-        24,
-        16
-      ],
+      "from": [8, 8, 0],
+      "to": [8, 24, 16],
       "shade": false,
       "faces": {
-        "west": {
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ],
-          "texture": "#key"
-        },
-        "east": {
-          "uv": [
-            0,
-            0,
-            16,
-            16
-          ],
-          "texture": "#key"
-        }
+        "west": {"uv": [0, 0, 16, 16], "texture": "#key"},
+        "east": {"uv": [0, 0, 16, 16], "texture": "#key"}
       }
     }
   ]

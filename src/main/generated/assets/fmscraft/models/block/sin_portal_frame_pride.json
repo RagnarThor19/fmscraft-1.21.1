@@ -1,6 +1,9 @@
 {
-  "parent": "fmscraft:block/sin_portal_frame_keyed",
+  "parent": "minecraft:block/end_portal_frame",
   "textures": {
-    "key": "fmscraft:item/pride_key"
+    "bottom": "fmscraft:block/sin_portal_frame_pride_bottom",
+    "particle": "fmscraft:block/sin_portal_frame_pride_side",
+    "side": "fmscraft:block/sin_portal_frame_pride_side",
+    "top": "fmscraft:block/sin_portal_frame_pride_top"
   }
 }

@@ -8,6 +8,7 @@ import net.minecraft.block.ShapeContext;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.item.ItemStack;
+import net.minecraft.particle.DustParticleEffect;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
@@ -29,6 +30,7 @@ import net.minecraft.world.World;
 import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.item.SinKeyItem;
 import net.ragnar.fmscraft.sin.Sin;
+import org.joml.Vector3f;
 
 /**
  * The key lock in every sin's structure, built on the vanilla end portal frame: same end stone body, but a keyhole
@@ -117,6 +119,25 @@ public class SinPortalFrameBlock extends HorizontalFacingBlock {
             world.playSound(null, pos, SoundEvents.BLOCK_END_PORTAL_FRAME_FILL, SoundCategory.BLOCKS, 0.3f, 1.6f);
         }
         return ActionResult.SUCCESS;
+    }
+
+    /**
+     * A few specks of the sin's color drift up and out of the keyhole, like the glow around an end portal frame.
+     * More while a key stands in the lock.
+     */
+    @Override
+    public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+        int color = state.get(SIN).color();
+        // Lifted toward white so the dark sin colors still read as light
+        Vector3f rgb = new Vector3f(((color >> 16) & 255) / 255f, ((color >> 8) & 255) / 255f, (color & 255) / 255f)
+                .lerp(new Vector3f(1, 1, 1), 0.25f);
+        DustParticleEffect dust = new DustParticleEffect(rgb, 0.55f);
+        int count = state.get(KEY) ? 4 : 1 + random.nextInt(2);
+        for (int i = 0; i < count; i++) {
+            double angle = random.nextDouble() * Math.PI * 2, r = 0.05 + random.nextDouble() * 0.2;
+            double dx = Math.cos(angle), dz = Math.sin(angle);
+            world.addParticle(dust, pos.getX() + 0.5 + dx * r, pos.getY() + 0.85, pos.getZ() + 0.5 + dz * r, dx, 0.4, dz);
+        }
     }
 
     /** Once the fight is over the key crumbles out of the lock. */

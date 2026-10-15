@@ -8,6 +8,7 @@ import net.ragnar.fmscraft.command.FmsCommands;
 import net.ragnar.fmscraft.entity.ModEntities;
 import net.ragnar.fmscraft.loot.ModLoot;
 import net.ragnar.fmscraft.structure.ModStructures;
+import net.ragnar.fmscraft.structure.StructureAmbience;
 import net.ragnar.fmscraft.structure.envy.EnvyMazes;
 import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fragment.FragmentTriggers;
@@ -44,6 +45,7 @@ public class FmsCraft implements ModInitializer {
 		BossFights.register();
 		TomeWheel.register();
 		EnvyMazes.register();
+		StructureAmbience.register();
 		FmsCommands.register();
 
 		LOGGER.info("FMSCraft loaded");

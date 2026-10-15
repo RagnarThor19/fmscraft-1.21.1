@@ -51,6 +51,7 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add("death.attack.fmscraft.envy_statue", "%1$s was crushed by the Statue of Envy");
         builder.add("death.attack.fmscraft.envy_statue.player", "%1$s was crushed by the Statue of Envy while fleeing %2$s");
         builder.add(ModBlocks.SIN_PORTAL_FRAME, "Sin Portal Frame");
+        builder.add(ModItems.SIN_PORTAL_FRAME.getTranslationKey() + ".sin", "%s Portal Frame");
         builder.add("message.fmscraft.wrong_key", "This key does not fit.");
         builder.add("message.fmscraft.frame_open", "The portal is already open.");
         builder.add("message.fmscraft.frame_awaits", "Only the %s Key fits this lock...");

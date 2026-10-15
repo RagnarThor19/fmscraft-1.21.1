@@ -35,7 +35,8 @@ public class ModItems {
     }
 
     // Creative-only, for building and testing; in survival it only exists in the sin structures
-    public static final Item SIN_PORTAL_FRAME = register("sin_portal_frame", new BlockItem(ModBlocks.SIN_PORTAL_FRAME, new Item.Settings().rarity(Rarity.EPIC)));
+    public static final SinPortalFrameItem SIN_PORTAL_FRAME = (SinPortalFrameItem) register("sin_portal_frame",
+            new SinPortalFrameItem(ModBlocks.SIN_PORTAL_FRAME, new Item.Settings().rarity(Rarity.EPIC)));
 
     private static Item register(String name, Item item) {
         return Registry.register(Registries.ITEM, Identifier.of(FmsCraft.MOD_ID, name), item);

@@ -1,7 +1,12 @@
 package net.ragnar.fmscraft.gametest;
 
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.ChestBlockEntity;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.util.Hand;
+import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.LivingEntity;
@@ -18,6 +23,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.ragnar.fmscraft.block.ModBlocks;
+import net.ragnar.fmscraft.block.SinPortalFrameBlock;
 import net.ragnar.fmscraft.boss.SinBossEntity;
 import net.ragnar.fmscraft.compat.MagicTomes;
 import net.ragnar.fmscraft.fight.Arenas;
@@ -52,6 +58,26 @@ public class FightGameTests implements FabricGameTest {
             for (int i = 0; i < chest.size(); i++) if (!chest.getStack(i).isEmpty()) stored++;
         }
         ctx.assertEquals(stored, 40, "stacks stored");
+        ctx.complete();
+    }
+
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void creativeFramesPlaceTheirOwnSin(TestContext ctx) {
+        ServerPlayerEntity player = ctx.createMockCreativeServerPlayerInWorld();
+        for (Sin sin : Sin.values()) {
+            ItemStack stack = ModItems.SIN_PORTAL_FRAME.stack(sin);
+            ctx.assertEquals(stack.getName().getString(), sin.displayName() + " Portal Frame", "item name");
+
+            BlockPos below = ctx.getAbsolutePos(new BlockPos(1 + sin.ordinal(), 0, 2));
+            ctx.getWorld().setBlockState(below, Blocks.STONE.getDefaultState());
+            player.setStackInHand(Hand.MAIN_HAND, stack);
+            BlockHitResult hit = new BlockHitResult(below.up().toCenterPos(), Direction.UP, below, false);
+            ModItems.SIN_PORTAL_FRAME.place(new ItemPlacementContext(ctx.getWorld(), player, Hand.MAIN_HAND, stack, hit));
+
+            BlockState placed = ctx.getWorld().getBlockState(below.up());
+            ctx.assertTrue(placed.isOf(ModBlocks.SIN_PORTAL_FRAME) && placed.get(SinPortalFrameBlock.SIN) == sin,
+                    "the " + sin.displayName() + " frame item should place that sin's frame, got " + placed);
+        }
         ctx.complete();
     }
 

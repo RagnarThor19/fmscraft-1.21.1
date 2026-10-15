@@ -2,8 +2,7 @@ package net.ragnar.fmscraft.gametest;
 
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.ChestBlock;
-import net.minecraft.block.enums.ChestType;
+import net.minecraft.block.entity.LootableContainerBlockEntity;
 import net.minecraft.loot.context.LootContextParameterSet;
 import net.minecraft.loot.context.LootContextParameters;
 import net.minecraft.loot.context.LootContextTypes;
@@ -35,7 +34,10 @@ import net.ragnar.fmscraft.item.ModItems;
 import net.ragnar.fmscraft.sin.Sin;
 import net.ragnar.fmscraft.structure.envy.EnvyMazeLayout;
 import net.ragnar.fmscraft.structure.envy.EnvyMazePiece;
+import net.ragnar.fmscraft.structure.envy.EnvyMazeStructure;
 import net.ragnar.fmscraft.structure.envy.EnvyMazes;
+import net.ragnar.fmscraft.structure.pride.PrideTowerPiece;
+import net.ragnar.fmscraft.structure.pride.PrideTowerShape;
 import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.ChunkPos;
 
@@ -236,27 +238,32 @@ public class EnvyGameTests implements FabricGameTest {
             ctx.assertTrue(world.getBlockState(new BlockPos(origin + 12, y, origin + 12)).isOf(Blocks.DEEPSLATE_TILES), "shell at y " + y);
         }
 
-        // The copper frame around an empty 3x3 behind the lock
+        // The shrine leaves an empty 3x3 behind the lock for the portal, and the doorway lines up with the tunnel
         Direction facing = EnvyMazePiece.direction(layout.doorDir);
         Direction lateral = BossFights.along(facing.rotateYClockwise().getAxis());
         BlockPos frame = lock.offset(facing.getOpposite(), SinPortalFrameBlock.PORTAL_DISTANCE).down();
-        for (int l = -2; l <= 2; l += 4) {
-            ctx.assertTrue(world.getBlockState(frame.offset(lateral, l)).isOf(Blocks.OXIDIZED_CHISELED_COPPER), "frame corner");
-            ctx.assertTrue(world.getBlockState(frame.offset(lateral, l).up(4)).isOf(Blocks.OXIDIZED_CHISELED_COPPER), "frame corner");
-            ctx.assertTrue(world.getBlockState(frame.offset(lateral, l).up(2)).isOf(Blocks.OXIDIZED_CUT_COPPER), "frame side");
-        }
         for (int l = -1; l <= 1; l++) {
             for (int h = 1; h <= 3; h++) ctx.assertTrue(world.getBlockState(frame.offset(lateral, l).up(h)).isAir(), "portal space is empty until the key is used");
         }
+        for (int step = 8; step <= 10; step++) {
+            BlockPos tunnel = lock.offset(facing, step);
+            ctx.assertTrue(world.getBlockState(tunnel).isAir() && world.getBlockState(tunnel.up()).isAir(), "doorway into the tunnel at " + step);
+        }
 
-        int barrels = 0, doubleChestHalves = 0;
+        // The containers from the template, with loot: exactly one half of one double chest holds the tomes
+        int barrels = 0, chestHalves = 0, tomeChests = 0;
         for (BlockPos pos : BlockPos.iterate(lock.add(-7, 0, -7), lock.add(7, 3, 7))) {
             BlockState state = world.getBlockState(pos);
             if (state.isOf(Blocks.BARREL)) barrels++;
-            if (state.isOf(Blocks.CHEST) && state.get(ChestBlock.CHEST_TYPE) != ChestType.SINGLE) doubleChestHalves++;
+            if (state.isOf(Blocks.CHEST)) chestHalves++;
+            if (world.getBlockEntity(pos) instanceof LootableContainerBlockEntity container) {
+                ctx.assertTrue(container.getLootTable() != null, "every container in the safe room has loot, not at " + pos);
+                if (EnvyMazePiece.SAFE_ROOM_LOOT.equals(container.getLootTable())) tomeChests++;
+            }
         }
-        ctx.assertTrue(barrels >= 4 && barrels <= 5, "4 or 5 barrels in the corners, found " + barrels);
-        ctx.assertEquals(doubleChestHalves, 2, "double chest in the safe room");
+        ctx.assertEquals(barrels, 7, "barrels in the safe room");
+        ctx.assertEquals(chestHalves, 5, "two double chests and a single chest in the safe room");
+        ctx.assertEquals(tomeChests, 1, "one tome chest");
 
         int chests = 0;
         for (BlockPos pos : BlockPos.iterate(origin, EnvyMazePiece.FLOOR_Y, origin,
@@ -354,6 +361,22 @@ public class EnvyGameTests implements FabricGameTest {
             forceLoad(world, piece, false);
             ctx.complete();
         });
+    }
+
+    /** The game only builds a structure in chunks up to 8 from its start chunk: anything further out would be missing. */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void sinStructuresFitWithinReachOfTheirStartChunk(TestContext ctx) {
+        for (ChunkPos start : new ChunkPos[]{new ChunkPos(0, 0), new ChunkPos(-37, 112), new ChunkPos(500, -500)}) {
+            BlockPos origin = EnvyMazeStructure.origin(start);
+            BlockBox maze = new EnvyMazePiece(1L, origin).getBoundingBox();
+            BlockBox tower = new PrideTowerPiece(1L, new BlockPos(start.getCenterX(), 70, start.getCenterZ()), PrideTowerShape.FULL_HEIGHT).getBoundingBox();
+            for (BlockBox box : new BlockBox[]{maze, tower}) {
+                int reach = Math.max(Math.max(Math.abs((box.getMinX() >> 4) - start.x), Math.abs((box.getMaxX() >> 4) - start.x)),
+                        Math.max(Math.abs((box.getMinZ() >> 4) - start.z), Math.abs((box.getMaxZ() >> 4) - start.z)));
+                ctx.assertTrue(reach <= 8, "a structure reaches " + reach + " chunks from its start " + start);
+            }
+        }
+        ctx.complete();
     }
 
     private static void forceLoad(ServerWorld world, EnvyMazePiece piece, boolean forced) {

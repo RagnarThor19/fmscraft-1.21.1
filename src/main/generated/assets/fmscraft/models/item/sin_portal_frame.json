@@ -1,3 +1,47 @@
 {
-  "parent": "fmscraft:block/sin_portal_frame"
+  "parent": "fmscraft:block/sin_portal_frame_greed",
+  "overrides": [
+    {
+      "model": "fmscraft:block/sin_portal_frame_greed",
+      "predicate": {
+        "fmscraft:sin": 0.1
+      }
+    },
+    {
+      "model": "fmscraft:block/sin_portal_frame_wrath",
+      "predicate": {
+        "fmscraft:sin": 0.2
+      }
+    },
+    {
+      "model": "fmscraft:block/sin_portal_frame_pride",
+      "predicate": {
+        "fmscraft:sin": 0.3
+      }
+    },
+    {
+      "model": "fmscraft:block/sin_portal_frame_gluttony",
+      "predicate": {
+        "fmscraft:sin": 0.4
+      }
+    },
+    {
+      "model": "fmscraft:block/sin_portal_frame_envy",
+      "predicate": {
+        "fmscraft:sin": 0.5
+      }
+    },
+    {
+      "model": "fmscraft:block/sin_portal_frame_lust",
+      "predicate": {
+        "fmscraft:sin": 0.6
+      }
+    },
+    {
+      "model": "fmscraft:block/sin_portal_frame_sloth",
+      "predicate": {
+        "fmscraft:sin": 0.7
+      }
+    }
+  ]
 }

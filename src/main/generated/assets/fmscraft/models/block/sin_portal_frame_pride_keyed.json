@@ -1,0 +1,9 @@
+{
+  "parent": "fmscraft:block/sin_portal_frame_keyed",
+  "textures": {
+    "bottom": "fmscraft:block/sin_portal_frame_pride_bottom",
+    "key": "fmscraft:item/pride_key",
+    "side": "fmscraft:block/sin_portal_frame_pride_side",
+    "top": "fmscraft:block/sin_portal_frame_pride_top"
+  }
+}

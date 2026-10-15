@@ -106,12 +106,16 @@ Special mechanics:
 
 - 7 portal structures, each different, in the dimensions listed above.
 - **Every structure uses the same lock, the Sin Portal Frame** (`block/SinPortalFrameBlock`, textures from
-  `tools/textures/frame_textures.py`). It's built on the vanilla end portal frame: same end stone body and height,
-  but a keyhole socket instead of the eye socket, an obsidian-dark band instead of the teal one, and trim tinted in
-  its sin's color (`sin` block state). Use that sin's key on it: the key is used up, slots in and stands upright out
+  `tools/textures/frame_textures.py`). It's the vanilla end portal frame recolored per sin (`sin` block state):
+  every pixel keeps its brightness and is pulled partway toward the sin's color, then dulled a little. The creative
+  tab has one frame per sin ("Envy Portal Frame"...): one item, the sin carried in its block state component. Use that sin's key on it: the key is used up, slots in and stands upright out
   of the keyhole (the key's own item texture), and a 3x3 portal fills the frame 4 blocks behind the lock
   (`BossFights.open(...)`). Other keys don't fit. When the fight ends the key crumbles away.
   Place one with `SinPortalFrameBlock.of(sin, facing)`, facing the way players stand to use it.
+  A few specks of dust in the sin's color drift up and out of the keyhole (more while a key is in).
+- **Atmosphere** (`structure/StructureAmbience.java`): sparse particles sent only to players inside a structure.
+  Envy maze: moss dust sifting from the ceiling, now and then a faint green mote. Tower of Pride: gold glints
+  (wax-on sparkle) in the air, and wind-blown white ash above half height.
 - 1 overworld True Ending structure with 7 end-gateway-like soul pedestals.
 
 ### Envy: the buried maze (built)
@@ -122,7 +126,10 @@ Special mechanics:
 - **Where:** overworld only, fully buried (floor at y = -40, no entrance: dig in). Caves are carved before
   structures, and the maze is generated after mineshafts, trial chambers, strongholds and ores, replacing every block
   in its box; a 2-block deepslate tile shell above and below seals it. Nothing generates into it. Rare: one per roughly
-  64x64 chunks (`worldgen/structure_set/envy_maze.json`), kept away from ancient cities. `/locate structure fmscraft:envy_maze`.
+  100x100 chunks, about 1600 blocks apart (`worldgen/structure_set/envy_maze.json`), kept away from ancient cities.
+  The maze is centered on the chunk it starts in: the game only builds a structure up to 8 chunks from its start,
+  and the maze is 10 chunks across (mazes from before this fix are missing their east and south edges; statues
+  there spawn on the nearest built cell instead). `/locate structure fmscraft:envy_maze`.
 - **Size:** 31x31 grid of 5-block units, about 155x155 blocks. Every walkway is 5 wide and 5 high; walls are
   5 thick. Generated from a seed (recursive backtracker, then about a third of dead ends knocked through so there
   are loops to get cut off in).
@@ -132,12 +139,16 @@ Special mechanics:
 - **Loot:** up to 10 chests in dead ends (`loot_table/chests/envy_maze.json`): emeralds, gold, diamonds,
   golden apples, enchanted books, XP, a rare god apple, and a 15% Envy Fragment.
 - **Safe room:** 3x3 units in the middle, double-walled, reached only through a 1-wide, 2-high, 10-block tunnel
-  the statue can't fit through. The Envy **Sin Portal Frame** sits in the middle facing the tunnel: use the Envy Key
-  on it and a 3x3 portal fills the green oxidized copper frame 4 blocks behind it (the frame stands empty until then).
-  - A double chest against one side wall: average loot (`chests/envy_safe_room_plain`) plus, in one half,
-    a 10% Advanced and a 2% Master tome (`chests/envy_safe_room`).
-  - A barrel in each corner, sometimes with a second stacked on one (4-5 total): junk loot with a 3% Beginner
-    and 1% Advanced tome each (`chests/envy_barrel`).
+  the statue can't fit through. The room is built in-game and saved as the template
+  `data/fmscraft/structure/envy_portal_room.nbt` (17x7x17: the 15x15 room plus its wall ring, doorway in the middle
+  of the south wall, rotated to face the tunnel). The Envy **Sin Portal Frame** sits in the middle facing the tunnel
+  (whatever frame is in the template is swapped for it): use the Envy Key on it and a 3x3 portal fills the shrine
+  4 blocks behind it (the shrine's opening must stay empty until then).
+  - Chests: average loot (`chests/envy_safe_room_plain`), except one half of one double chest (the left half
+    with the lowest template position) with a 10% Advanced and a 2% Master tome (`chests/envy_safe_room`).
+  - Barrels: junk loot with a 3% Beginner and 1% Advanced tome each (`chests/envy_barrel`).
+  - To change the room: edit it in the Builds world, save it with a structure block as `envy_portal_room`, and copy
+    `run/saves/Builds/generated/minecraft/structures/envy_portal_room.nbt` over the one in `data/fmscraft/structure/`.
   - Tomes come from the `fmscraft:random_tome` loot function (`"tier": "beginner" | "advanced" | "master"`),
     which picks a random Ragnars Magic Mod tome of that tier.
 - **The Statue of Envy** (always exactly 4 per maze, kept up by `structure/envy/EnvyMazes.java`: when a player comes

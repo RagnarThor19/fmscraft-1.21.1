@@ -19,10 +19,17 @@ public class EnvyMazeStructure extends Structure {
 
     @Override
     protected Optional<StructurePosition> getStructurePosition(Context context) {
-        ChunkPos chunk = context.chunkPos();
-        BlockPos origin = new BlockPos(chunk.getStartX(), EnvyMazePiece.FLOOR_Y, chunk.getStartZ());
+        BlockPos origin = origin(context.chunkPos());
         long seed = context.random().nextLong();
         return Optional.of(new StructurePosition(origin, collector -> collector.addPiece(new EnvyMazePiece(seed, origin))));
+    }
+
+    /**
+     * The north-west corner of a maze started in {@code chunk}. The maze is centered on that chunk: the game only
+     * builds a structure in chunks up to 8 away from the one it starts in, and the maze is 10 chunks across.
+     */
+    public static BlockPos origin(ChunkPos chunk) {
+        return new BlockPos(chunk.getCenterX() - EnvyMazePiece.SIZE / 2, EnvyMazePiece.FLOOR_Y, chunk.getCenterZ() - EnvyMazePiece.SIZE / 2);
     }
 
     @Override

@@ -22,7 +22,7 @@ public class ModItemGroups {
                             entries.add(ModItems.KEYS.get(sin));
                             entries.add(ModItems.SOULS.get(sin));
                         }
-                        entries.add(ModItems.SIN_PORTAL_FRAME);
+                        for (Sin sin : Sin.values()) entries.add(ModItems.SIN_PORTAL_FRAME.stack(sin));
                     })
                     .build());
 

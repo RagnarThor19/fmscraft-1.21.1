@@ -1,0 +1,9 @@
+{
+  "parent": "fmscraft:block/sin_portal_frame_keyed",
+  "textures": {
+    "bottom": "fmscraft:block/sin_portal_frame_envy_bottom",
+    "key": "fmscraft:item/envy_key",
+    "side": "fmscraft:block/sin_portal_frame_envy_side",
+    "top": "fmscraft:block/sin_portal_frame_envy_top"
+  }
+}

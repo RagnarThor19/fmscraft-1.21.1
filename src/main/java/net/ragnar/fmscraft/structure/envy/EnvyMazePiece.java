@@ -1,6 +1,5 @@
 package net.ragnar.fmscraft.structure.envy;
 
-import net.minecraft.block.BarrelBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.entity.LootableContainerBlockEntity;
 import net.minecraft.block.enums.ChestType;
@@ -15,6 +14,9 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.loot.LootTable;
 import net.minecraft.structure.StructureContext;
 import net.minecraft.structure.StructurePiece;
+import net.minecraft.structure.StructurePlacementData;
+import net.minecraft.structure.StructureTemplate;
+import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.BlockPos;
@@ -27,7 +29,6 @@ import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
 import net.ragnar.fmscraft.FmsCraft;
 import net.ragnar.fmscraft.block.SinPortalFrameBlock;
-import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.sin.Sin;
 import net.ragnar.fmscraft.structure.ModStructures;
 import net.ragnar.fmscraft.structure.envy.EnvyMazeLayout.Kind;
@@ -56,6 +57,7 @@ public class EnvyMazePiece extends StructurePiece {
             RegistryKey.of(RegistryKeys.LOOT_TABLE, Identifier.of(FmsCraft.MOD_ID, "chests/envy_safe_room_plain"));
     public static final RegistryKey<LootTable> BARREL_LOOT =
             RegistryKey.of(RegistryKeys.LOOT_TABLE, Identifier.of(FmsCraft.MOD_ID, "chests/envy_barrel"));
+    public static final Identifier SAFE_ROOM = Identifier.of(FmsCraft.MOD_ID, "envy_portal_room");
     private static final Direction[] DIRECTIONS = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST};
 
     private final long seed;
@@ -125,65 +127,55 @@ public class EnvyMazePiece extends StructurePiece {
             }
         }
 
+        placeSafeRoom(world, chunkBox, random, maze);
         BlockPos lock = unitCenter(EnvyMazeLayout.CENTER, EnvyMazeLayout.CENTER);
         if (chunkBox.contains(lock)) {
             world.setBlockState(lock, SinPortalFrameBlock.of(Sin.ENVY, direction(maze.doorDir)), Block.NOTIFY_LISTENERS);
         }
-        furnishSafeRoom(world, chunkBox, random, maze);
-
     }
 
     /**
-     * The safe room: a double chest against one side wall, barrels in the corners, and the copper portal frame.
-     * Positions are in the room's own frame: "forward" points at the tunnel, the lock is at 0,0, the portal opens
-     * at forward -4, and the room spans -7..7 both ways.
+     * The safe room is the hand-built {@link #SAFE_ROOM} template: 17x7x17, the 15x15 room plus the ring of wall
+     * around it, with the doorway in the middle of its south wall, the lock in the center and the shrine around the
+     * 3x3 where the portal opens, {@link SinPortalFrameBlock#PORTAL_DISTANCE} blocks behind the lock. It is turned so
+     * its doorway faces the tunnel. The containers in it get their loot here: the first double chest is the tome
+     * chest (one half {@link #SAFE_ROOM_LOOT}, as before), every other chest is plain, barrels get barrel loot.
      */
-    private void furnishSafeRoom(StructureWorldAccess world, BlockBox chunkBox, Random random, EnvyMazeLayout maze) {
+    private void placeSafeRoom(StructureWorldAccess world, BlockBox chunkBox, Random random, EnvyMazeLayout maze) {
         BlockPos lock = unitCenter(EnvyMazeLayout.CENTER, EnvyMazeLayout.CENTER);
-        Direction forward = direction(maze.doorDir);
-        Direction right = forward.rotateYClockwise();
-
-        Direction chestFacing = right.getOpposite();
-        BlockPos left = lock.offset(right, 7);
-        BlockPos rightHalf = left.offset(chestFacing.rotateYClockwise());
-        BlockState chest = Blocks.CHEST.getDefaultState().with(ChestBlock.FACING, chestFacing);
-        placeContainer(world, chunkBox, random, left, chest.with(ChestBlock.CHEST_TYPE, ChestType.LEFT), SAFE_ROOM_LOOT);
-        placeContainer(world, chunkBox, random, rightHalf, chest.with(ChestBlock.CHEST_TYPE, ChestType.RIGHT), SAFE_ROOM_PLAIN_LOOT);
-
-        // A barrel in each corner, and now and then a second one stacked on top: 4 or 5 in all
-        BlockState barrel = Blocks.BARREL.getDefaultState().with(BarrelBlock.FACING, Direction.UP);
-        int stacked = noise(lock.getX(), 0, lock.getZ(), 8) < 0.6 ? (int) (noise(lock.getX(), 1, lock.getZ(), 9) * 4) : -1;
-        int corner = 0;
-        for (int f = -7; f <= 7; f += 14) {
-            for (int r = -7; r <= 7; r += 14) {
-                BlockPos at = lock.offset(forward, f).offset(right, r);
-                placeContainer(world, chunkBox, random, at, barrel, BARREL_LOOT);
-                if (corner++ == stacked) placeContainer(world, chunkBox, random, at.up(), barrel, BARREL_LOOT);
-            }
+        BlockPos corner = lock.add(-8, -1, -8);
+        if (!BlockBox.create(corner, lock.add(8, HEIGHT - 2, 8)).intersects(chunkBox)) return;
+        StructureTemplate template = world.getServer().getStructureTemplateManager().getTemplate(SAFE_ROOM).orElse(null);
+        if (template == null) {
+            FmsCraft.LOGGER.error("Missing structure template {}", SAFE_ROOM);
+            return;
         }
 
-        // The portal frame: 5x5 of green copper behind the lock; the 3x3 inside fills with the portal when the key is used
-        Direction.Axis axis = forward.rotateYClockwise().getAxis();
-        Direction lateral = BossFights.along(axis);
-        BlockPos frameCenter = lock.offset(forward.getOpposite(), SinPortalFrameBlock.PORTAL_DISTANCE).down();
-        for (int l = -2; l <= 2; l++) {
-            for (int h = 0; h <= 4; h++) {
-                boolean edge = Math.abs(l) == 2 || h == 0 || h == 4;
-                if (!edge) continue;
-                BlockPos at = frameCenter.offset(lateral, l).up(h);
-                if (!chunkBox.contains(at)) continue;
-                boolean corner2 = Math.abs(l) == 2 && (h == 0 || h == 4);
-                BlockState block = corner2 ? Blocks.OXIDIZED_CHISELED_COPPER.getDefaultState()
-                        : h == 0 ? Blocks.OXIDIZED_COPPER.getDefaultState() : Blocks.OXIDIZED_CUT_COPPER.getDefaultState();
-                world.setBlockState(at, block, Block.NOTIFY_LISTENERS);
+        Direction forward = direction(maze.doorDir);
+        BlockRotation rotation = BlockRotation.NONE;
+        for (BlockRotation r : BlockRotation.values()) if (r.rotate(Direction.SOUTH) == forward) rotation = r;
+        StructurePlacementData placement = new StructurePlacementData().setRotation(rotation)
+                .setPosition(new BlockPos(8, 0, 8)).setBoundingBox(chunkBox);
+        template.place(world, corner, corner, placement, random, Block.NOTIFY_LISTENERS);
+
+        // Picked by template position, not list order, so every chunk the room spans agrees on which chest it is
+        BlockPos tomeChest = null;
+        for (StructureTemplate.StructureBlockInfo info : template.getInfosForBlock(BlockPos.ORIGIN, new StructurePlacementData(), Blocks.CHEST)) {
+            if (info.state().get(ChestBlock.CHEST_TYPE) == ChestType.LEFT && (tomeChest == null || info.pos().compareTo(tomeChest) < 0)) {
+                tomeChest = info.pos();
             }
+        }
+        BlockPos tomeChestPos = tomeChest == null ? null : StructureTemplate.transform(placement, tomeChest).add(corner);
+        for (StructureTemplate.StructureBlockInfo info : template.getInfosForBlock(corner, placement, Blocks.CHEST)) {
+            setLoot(world, chunkBox, random, info.pos(), info.pos().equals(tomeChestPos) ? SAFE_ROOM_LOOT : SAFE_ROOM_PLAIN_LOOT);
+        }
+        for (StructureTemplate.StructureBlockInfo info : template.getInfosForBlock(corner, placement, Blocks.BARREL)) {
+            setLoot(world, chunkBox, random, info.pos(), BARREL_LOOT);
         }
     }
 
-    private static void placeContainer(StructureWorldAccess world, BlockBox chunkBox, Random random, BlockPos pos, BlockState state,
-                                       RegistryKey<LootTable> loot) {
+    private static void setLoot(StructureWorldAccess world, BlockBox chunkBox, Random random, BlockPos pos, RegistryKey<LootTable> loot) {
         if (!chunkBox.contains(pos)) return;
-        world.setBlockState(pos, state, Block.NOTIFY_LISTENERS);
         if (world.getBlockEntity(pos) instanceof LootableContainerBlockEntity container) container.setLootTable(loot, random.nextLong());
     }
 
@@ -210,7 +202,7 @@ public class EnvyMazePiece extends StructurePiece {
             if (ly == 0 && (alongZ ? ox : oz) == 2) return Blocks.MOSSY_COBBLESTONE.getDefaultState();
             return Blocks.STONE_BRICKS.getDefaultState();
         }
-        if (kind == Kind.ROOM) return room(lx, ly, lz);
+        if (kind == Kind.ROOM) return Blocks.AIR.getDefaultState(); // filled by the safe room template
 
         // Corridor
         if (ly == 0) {
@@ -262,13 +254,7 @@ public class EnvyMazePiece extends StructurePiece {
         else if (ox == 4 && open(maze, ux + 1, uz)) { faces = maze.kind(ux + 1, uz); middle = oz == 2; }
         else if (oz == 0 && open(maze, ux, uz - 1)) { faces = maze.kind(ux, uz - 1); middle = ox == 2; }
         else if (oz == 4 && open(maze, ux, uz + 1)) { faces = maze.kind(ux, uz + 1); middle = ox == 2; }
-        if (faces == null) return Blocks.STONE_BRICKS.getDefaultState();
-
-        if (faces == Kind.ROOM) {
-            if (ly == 1 || ly == HEIGHT - 2) return Blocks.OXIDIZED_CUT_COPPER.getDefaultState();
-            if (ly == 3 && (x + z) % 2 == 0) return Blocks.OXIDIZED_CHISELED_COPPER.getDefaultState();
-            return Blocks.CHISELED_STONE_BRICKS.getDefaultState();
-        }
+        if (faces == null || faces == Kind.ROOM) return Blocks.STONE_BRICKS.getDefaultState(); // room walls: the template
         if (ly == 1) return Blocks.OXIDIZED_CUT_COPPER.getDefaultState();
         if (ly == 3 && middle) {
             double n = noise(x, y, z, 6);
@@ -280,19 +266,5 @@ public class EnvyMazePiece extends StructurePiece {
         if (n < 0.45) return Blocks.CRACKED_STONE_BRICKS.getDefaultState();
         if (n < 0.50) return Blocks.MOSSY_COBBLESTONE.getDefaultState();
         return Blocks.STONE_BRICKS.getDefaultState();
-    }
-
-    private BlockState room(int lx, int ly, int lz) {
-        int c = EnvyMazeLayout.CENTER * UNIT + 2;
-        int dx = lx - c, dz = lz - c;
-        if (ly == 0) {
-            if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) return Blocks.CHISELED_STONE_BRICKS.getDefaultState();
-            return (lx + lz) % 2 == 0 ? Blocks.OXIDIZED_CUT_COPPER.getDefaultState() : Blocks.POLISHED_DEEPSLATE.getDefaultState();
-        }
-        if (ly == HEIGHT - 1) {
-            if (Math.abs(dx) == 5 && Math.abs(dz) == 5) return Blocks.VERDANT_FROGLIGHT.getDefaultState();
-            return Blocks.CHISELED_STONE_BRICKS.getDefaultState();
-        }
-        return Blocks.AIR.getDefaultState();
     }
 }

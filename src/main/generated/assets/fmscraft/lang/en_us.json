@@ -19,6 +19,7 @@
   "advancements.fmscraft.wrath.title": "Wrath",
   "block.fmscraft.sin_portal": "Sin Portal",
   "block.fmscraft.sin_portal_frame": "Sin Portal Frame",
+  "block.fmscraft.sin_portal_frame.sin": "%s Portal Frame",
   "bossbar.fmscraft.fight_starts": "The fight begins in %s",
   "bossbar.fmscraft.wrath": "Wrath  %s/%s  %s",
   "death.attack.fmscraft.envy_statue": "%1$s was crushed by the Statue of Envy",
