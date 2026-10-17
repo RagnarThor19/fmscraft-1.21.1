@@ -20,6 +20,9 @@ import net.ragnar.fmscraft.FmsCraft;
 import net.ragnar.fmscraft.sin.Sin;
 import net.ragnar.fmscraft.structure.envy.EnvyMazePiece;
 import net.ragnar.fmscraft.structure.pride.PrideTowerPiece;
+import net.ragnar.fmscraft.structure.sloth.SlothSphereShape;
+import net.ragnar.fmscraft.structure.sloth.SlothSpherePiece;
+import net.ragnar.fmscraft.structure.sloth.SlothSpheres;
 import org.joml.Vector3f;
 
 /**
@@ -27,6 +30,7 @@ import org.joml.Vector3f;
  * <ul>
  *   <li>Envy maze: moss dust sifting down from the ceiling, and now and then a faint green mote hanging in the air.</li>
  *   <li>Tower of Pride: gold glints in the air all the way up, and wind-blown ash once you're high on the tower.</li>
+ *   <li>Sphere of Sloth: dark dust hanging in the air between the shells, as if nothing had moved there in ages.</li>
  * </ul>
  */
 public final class StructureAmbience {
@@ -50,16 +54,18 @@ public final class StructureAmbience {
 
     private static void tick(MinecraftServer server) {
         if (server.getTicks() % INTERVAL != 0) return;
-        ServerWorld world = server.getOverworld();
-        var structures = world.getRegistryManager().get(RegistryKeys.STRUCTURE);
-        Structure maze = structures.get(ENVY_MAZE), tower = structures.get(PRIDE_TOWER);
-        for (ServerPlayerEntity player : world.getPlayers()) {
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (player.isSpectator()) continue;
+            ServerWorld world = player.getServerWorld();
+            var structures = world.getRegistryManager().get(RegistryKeys.STRUCTURE);
+            Structure maze = structures.get(ENVY_MAZE), tower = structures.get(PRIDE_TOWER), sphere = structures.get(SlothSpheres.SPHERE);
             BlockPos at = player.getBlockPos();
             if (maze != null && piece(world.getStructureAccessor().getStructureContaining(at, maze)) instanceof EnvyMazePiece) {
                 envy(world, player);
             } else if (tower != null && piece(world.getStructureAccessor().getStructureContaining(at, tower)) instanceof PrideTowerPiece piece) {
                 pride(world, player, piece);
+            } else if (sphere != null && piece(world.getStructureAccessor().getStructureContaining(at, sphere)) instanceof SlothSpherePiece piece) {
+                sloth(world, player, piece);
             }
         }
     }
@@ -83,6 +89,17 @@ public final class StructureAmbience {
             if (world.getBlockState(pos).isAir()) {
                 world.spawnParticles(player, ENVY_MOTE, false, x + random.nextDouble(), pos.getY() + random.nextDouble(), z + random.nextDouble(), 1, 0, 0, 0, 0);
             }
+        }
+    }
+
+    private static void sloth(ServerWorld world, ServerPlayerEntity player, SlothSpherePiece piece) {
+        double r = piece.distanceFromCenter(player.getPos());
+        if (r >= SlothSphereShape.INNER || r < SlothSphereShape.BALL) return;
+        Random random = world.getRandom();
+        BlockPos pos = player.getBlockPos().add(random.nextInt(REACH * 2 + 1) - REACH, random.nextInt(8) - 2, random.nextInt(REACH * 2 + 1) - REACH);
+        if (random.nextFloat() < 0.7f && world.getBlockState(pos).isAir()) {
+            world.spawnParticles(player, ParticleTypes.ASH, false, pos.getX() + random.nextDouble(), pos.getY() + random.nextDouble(),
+                    pos.getZ() + random.nextDouble(), 1, 0, 0, 0, 0);
         }
     }
 

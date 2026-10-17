@@ -56,6 +56,11 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add("message.fmscraft.frame_open", "The portal is already open.");
         builder.add("message.fmscraft.frame_awaits", "Only the %s Key fits this lock...");
 
+        builder.add("bossbar.fmscraft.drowsiness", "Drowsiness");
+        builder.add("message.fmscraft.sloth_asleep", "You nodded off...");
+        builder.add("message.fmscraft.sloth_bells", "Bells ringing: %s/%s");
+        builder.add("message.fmscraft.sloth_seal_open", "The Sphere stirs. Its heart lies open.");
+
         builder.add("advancements.fmscraft.root.title", "The Seven Sins");
         builder.add("advancements.fmscraft.root.description", "Obtain your first sin fragment");
         builder.add("advancements.fmscraft.true_ending.title", "True Ending");

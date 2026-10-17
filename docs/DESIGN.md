@@ -115,7 +115,8 @@ Special mechanics:
   A few specks of dust in the sin's color drift up and out of the keyhole (more while a key is in).
 - **Atmosphere** (`structure/StructureAmbience.java`): sparse particles sent only to players inside a structure.
   Envy maze: moss dust sifting from the ceiling, now and then a faint green mote. Tower of Pride: gold glints
-  (wax-on sparkle) in the air, and wind-blown white ash above half height.
+  (wax-on sparkle) in the air, and wind-blown white ash above half height. Sphere of Sloth: dark ash hanging in the
+  air between the shells.
 - 1 overworld True Ending structure with 7 end-gateway-like soul pedestals.
 
 ### Envy: the buried maze (built)
@@ -189,6 +190,49 @@ Special mechanics:
   diamonds, god apple, level-30 books, netherite scrap, Pigstep, and the same 10% Advanced / 2% Master tome
   chance as the Envy safe room).
 - Not built yet: the mirror hazard (reflections of you that only move when you aren't looking).
+
+### Sloth: the Sphere of Sloth (built)
+
+`structure/sloth/`. Preview: `docs/sloth-sphere.png` (left: from the night side; right: cut open).
+- **Where:** the outer End only, at least 1500 blocks from the dragon's island, hanging alone in the void: no land
+  within 80 blocks of its center (it looks up to 2 chunks around its start chunk for a clear spot, otherwise skips).
+  Very rare: one chance per 180x180 chunks (~2900 blocks apart, `worldgen/structure_set/sphere_of_sloth.json`), kept
+  6 chunks from end cities, and many chances fail for want of open void. Center at y = 100. Its mouth faces the main
+  island. No endermen spawn inside. `/locate structure fmscraft:sphere_of_sloth` (in the End).
+- **Shape** (`SlothSphereShape`, pure logic, unit tested): a 96-block hollow sphere with a 4-thick shell. Inside, a
+  48-block obsidian sphere (the **core**) hangs from four bundles of chains. A **stair** winds three times round the
+  core in the gap between them, from the bottom bell (y -23 from the center) to a landing on top of the core (y +25).
+  It climbs in half-block steps (no jumping anywhere, checked by a test that walks it), levelling out into flat
+  landings at the bells and where it passes the **mouth**: a round opening in the shell, level with the middle of the
+  stair, with a bridge in to it and a soul lantern either side so it can be spotted from afar.
+- **Look:** the shell is shaded like a lit planet: grey deepslate on the side facing the main island, dithered down
+  through blackstone and coal to black concrete on the night side, with purple-sheened obsidian creeping up from
+  underneath, which weeps crying obsidian. Inside, the shell is old deepslate speckled with crying obsidian like a
+  starry sky; the stair is cracked deepslate with broken rails, cobwebs and old unlit candles, and soul lanterns hang
+  under every turn. Crying obsidian tears run down the outside of the core.
+- **The challenge: Drowsiness** (`Drowsiness`, `SlothSpheres`). Everyone inside gets a "Drowsiness" boss bar that fills
+  in 3 minutes, or **1 minute standing still** (idling is what the sphere wants). At 40% Slowness I, at 70% Slowness II
+  and the bar turns purple: **nightmares**, phantoms swooping in out of the dark near you (one every 10 s per drowsy
+  player, at most 6 per sphere). At 90% Darkness pulses. At 100% you **nod off** where you stand: 5 seconds blind and
+  unable to move (a snore, "You nodded off..."), then wake at 60%. The core is calm: drowsiness drains there. The
+  whole sphere also gives Mining Fatigue III, like an ocean monument, so nobody digs to the core.
+- **The bells:** one at the bottom of the stair, two in bays along it, one on the landing. Ringing one (by hand,
+  arrow or redstone) wakes everyone within 24 blocks (drowsiness back to 0) and lights the four grey candles in front
+  of it, which burn down one at a time over 160 seconds. **Ring all four while they're all still burning and the
+  crying obsidian seal on top of the core crumbles open.** Groups can split up; one player can just make it by
+  hurrying from the bottom up. "Bells ringing: n/4" shows for everyone inside.
+- **The core:** drop down the shaft into a pool. A quiet obsidian room with candles burning: the Sloth **Sin Portal
+  Frame** before a crying-obsidian-cornered frame on one side (use the Sloth Key on it), and two rows of grey beds
+  either side of the pool (they explode if anyone tries to sleep, this being the End). A vanilla **end gateway**
+  (bedrock and all) on the other side takes you back out to the mouth.
+- **The seal closes again** once nobody is within 64 blocks of the center, and the bells go quiet, so every visit
+  is the same challenge. Nothing is saved: after a restart the bells start silent and an open seal closes the next
+  time someone comes by.
+- **Loot:** a chest by each of the three lower bells (`chests/sphere_of_sloth`: ender pearls, rockets, phantom
+  membranes, slow falling potions, golden carrots, diamonds, a clock, Mellohi..., plus a 5% Beginner and 5% Advanced
+  tome) and two by the lock (`chests/sphere_of_sloth_core`: diamonds, level-30 books, a totem, a god apple, netherite
+  scrap, a rare elytra, and the same 10% Advanced / 2% Master tome chance as the other final rooms).
+- Tuning knobs: `Drowsiness` (rates and thresholds), `SlothSpheres.BELL_TICKS`, `MAX_PHANTOMS`, `PHANTOM_INTERVAL`.
 
 ## Compatibility with the other two mods
 

@@ -10,6 +10,8 @@ import net.ragnar.fmscraft.structure.envy.EnvyMazePiece;
 import net.ragnar.fmscraft.structure.envy.EnvyMazeStructure;
 import net.ragnar.fmscraft.structure.pride.PrideTowerPiece;
 import net.ragnar.fmscraft.structure.pride.PrideTowerStructure;
+import net.ragnar.fmscraft.structure.sloth.SlothSpherePiece;
+import net.ragnar.fmscraft.structure.sloth.SlothSphereStructure;
 
 public class ModStructures {
     public static final StructureType<EnvyMazeStructure> ENVY_MAZE = Registry.register(Registries.STRUCTURE_TYPE,
@@ -21,6 +23,11 @@ public class ModStructures {
             Identifier.of(FmsCraft.MOD_ID, "tower_of_pride"), () -> PrideTowerStructure.CODEC);
     public static final StructurePieceType PRIDE_TOWER_PIECE = Registry.register(Registries.STRUCTURE_PIECE,
             Identifier.of(FmsCraft.MOD_ID, "tower_of_pride"), (context, nbt) -> new PrideTowerPiece(nbt));
+
+    public static final StructureType<SlothSphereStructure> SLOTH_SPHERE = Registry.register(Registries.STRUCTURE_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "sphere_of_sloth"), () -> SlothSphereStructure.CODEC);
+    public static final StructurePieceType SLOTH_SPHERE_PIECE = Registry.register(Registries.STRUCTURE_PIECE,
+            Identifier.of(FmsCraft.MOD_ID, "sphere_of_sloth"), (context, nbt) -> new SlothSpherePiece(nbt));
 
     public static void initialize() {
     }

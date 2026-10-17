@@ -1,0 +1,15 @@
+{
+  "structures": [
+    { "structure": "fmscraft:sphere_of_sloth", "weight": 1 }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "spacing": 180,
+    "separation": 90,
+    "salt": 1394618207,
+    "exclusion_zone": {
+      "other_set": "minecraft:end_cities",
+      "chunk_count": 6
+    }
+  }
+}
