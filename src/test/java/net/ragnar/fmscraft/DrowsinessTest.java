@@ -27,10 +27,8 @@ class DrowsinessTest {
         assertEquals(-1, d.slowness());
         d.set(Drowsiness.SLOWNESS);
         assertEquals(0, d.slowness());
-        assertFalse(d.nightmares());
-        d.set(Drowsiness.NIGHTMARES);
+        d.set(Drowsiness.HEAVY_SLOWNESS);
         assertEquals(1, d.slowness());
-        assertTrue(d.nightmares());
         assertFalse(d.darkness());
         d.set(Drowsiness.DARKNESS);
         assertTrue(d.darkness());

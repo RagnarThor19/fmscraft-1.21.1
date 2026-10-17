@@ -212,8 +212,7 @@ Special mechanics:
   under every turn. Crying obsidian tears run down the outside of the core.
 - **The challenge: Drowsiness** (`Drowsiness`, `SlothSpheres`). Everyone inside gets a "Drowsiness" boss bar that fills
   in 3 minutes, or **1 minute standing still** (idling is what the sphere wants). At 40% Slowness I, at 70% Slowness II
-  and the bar turns purple: **nightmares**, phantoms swooping in out of the dark near you (one every 10 s per drowsy
-  player, at most 6 per sphere). At 90% Darkness pulses. At 100% you **nod off** where you stand: 5 seconds blind and
+  and the bar turns purple. At 90% Darkness pulses. At 100% you **nod off** where you stand: 5 seconds blind and
   unable to move (a snore, "You nodded off..."), then wake at 60%. The core is calm: drowsiness drains there. The
   whole sphere also gives Mining Fatigue III, like an ocean monument, so nobody digs to the core.
 - **The bells:** one at the bottom of the stair, two in bays along it, one on the landing. Ringing one (by hand,
@@ -232,7 +231,7 @@ Special mechanics:
   membranes, slow falling potions, golden carrots, diamonds, a clock, Mellohi..., plus a 5% Beginner and 5% Advanced
   tome) and two by the lock (`chests/sphere_of_sloth_core`: diamonds, level-30 books, a totem, a god apple, netherite
   scrap, a rare elytra, and the same 10% Advanced / 2% Master tome chance as the other final rooms).
-- Tuning knobs: `Drowsiness` (rates and thresholds), `SlothSpheres.BELL_TICKS`, `MAX_PHANTOMS`, `PHANTOM_INTERVAL`.
+- Tuning knobs: `Drowsiness` (rates and thresholds), `SlothSpheres.BELL_TICKS`.
 
 ## Compatibility with the other two mods
 

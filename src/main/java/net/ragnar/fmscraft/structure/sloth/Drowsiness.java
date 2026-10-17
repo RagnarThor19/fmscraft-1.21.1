@@ -6,7 +6,7 @@ package net.ragnar.fmscraft.structure.sloth;
  *
  * It creeps up the whole time you're in the sphere, and three times as fast while you stand still: idling is what
  * the sphere wants. In the core it drains away. Ringing a bell wakes you right up. As it builds you slow down, then
- * the nightmares (phantoms) come, then the dark closes in, and when it's full you fall asleep where you stand.
+ * slow down more, then the dark closes in, and when it's full you fall asleep where you stand.
  */
 public class Drowsiness {
     public static final float FULL = 100;
@@ -18,7 +18,6 @@ public class Drowsiness {
     public static final int RESTING_TICKS = 20 * 20;
     public static final float SLOWNESS = 40;
     public static final float HEAVY_SLOWNESS = 70;
-    public static final float NIGHTMARES = 70;
     public static final float DARKNESS = 90;
     /** Where it drops back to after you've nodded off. */
     public static final float AFTER_NAP = 60;
@@ -61,10 +60,6 @@ public class Drowsiness {
     public int slowness() {
         if (value >= HEAVY_SLOWNESS) return 1;
         return value >= SLOWNESS ? 0 : -1;
-    }
-
-    public boolean nightmares() {
-        return value >= NIGHTMARES;
     }
 
     public boolean darkness() {

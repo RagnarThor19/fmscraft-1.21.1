@@ -7,14 +7,11 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.CandleBlock;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.boss.BossBar;
 import net.minecraft.entity.boss.ServerBossBar;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.mob.PhantomEntity;
 import net.minecraft.particle.BlockStateParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.RegistryKey;
@@ -30,11 +27,9 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import net.minecraft.world.gen.structure.Structure;
 import net.ragnar.fmscraft.FmsCraft;
@@ -51,7 +46,7 @@ import java.util.UUID;
  * What happens inside a Sphere of Sloth:
  * <ul>
  *   <li><b>Drowsiness</b> ({@link Drowsiness}): a boss bar that fills while you're inside, faster standing still.
- *       Slowness, then phantoms, then darkness, and at the top you fall asleep where you stand for five seconds.
+ *       Slowness, then heavier Slowness, then darkness, and at the top you fall asleep where you stand for five seconds.
  *       The whole sphere also gives Mining Fatigue, like an ocean monument, so nobody digs to the core.</li>
  *   <li><b>Bells</b>: four along the stair. Ringing one (by hand, arrow or redstone) wakes everyone near it, and lights
  *       the four candles in front of it, which burn down one by one over {@link #BELL_TICKS}. Ring all four while
@@ -66,8 +61,6 @@ public final class SlothSpheres {
     /** Ringing a bell wakes everyone this close to it. */
     public static final double WAKE_RADIUS = 24;
     public static final int ASLEEP_TICKS = 5 * 20;
-    public static final int MAX_PHANTOMS = 6;
-    public static final int PHANTOM_INTERVAL = 10 * 20;
     /** The seal closes when nobody is this close to the center. */
     public static final double RESEAL_DISTANCE = SlothSphereShape.RADIUS + 16;
     private static final int SCAN_CHUNKS = 6;
@@ -112,7 +105,6 @@ public final class SlothSpheres {
         final ServerBossBar bar = new ServerBossBar(Text.translatable("bossbar.fmscraft.drowsiness"), BossBar.Color.WHITE, BossBar.Style.NOTCHED_10);
         Vec3d last;
         long asleepUntil;
-        int phantomCooldown = PHANTOM_INTERVAL / 2;
     }
 
     private static final Map<Key, Sphere> SPHERES = new HashMap<>();
@@ -222,14 +214,10 @@ public final class SlothSpheres {
         if (!asleep && drowsiness.tick(still, resting)) fallAsleep(world, player, sleeper, now);
 
         sleeper.bar.setPercent(drowsiness.fraction());
-        sleeper.bar.setColor(drowsiness.nightmares() ? BossBar.Color.PURPLE : BossBar.Color.WHITE);
+        sleeper.bar.setColor(drowsiness.value() >= Drowsiness.HEAVY_SLOWNESS ? BossBar.Color.PURPLE : BossBar.Color.WHITE);
         if (now % 20 == 0 && !asleep) {
             if (drowsiness.slowness() >= 0) player.addStatusEffect(effect(StatusEffects.SLOWNESS, 40, drowsiness.slowness()));
             if (drowsiness.darkness()) player.addStatusEffect(effect(StatusEffects.DARKNESS, 60, 0));
-        }
-        if (drowsiness.nightmares() && !resting && --sleeper.phantomCooldown <= 0) {
-            sleeper.phantomCooldown = PHANTOM_INTERVAL;
-            spawnPhantom(sphere, player);
         }
         return true;
     }
@@ -258,30 +246,6 @@ public final class SlothSpheres {
         for (RegistryEntry<StatusEffect> type : List.of(StatusEffects.SLOWNESS, StatusEffects.DARKNESS, StatusEffects.BLINDNESS)) {
             StatusEffectInstance current = player.getStatusEffect(type);
             if (current != null && current.isAmbient()) player.removeStatusEffect(type);
-        }
-    }
-
-    /** A nightmare: a phantom swoops in out of the dark near a drowsy player, a few at most per sphere. */
-    private static void spawnPhantom(Sphere sphere, ServerPlayerEntity player) {
-        ServerWorld world = sphere.world;
-        Box box = Box.from(Vec3d.ofCenter(sphere.piece.center())).expand(SlothSphereShape.RADIUS);
-        if (world.getEntitiesByType(EntityType.PHANTOM, box, e -> true).size() >= MAX_PHANTOMS) return;
-        Random random = world.getRandom();
-        for (int attempt = 0; attempt < 12; attempt++) {
-            double angle = random.nextDouble() * Math.PI * 2, distance = 8 + random.nextDouble() * 6;
-            Vec3d at = player.getPos().add(Math.cos(angle) * distance, 3 + random.nextDouble() * 4, Math.sin(angle) * distance);
-            double r = sphere.piece.distanceFromCenter(at);
-            if (r < SlothSphereShape.BALL + 2 || r > SlothSphereShape.INNER - 3) continue;
-            BlockPos pos = BlockPos.ofFloored(at);
-            if (!world.isAir(pos) || !world.isAir(pos.up())) continue;
-            PhantomEntity phantom = EntityType.PHANTOM.create(world);
-            if (phantom == null) return;
-            phantom.refreshPositionAndAngles(at.x, at.y, at.z, random.nextFloat() * 360, 0);
-            phantom.initialize(world, world.getLocalDifficulty(pos), SpawnReason.EVENT, null);
-            if (!world.spawnEntity(phantom)) return;
-            phantom.setTarget(player);
-            world.playSound(null, pos, SoundEvents.ENTITY_PHANTOM_AMBIENT, SoundCategory.HOSTILE, 1.5f, 0.8f);
-            return;
         }
     }
 
