@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.datagen.v1.provider.FabricLanguageProvider;
 import net.minecraft.registry.RegistryWrapper;
 import net.ragnar.fmscraft.block.ModBlocks;
 import net.ragnar.fmscraft.boss.ModBossEntities;
+import net.ragnar.fmscraft.effect.ModEffects;
 import net.ragnar.fmscraft.entity.ModEntities;
 import net.ragnar.fmscraft.item.ModItems;
 import net.ragnar.fmscraft.sin.Sin;
@@ -60,6 +61,12 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add("message.fmscraft.sloth_asleep", "You nodded off...");
         builder.add("message.fmscraft.sloth_bells", "Bells ringing: %s/%s");
         builder.add("message.fmscraft.sloth_seal_open", "The Sphere stirs. Its heart lies open.");
+
+        builder.add(ModEntities.GREED_STATUE, "Statue of Greed");
+        builder.add("death.attack.fmscraft.greed_statue", "%1$s was claimed by the Statue of Greed");
+        builder.add("death.attack.fmscraft.greed_statue.player", "%1$s was claimed by the Statue of Greed while fleeing %2$s");
+        builder.add(ModEffects.BLOCK_BARRIER.value(), "Block Barrier");
+        builder.add("message.fmscraft.greed_door_open", "The vault door sinks into the floor...");
 
         builder.add("advancements.fmscraft.root.title", "The Seven Sins");
         builder.add("advancements.fmscraft.root.description", "Obtain your first sin fragment");

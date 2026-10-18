@@ -5,11 +5,13 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.ragnar.fmscraft.block.ModBlocks;
 import net.ragnar.fmscraft.boss.ModBossEntities;
 import net.ragnar.fmscraft.command.FmsCommands;
+import net.ragnar.fmscraft.effect.ModEffects;
 import net.ragnar.fmscraft.entity.ModEntities;
 import net.ragnar.fmscraft.loot.ModLoot;
 import net.ragnar.fmscraft.structure.ModStructures;
 import net.ragnar.fmscraft.structure.StructureAmbience;
 import net.ragnar.fmscraft.structure.envy.EnvyMazes;
+import net.ragnar.fmscraft.structure.greed.GreedVaults;
 import net.ragnar.fmscraft.structure.sloth.SlothSpheres;
 import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fragment.FragmentTriggers;
@@ -17,6 +19,7 @@ import net.ragnar.fmscraft.item.ModItemGroups;
 import net.ragnar.fmscraft.item.ModItems;
 import net.ragnar.fmscraft.network.BossMusicPayload;
 import net.ragnar.fmscraft.network.TomeWheelPayload;
+import net.ragnar.fmscraft.network.VaultFogPayload;
 import net.ragnar.fmscraft.reward.TomeWheel;
 
 import org.slf4j.Logger;
@@ -36,17 +39,20 @@ public class FmsCraft implements ModInitializer {
 		ModBlocks.initialize();
 		ModItemGroups.initialize();
 		ModBossEntities.initialize();
+		ModEffects.initialize();
 		ModEntities.initialize();
 		ModStructures.initialize();
 		ModLoot.initialize();
 		PayloadTypeRegistry.playS2C().register(BossMusicPayload.ID, BossMusicPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(TomeWheelPayload.ID, TomeWheelPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(VaultFogPayload.ID, VaultFogPayload.CODEC);
 
 		FragmentTriggers.register();
 		BossFights.register();
 		TomeWheel.register();
 		EnvyMazes.register();
 		SlothSpheres.register();
+		GreedVaults.register();
 		StructureAmbience.register();
 		FmsCommands.register();
 

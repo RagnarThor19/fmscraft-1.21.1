@@ -19,6 +19,8 @@ import net.minecraft.world.gen.structure.Structure;
 import net.ragnar.fmscraft.FmsCraft;
 import net.ragnar.fmscraft.sin.Sin;
 import net.ragnar.fmscraft.structure.envy.EnvyMazePiece;
+import net.ragnar.fmscraft.structure.greed.GreedVaultPiece;
+import net.ragnar.fmscraft.structure.greed.GreedVaults;
 import net.ragnar.fmscraft.structure.pride.PrideTowerPiece;
 import net.ragnar.fmscraft.structure.sloth.SlothSphereShape;
 import net.ragnar.fmscraft.structure.sloth.SlothSpherePiece;
@@ -31,6 +33,8 @@ import org.joml.Vector3f;
  *   <li>Envy maze: moss dust sifting down from the ceiling, and now and then a faint green mote hanging in the air.</li>
  *   <li>Tower of Pride: gold glints in the air all the way up, and wind-blown ash once you're high on the tower.</li>
  *   <li>Sphere of Sloth: dark dust hanging in the air between the shells, as if nothing had moved there in ages.</li>
+ *   <li>Greed Vault: thick with dust down in its rooms: dark specks hanging everywhere, grey dust sifting from the
+ *       ceiling, and the odd flake of gold leaf.</li>
  * </ul>
  */
 public final class StructureAmbience {
@@ -39,6 +43,8 @@ public final class StructureAmbience {
     private static final RegistryKey<Structure> ENVY_MAZE = RegistryKey.of(RegistryKeys.STRUCTURE, Identifier.of(FmsCraft.MOD_ID, "envy_maze"));
     private static final RegistryKey<Structure> PRIDE_TOWER = RegistryKey.of(RegistryKeys.STRUCTURE, Identifier.of(FmsCraft.MOD_ID, "tower_of_pride"));
     private static final ParticleEffect MOSS_DUST = new BlockStateParticleEffect(ParticleTypes.FALLING_DUST, Blocks.MOSSY_STONE_BRICKS.getDefaultState());
+    private static final ParticleEffect BEDROCK_DUST = new BlockStateParticleEffect(ParticleTypes.FALLING_DUST, Blocks.BEDROCK.getDefaultState());
+    private static final ParticleEffect GOLD_FLAKE = new BlockStateParticleEffect(ParticleTypes.FALLING_DUST, Blocks.GOLD_BLOCK.getDefaultState());
     private static final ParticleEffect ENVY_MOTE = new DustParticleEffect(color(Sin.ENVY.color()).lerp(new Vector3f(1, 1, 1), 0.3f), 0.5f);
 
     private StructureAmbience() {
@@ -58,7 +64,8 @@ public final class StructureAmbience {
             if (player.isSpectator()) continue;
             ServerWorld world = player.getServerWorld();
             var structures = world.getRegistryManager().get(RegistryKeys.STRUCTURE);
-            Structure maze = structures.get(ENVY_MAZE), tower = structures.get(PRIDE_TOWER), sphere = structures.get(SlothSpheres.SPHERE);
+            Structure maze = structures.get(ENVY_MAZE), tower = structures.get(PRIDE_TOWER), sphere = structures.get(SlothSpheres.SPHERE),
+                    vault = structures.get(GreedVaults.VAULT);
             BlockPos at = player.getBlockPos();
             if (maze != null && piece(world.getStructureAccessor().getStructureContaining(at, maze)) instanceof EnvyMazePiece) {
                 envy(world, player);
@@ -66,6 +73,9 @@ public final class StructureAmbience {
                 pride(world, player, piece);
             } else if (sphere != null && piece(world.getStructureAccessor().getStructureContaining(at, sphere)) instanceof SlothSpherePiece piece) {
                 sloth(world, player, piece);
+            } else if (vault != null && piece(world.getStructureAccessor().getStructureContaining(at, vault)) instanceof GreedVaultPiece piece
+                    && piece.inBody(at)) {
+                greed(world, player);
             }
         }
     }
@@ -89,6 +99,19 @@ public final class StructureAmbience {
             if (world.getBlockState(pos).isAir()) {
                 world.spawnParticles(player, ENVY_MOTE, false, x + random.nextDouble(), pos.getY() + random.nextDouble(), z + random.nextDouble(), 1, 0, 0, 0, 0);
             }
+        }
+    }
+
+    private static void greed(ServerWorld world, ServerPlayerEntity player) {
+        Random random = world.getRandom();
+        // The dust: a cloud of dark specks all round you, and grey dust drifting down
+        world.spawnParticles(player, ParticleTypes.ASH, false, player.getX(), player.getY() + 1.2, player.getZ(), 14, 5, 1.5, 5, 0);
+        world.spawnParticles(player, BEDROCK_DUST, false, player.getX(), player.getY() + 2.5, player.getZ(), 4, 5, 1, 5, 0);
+        BlockPos pos = player.getBlockPos().add(random.nextInt(REACH * 2 + 1) - REACH, random.nextInt(6), random.nextInt(REACH * 2 + 1) - REACH);
+        if (!world.getBlockState(pos).isAir()) return;
+        double x = pos.getX() + random.nextDouble(), z = pos.getZ() + random.nextDouble();
+        if (random.nextFloat() < 0.25f && !world.getBlockState(pos.up()).isAir()) {
+            world.spawnParticles(player, GOLD_FLAKE, false, x, pos.getY() + 0.9, z, 1, 0, 0, 0, 0);
         }
     }
 

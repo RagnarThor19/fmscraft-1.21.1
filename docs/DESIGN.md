@@ -116,7 +116,8 @@ Special mechanics:
 - **Atmosphere** (`structure/StructureAmbience.java`): sparse particles sent only to players inside a structure.
   Envy maze: moss dust sifting from the ceiling, now and then a faint green mote. Tower of Pride: gold glints
   (wax-on sparkle) in the air, and wind-blown white ash above half height. Sphere of Sloth: dark ash hanging in the
-  air between the shells.
+  air between the shells. Greed Vault (down in the rooms): thick with dust, dark specks hanging everywhere and grey
+  dust sifting from the ceiling, and the odd flake of gold leaf.
 - 1 overworld True Ending structure with 7 end-gateway-like soul pedestals.
 
 ### Envy: the buried maze (built)
@@ -166,6 +167,55 @@ Special mechanics:
     leave the maze or pass through a wall, even one that has been dug out. Any gap with 3+ solid blocks also stops
     it; a block or two that players put in its way is smashed. Statues from before this rule find their maze on
     load and, if they've strayed, are put back on the nearest corridor.
+
+### Greed: the Greed Vault (built)
+
+`structure/greed/` + `entity/GreedStatueEntity`. Built in-game in the Builds world.
+- **Where:** the twilight dimension only (`tags/worldgen/biome/has_structure/greed_vault.json`), rare: one chance per
+  80x80 chunks, about 1280 blocks apart (`worldgen/structure_set/greed_vault.json`). Buried just under the surface:
+  only the **pipe** sticks up out of the ground (3-4 blocks), and the rooms stay at least a block under the ground
+  everywhere above them. Turned to a random side, centered on its start chunk. It generates after all the twilight
+  features (trees, graves...) so nothing grows into it, and anything over the pipe's mouth is cleared. No mobs spawn
+  inside. `/locate structure fmscraft:greed_vault` (in the twilight).
+- **The template:** a structure block only saves 48 blocks across, so the vault was saved in two halves,
+  `greed_vault2` (west, x 0-28) and `greed_vault` (east, x 29-76). `tools/structures/greed_vault.py` joins them into
+  one 77x15x35 template, `data/fmscraft/structure/greed_vault.nbt`, dropping the air saved around the building (so
+  it doesn't carve a cave into the terrain), adding the ladder up the pipe, and writing the second 7 clue into the
+  empty book. To change the vault: edit it in the Builds world, re-save both halves with their structure blocks and
+  re-run the script. Positions the code relies on are in `GreedVaultLayout` and checked by a game test.
+- **Getting in and out:** drop down the pipe (about 13 blocks: it hurts) and climb back out by the ladder in it.
+  Anyone down in the rooms (not up the pipe or on the surface, so you can build up to a pipe that stands tall) has
+  **Mining Fatigue X**, **Slowness II** and **Block Barrier** (a new effect: no placing blocks or emptying
+  buckets), so there's no digging, pillaring or walling off. Down there the fog turns nearly black and closes in
+  to about 12 blocks, and the light itself dims like the Darkness effect but without the pulsing (`VaultFog`, told
+  by the server with `VaultFogPayload`), fading in and out over two seconds.
+- **The puzzle:** clue books hidden in the vault spell out 1, 5 and 7 (5: a chest and a decorated pot, Icelandic;
+  7: a chest, German, and the chiseled bookshelf, French; 1: a chest, "One piece lol", and the "One Piece" sign).
+  The clue chests have no loot table, so the books are always there; if one is taken, it's put back when the vault
+  resets. Eight levers in two rows, numbered like a book from in front of the wall (top row 1-4 left to right,
+  bottom row 5-8). **Exactly 1, 5 and 7 on** and the vault is solved: everyone in it hears the challenge-complete
+  fanfare, the effects lift, the statues crumble away, and the 4x4 iron block door sinks into the floor a row at a
+  time. Any other combination does nothing. It stays solved (no effects, no statues, door open) until it resets. Anyone behind the door while
+  it's shut (back from the fight after a reset, logged out in there) gets it opened, so nobody is ever shut in.
+- **Behind the door:** the treasury and the portal room. The Greed **Sin Portal Frame** stands 4 blocks in front of
+  the tuff portal frame: use the Greed Key and a 3x3 portal fills it.
+- **Loot:** barrels get a bit of loot (gold and iron nuggets, raw gold, emeralds, bread, the odd diamond...) and a
+  2% chance of a tome, Beginner or Advanced (`chests/greed_vault_barrel`).
+- **The Statues of Greed** (exactly 3 per vault): when someone comes within 16 blocks, one rises from each of the
+  three smooth stone blocks in the floor. A robed figure of pale stone, its gold leaf flaking off except on its
+  hands, purse and crown; head hanging tilted on a too-long neck, arms almost to the floor, a blank face with two
+  pinprick gold eyes and a smile cut too wide.
+  - Hunts the nearest player inside the vault, along the corridors, silently and at a crawl (~0.25 blocks a second).
+    It's drawn in stop motion (its pose only updates every 16 ticks), and now and then the cave noises come from
+    right where it stands. Its colours are dull: grey stone and tarnished gold.
+  - Touching it deals 28.8 damage (over 14 hearts, before armor) and throws you back. It can't be hurt, pushed, burned,
+    blown up or slowed by cobwebs, can't climb the ladder, and is put back on its stone if it ever leaves the vault.
+  - Player-sized, so it can follow you anywhere in the vault you can go.
+- **Resetting:** once nobody is within 48 blocks (and no Greed fight is running), the statues sink back into their
+  stones, the door closes, the levers go back off and taken clue books reappear. Statues are never saved: they rise
+  again on the next visit. Everything else is read back from the world, so a restart changes nothing.
+- Tuning knobs: `GreedVaults` (margins, effect levels), `GreedStatueEntity.DAMAGE` / `SPEED`, the lever code in
+  `GreedVaultLayout.CODE`.
 
 ### Pride: the Tower of Pride (built)
 

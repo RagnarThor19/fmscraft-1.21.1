@@ -1,0 +1,11 @@
+{
+  "structures": [
+    { "structure": "fmscraft:greed_vault", "weight": 1 }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "spacing": 80,
+    "separation": 40,
+    "salt": 1739204581
+  }
+}

@@ -9,6 +9,7 @@
 			"net.ragnar.fmscraft.gametest.FragmentGameTests",
 			"net.ragnar.fmscraft.gametest.FightGameTests",
 			"net.ragnar.fmscraft.gametest.EnvyGameTests",
+			"net.ragnar.fmscraft.gametest.GreedGameTests",
 			"net.ragnar.fmscraft.gametest.PrideGameTests",
 			"net.ragnar.fmscraft.gametest.SlothGameTests"
 		]

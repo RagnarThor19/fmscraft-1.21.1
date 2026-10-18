@@ -1,5 +1,6 @@
 package net.ragnar.fmscraft.entity;
 
+import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnGroup;
 import net.minecraft.registry.Registries;
@@ -17,6 +18,16 @@ public class ModEntities {
                     .trackingTickInterval(1)
                     .build("envy_statue"));
 
+    /** Player-sized, so it can follow you anywhere in the vault you can go. */
+    public static final EntityType<GreedStatueEntity> GREED_STATUE = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "greed_statue"),
+            EntityType.Builder.<GreedStatueEntity>create(GreedStatueEntity::new, SpawnGroup.MISC)
+                    .dimensions(0.8f, 1.95f)
+                    .makeFireImmune()
+                    .maxTrackingRange(10)
+                    .build("greed_statue"));
+
     public static void initialize() {
+        FabricDefaultAttributeRegistry.register(GREED_STATUE, GreedStatueEntity.createAttributes());
     }
 }

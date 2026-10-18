@@ -5,10 +5,14 @@
 	"mixins": [
 		"ArmorStandEntityMixin",
 		"BellBlockMixin",
+		"BlockItemMixin",
 		"BredAnimalsCriterionMixin",
+		"BucketItemMixin",
 		"PlayerEntityMixin"
 	],
 	"client": [
+		"client.BackgroundRendererMixin",
+		"client.LightmapTextureManagerMixin",
 		"client.MusicTrackerMixin"
 	],
 	"injectors": {

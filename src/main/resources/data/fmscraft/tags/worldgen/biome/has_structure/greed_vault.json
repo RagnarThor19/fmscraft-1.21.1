@@ -1,0 +1,6 @@
+{
+  "values": [
+    { "id": "ragnarstwilightdimension:twilight_plains", "required": false },
+    { "id": "ragnarstwilightdimension:twilight_snowfield", "required": false }
+  ]
+}

@@ -30,12 +30,16 @@ import net.ragnar.fmscraft.boss.TestBossEntity;
 import net.ragnar.fmscraft.client.ClientBossMusic;
 import net.ragnar.fmscraft.client.EnvyStatueModel;
 import net.ragnar.fmscraft.client.EnvyStatueRenderer;
+import net.ragnar.fmscraft.client.GreedStatueModel;
+import net.ragnar.fmscraft.client.GreedStatueRenderer;
+import net.ragnar.fmscraft.client.VaultFog;
 import net.ragnar.fmscraft.client.StatueGrindSound;
 import net.ragnar.fmscraft.entity.EnvyStatueEntity;
 import net.ragnar.fmscraft.entity.ModEntities;
 import net.ragnar.fmscraft.client.TomeWheelHud;
 import net.ragnar.fmscraft.network.BossMusicPayload;
 import net.ragnar.fmscraft.network.TomeWheelPayload;
+import net.ragnar.fmscraft.network.VaultFogPayload;
 
 public class FmsCraftClient implements ClientModInitializer {
     @Override
@@ -65,17 +69,25 @@ public class FmsCraftClient implements ClientModInitializer {
         EntityModelLayerRegistry.registerModelLayer(EnvyStatueModel.LAYER, EnvyStatueModel::getTexturedModelData);
         EntityRendererRegistry.register(ModEntities.ENVY_STATUE, EnvyStatueRenderer::new);
         EnvyStatueEntity.clientTick = FmsCraftClient::statueEffects;
+        EntityModelLayerRegistry.registerModelLayer(GreedStatueModel.LAYER, GreedStatueModel::getTexturedModelData);
+        EntityRendererRegistry.register(ModEntities.GREED_STATUE, GreedStatueRenderer::new);
 
         ClientPlayNetworking.registerGlobalReceiver(BossMusicPayload.ID,
                 (payload, context) -> context.client().execute(() -> ClientBossMusic.play(payload.sound())));
         ClientPlayNetworking.registerGlobalReceiver(TomeWheelPayload.ID,
                 (payload, context) -> context.client().execute(() -> TomeWheelHud.start(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(VaultFogPayload.ID,
+                (payload, context) -> context.client().execute(() -> VaultFog.set(payload.inside())));
         HudRenderCallback.EVENT.register(TomeWheelHud::render);
-        ClientTickEvents.END_CLIENT_TICK.register(client -> TomeWheelHud.tick());
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            TomeWheelHud.tick();
+            VaultFog.tick();
+        });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
             ClientBossMusic.stop();
             TomeWheelHud.clear();
+            VaultFog.clear();
         }));
     }
 
