@@ -1,8 +1,10 @@
 package net.ragnar.fmscraft.effect;
 
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectCategory;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.entry.RegistryEntry;
@@ -16,7 +18,14 @@ public class ModEffects {
      * BucketItemMixin, on both sides, so there are no ghost blocks.
      */
     public static final RegistryEntry<StatusEffect> BLOCK_BARRIER = Registry.registerReference(Registries.STATUS_EFFECT,
-            Identifier.of(FmsCraft.MOD_ID, "block_barrier"), new BlockBarrierEffect());
+            Identifier.of(FmsCraft.MOD_ID, "block_barrier"), new BarrierEffect(0xA8343A));
+    /**
+     * Item Barrier: you can't use any item but food while you have it (no bows, pearls, potions, tomes, rockets...).
+     * Given inside Lust's Garden. Using blocks (doors, chests, levers, a key in its lock) still works. Enforced in
+     * ItemStackMixin, on both sides.
+     */
+    public static final RegistryEntry<StatusEffect> ITEM_BARRIER = Registry.registerReference(Registries.STATUS_EFFECT,
+            Identifier.of(FmsCraft.MOD_ID, "item_barrier"), new BarrierEffect(0x8E5C9E));
 
     public static void initialize() {
     }
@@ -26,9 +35,14 @@ public class ModEffects {
         return player != null && player.hasStatusEffect(BLOCK_BARRIER);
     }
 
-    private static class BlockBarrierEffect extends StatusEffect {
-        BlockBarrierEffect() {
-            super(StatusEffectCategory.HARMFUL, 0xA8343A);
+    /** Whether this player is stopped from using {@code stack} right now. Food is always allowed. */
+    public static boolean blocksUsing(PlayerEntity player, ItemStack stack) {
+        return player != null && player.hasStatusEffect(ITEM_BARRIER) && !stack.isEmpty() && !stack.contains(DataComponentTypes.FOOD);
+    }
+
+    private static class BarrierEffect extends StatusEffect {
+        BarrierEffect(int color) {
+            super(StatusEffectCategory.HARMFUL, color);
         }
     }
 }

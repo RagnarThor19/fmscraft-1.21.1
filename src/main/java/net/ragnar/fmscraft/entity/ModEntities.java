@@ -27,7 +27,19 @@ public class ModEntities {
                     .maxTrackingRange(10)
                     .build("greed_statue"));
 
+    /** 3 blocks tall but as slender as a player: it can follow you down any path in the garden. */
+    public static final EntityType<LustStatueEntity> LUST_STATUE = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "lust_statue"),
+            EntityType.Builder.<LustStatueEntity>create(LustStatueEntity::new, SpawnGroup.MISC)
+                    .dimensions(0.8f, 3.0f)
+                    .eyeHeight(2.75f)
+                    .makeFireImmune()
+                    .maxTrackingRange(10)
+                    .trackingTickInterval(1)
+                    .build("lust_statue"));
+
     public static void initialize() {
         FabricDefaultAttributeRegistry.register(GREED_STATUE, GreedStatueEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(LUST_STATUE, LustStatueEntity.createAttributes());
     }
 }

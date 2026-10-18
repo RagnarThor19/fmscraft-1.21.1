@@ -370,7 +370,8 @@ public class EnvyGameTests implements FabricGameTest {
             BlockPos origin = EnvyMazeStructure.origin(start);
             BlockBox maze = new EnvyMazePiece(1L, origin).getBoundingBox();
             BlockBox tower = new PrideTowerPiece(1L, new BlockPos(start.getCenterX(), 70, start.getCenterZ()), PrideTowerShape.FULL_HEIGHT).getBoundingBox();
-            for (BlockBox box : new BlockBox[]{maze, tower}) {
+            BlockBox garden = new net.ragnar.fmscraft.structure.lust.LustGardenPiece(1L, new BlockPos(start.getCenterX(), 70, start.getCenterZ())).getBoundingBox();
+            for (BlockBox box : new BlockBox[]{maze, tower, garden}) {
                 int reach = Math.max(Math.max(Math.abs((box.getMinX() >> 4) - start.x), Math.abs((box.getMaxX() >> 4) - start.x)),
                         Math.max(Math.abs((box.getMinZ() >> 4) - start.z), Math.abs((box.getMaxZ() >> 4) - start.z)));
                 ctx.assertTrue(reach <= 8, "a structure reaches " + reach + " chunks from its start " + start);

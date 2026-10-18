@@ -12,12 +12,14 @@ import net.ragnar.fmscraft.structure.ModStructures;
 import net.ragnar.fmscraft.structure.StructureAmbience;
 import net.ragnar.fmscraft.structure.envy.EnvyMazes;
 import net.ragnar.fmscraft.structure.greed.GreedVaults;
+import net.ragnar.fmscraft.structure.lust.LustGardens;
 import net.ragnar.fmscraft.structure.sloth.SlothSpheres;
 import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fragment.FragmentTriggers;
 import net.ragnar.fmscraft.item.ModItemGroups;
 import net.ragnar.fmscraft.item.ModItems;
 import net.ragnar.fmscraft.network.BossMusicPayload;
+import net.ragnar.fmscraft.network.GardenFogPayload;
 import net.ragnar.fmscraft.network.TomeWheelPayload;
 import net.ragnar.fmscraft.network.VaultFogPayload;
 import net.ragnar.fmscraft.reward.TomeWheel;
@@ -46,6 +48,7 @@ public class FmsCraft implements ModInitializer {
 		PayloadTypeRegistry.playS2C().register(BossMusicPayload.ID, BossMusicPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(TomeWheelPayload.ID, TomeWheelPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(VaultFogPayload.ID, VaultFogPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(GardenFogPayload.ID, GardenFogPayload.CODEC);
 
 		FragmentTriggers.register();
 		BossFights.register();
@@ -53,6 +56,7 @@ public class FmsCraft implements ModInitializer {
 		EnvyMazes.register();
 		SlothSpheres.register();
 		GreedVaults.register();
+		LustGardens.register();
 		StructureAmbience.register();
 		FmsCommands.register();
 

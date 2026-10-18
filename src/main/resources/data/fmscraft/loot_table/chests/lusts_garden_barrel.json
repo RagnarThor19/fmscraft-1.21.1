@@ -1,0 +1,46 @@
+{
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": { "type": "minecraft:uniform", "min": 1, "max": 3 },
+      "entries": [
+        { "type": "minecraft:item", "name": "minecraft:bone_meal", "weight": 14,
+          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 2, "max": 8 } }] },
+        { "type": "minecraft:item", "name": "minecraft:pink_petals", "weight": 10,
+          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1, "max": 4 } }] },
+        { "type": "minecraft:item", "name": "minecraft:wheat_seeds", "weight": 10,
+          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 2, "max": 6 } }] },
+        { "type": "minecraft:item", "name": "minecraft:string", "weight": 8,
+          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1, "max": 3 } }] },
+        { "type": "minecraft:item", "name": "minecraft:sweet_berries", "weight": 8,
+          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 2, "max": 6 } }] },
+        { "type": "minecraft:item", "name": "minecraft:bread", "weight": 8,
+          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1, "max": 3 } }] },
+        { "type": "minecraft:item", "name": "minecraft:pink_candle", "weight": 6,
+          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1, "max": 2 } }] },
+        { "type": "minecraft:item", "name": "minecraft:glow_berries", "weight": 6,
+          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1, "max": 4 } }] },
+        { "type": "minecraft:item", "name": "minecraft:honey_bottle", "weight": 4 },
+        { "type": "minecraft:item", "name": "minecraft:flowering_azalea", "weight": 4 },
+        { "type": "minecraft:item", "name": "minecraft:lead", "weight": 3 },
+        { "type": "minecraft:item", "name": "minecraft:emerald", "weight": 4,
+          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 1, "max": 3 } }] },
+        { "type": "minecraft:item", "name": "minecraft:gold_nugget", "weight": 6,
+          "functions": [{ "function": "minecraft:set_count", "count": { "type": "minecraft:uniform", "min": 2, "max": 7 } }] },
+        { "type": "minecraft:item", "name": "minecraft:shears", "weight": 2,
+          "functions": [{ "function": "minecraft:set_damage", "damage": { "type": "minecraft:uniform", "min": 0.3, "max": 0.9 } }] },
+        { "type": "minecraft:item", "name": "minecraft:name_tag", "weight": 1 }
+      ]
+    },
+    {
+      "rolls": 1,
+      "conditions": [{ "condition": "minecraft:random_chance", "chance": 0.02 }],
+      "entries": [
+        { "type": "minecraft:item", "name": "minecraft:book", "weight": 1,
+          "functions": [{ "function": "fmscraft:random_tome", "tier": "beginner" }] },
+        { "type": "minecraft:item", "name": "minecraft:book", "weight": 1,
+          "functions": [{ "function": "fmscraft:random_tome", "tier": "advanced" }] }
+      ]
+    }
+  ]
+}

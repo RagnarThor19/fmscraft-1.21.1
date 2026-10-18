@@ -68,6 +68,13 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add(ModEffects.BLOCK_BARRIER.value(), "Block Barrier");
         builder.add("message.fmscraft.greed_door_open", "The vault door sinks into the floor...");
 
+        builder.add(ModEntities.LUST_STATUE, "Statue of Lust");
+        builder.add("death.attack.fmscraft.lust_statue", "%1$s was embraced by the Statue of Lust");
+        builder.add("death.attack.fmscraft.lust_statue.player", "%1$s was embraced by the Statue of Lust while fleeing %2$s");
+        builder.add(ModEffects.ITEM_BARRIER.value(), "Item Barrier");
+        builder.add("message.fmscraft.lust_statue_home", "A statue has found its place... (%s/%s)");
+        builder.add("message.fmscraft.lust_fountain_dry", "The fountain falls silent. Something lies open beneath it.");
+
         builder.add("advancements.fmscraft.root.title", "The Seven Sins");
         builder.add("advancements.fmscraft.root.description", "Obtain your first sin fragment");
         builder.add("advancements.fmscraft.true_ending.title", "True Ending");

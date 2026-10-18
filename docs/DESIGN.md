@@ -118,6 +118,7 @@ Special mechanics:
   (wax-on sparkle) in the air, and wind-blown white ash above half height. Sphere of Sloth: dark ash hanging in the
   air between the shells. Greed Vault (down in the rooms): thick with dust, dark specks hanging everywhere and grey
   dust sifting from the ceiling, and the odd flake of gold leaf.
+  Lust's Garden: cherry blossom drifting down through the fog, spores hanging in the air.
 - 1 overworld True Ending structure with 7 end-gateway-like soul pedestals.
 
 ### Envy: the buried maze (built)
@@ -282,6 +283,78 @@ Special mechanics:
   tome) and two by the lock (`chests/sphere_of_sloth_core`: diamonds, level-30 books, a totem, a god apple, netherite
   scrap, a rare elytra, and the same 10% Advanced / 2% Master tome chance as the other final rooms).
 - Tuning knobs: `Drowsiness` (rates and thresholds), `SlothSpheres.BELL_TICKS`.
+
+### Lust: Lust's Garden (built)
+
+`structure/lust/` + `entity/LustStatueEntity`. Preview from above: `docs/lusts-garden.png`.
+- **Where:** the twilight's plains only (`tags/worldgen/biome/has_structure/lusts_garden.json`), on the surface. Very
+  rare: one chance per 110x110 chunks, about 1760 blocks apart (`worldgen/structure_set/lusts_garden.json`), kept
+  12 chunks from Greed Vaults and 10 from the twilight mod's temples (read from the registry by id, so it can't bury
+  a temple portal). It needs the ground level (within 12 blocks) and in its biome all the way out to the hedge; the
+  twilight is flat enough that it takes ~95% of its chances. Generates last, clearing whatever stood there. No mobs
+  spawn in it. `/locate structure fmscraft:lusts_garden` (in the twilight).
+- **Shape** (`LustGardenPlan`, pure logic, unit tested; built by `LustGardenPiece`): about 200 blocks across and never
+  round: the hedge's radius wanders between ~84 and ~107 blocks and its thickness between 4 and 8. A 10-block skirt
+  outside eases the ground back into the land.
+- **The hedge:** azalea leaves with drifts of flowering azalea, at least 12 high through its middle (up to 18), with a
+  lumpy top, rounded shoulders, and leaves bulging out over the lawn and the skirt. All persistent, so it never decays.
+  One **gate**: a 5-wide tunnel through it, roofed with leaves, a lantern hanging halfway, tuff brick pillars with
+  lanterns at its mouth. The paved avenue comes in through it.
+- **Inside:** a tuff avenue (kerbed in polished tuff, lit by lantern posts) winds to the fountain, crossing two ring
+  paths joined by spokes; four footpaths run off the outer ring into dead-end nooks by the hedge. Gravel and dirt
+  paths edged with low azalea hedges, lawns with drifts of flowers in four colour schemes (pink, white, purple, red:
+  tulips, peonies, lilacs, rose bushes, lilies of the valley, the twilight's roses...), pink petals, moss, grass and
+  ferns, ~36 cherry trees, ~12 azalea trees, clipped topiary, up to 5 ponds with lily pads, sugar cane and mossy
+  shores, 2 cherry-roofed pavilions and 2 gardener's sheds, arbors of leaves over the paths, benches, broken old walls.
+- **The fountain:** a round basin with a ledge and a low rim, a tuff pillar with four spouts and a flowering azalea on
+  top, in a paved plaza 16 blocks out. Round it, on the four compass points, **four empty chiseled tuff plinths**, two
+  unlit pink candles at the foot of each.
+- **The fog:** inside the hedge the twilight's grey fog turns a faint dusty rose (`GardenFog`, told by the server with
+  `GardenFogPayload`). It doesn't get any closer: the statues come out of the same 11 blocks of fog as everywhere.
+- **The rules inside:** Slowness II, Mining Fatigue X, Block Barrier, and **Item Barrier** (a new effect: nothing but
+  food can be used, so no bows, pearls, potions, rockets or tomes; using blocks like chests, levers and the lock still
+  works; `ItemStackMixin`). All of it lifts when the garden is at peace.
+- **The Statues of Lust** (one per plinth, ~25-30 per garden: beside the paths facing them, two facing each other
+  across the avenue inside the gate, one at the end of every nook). A weeping woman carved in tuff after the reference
+  statue: veiled, long hair down her back, a crown of roses, one hand at her breast, the other gripping her skirt,
+  mouth open in a scream, eyes shut (two dark 2x1 slits). 3 blocks tall but as slim as a player, on a chiseled tuff
+  brick plinth. Raised when someone comes within
+  24 blocks of the garden (never where anyone within 16 blocks could see it appear), removed when everyone is 40 away.
+  - **Asleep** it never moves. **Look it in the face** (its head within 10 degrees of the middle of your view, standing
+    in front of it, within sight in the fog, nothing in the way) and its eyes open, with the faintest grit of stone.
+    That's its only animation: the slits turn mid grey for 3 ticks, then pale grey (three textures).
+  - **Awake** it comes for the nearest survival player in the garden, silently, at ~6 blocks a second (faster than you
+    can sprint even without Slowness), but only while **nobody at all** can see it: any player (creative too) with any part
+    of it within 80 degrees of where they're looking, within 11 blocks in the twilight's fog (48 elsewhere), nothing
+    between. The moment anyone does, it's stone mid-step: no movement, no turning. Blindness means you can't hold it.
+    It never leaves the garden and won't wade into ponds.
+  - **Never seen moving:** the client only lets a statue's drawn position catch up while that drawn statue is off
+    screen, behind something or lost in the fog (`LustStatueRenderer`), so even lag can't show it gliding.
+  - Reaching you unwatched, it **embraces** you: 24 damage and you're thrown back, then 2 seconds before it can again.
+    It can't be hurt, pushed, burned or blown up.
+- **The challenge:** lure four awake statues home. An awake statue that comes within 3 blocks of an empty fountain
+  plinth while nobody is looking at it steps up onto it, turns to the fountain and closes its eyes for good; the two
+  candles at its foot light and everyone hears "A statue has found its place... (n/4)". It takes the group working
+  together: someone wakes a statue and walks away from it with their back turned to draw it in, the others keep every
+  other awake statue in view, and nobody may look at the one being drawn until it's home.
+  With all four home the garden is **at peace**: the challenge fanfare, the effects lift, every statue closes its eyes,
+  the spouts stop, the basin drains, and the basin floor over the stair (a 3x3 of tuff bricks with a chiseled block in
+  the middle, the one hint) sinks away a row at a time.
+- **The crypt:** a stair under the basin goes down 9 blocks into a vaulted tuff crypt: pillars, roots hanging through
+  the ceiling, hanging lanterns, candles along the walls, a pink runner up the aisle to the Lust **Sin Portal Frame**
+  (facing the stair) with its tuff frame 4 blocks behind. Anyone in the crypt while the way up is shut (back from the
+  fight after a reset) gets it opened, so nobody is ever shut in.
+- **Loot:** barrels in the pavilions, sheds and crypt (`chests/lusts_garden_barrel`: bone meal, seeds, petals, berries,
+  bread, candles, emeralds, gold nuggets, the odd shears or name tag..., and a 2% tome, Beginner or Advanced) and two
+  chests by the lock (`chests/lusts_garden_crypt`: diamonds, level-30 books, golden apples, amethyst, cherry saplings,
+  netherite scrap, a totem, *Creator (Music Box)*, a god apple, and the same 10% Advanced / 2% Master tome chance as
+  the other final rooms).
+- **Resetting:** once nobody is within 40 blocks (and no Lust fight is on), the statues go, the basin floor closes, the
+  basin fills, the spouts run and the candles go out. Statues are never saved: they're raised fresh on every visit.
+  Whether it's at peace is read back from the world (is the basin floor there?), so a restart changes nothing.
+- Textures: `tools/textures/lust_textures.py` (the statue in three eye states, and the Item Barrier icon).
+- Tuning knobs: `LustStatueEntity` (`SPEED`, `DAMAGE`, `SEEN_IN_FOG`, `VIEW_COS`, `FACE_COS`), `LustGardens`
+  (`CAPTURE`, margins, effect levels), `LustGardenPlan` (sizes), `LustGardenStructure.MAX_UNEVENNESS`.
 
 ## Compatibility with the other two mods
 

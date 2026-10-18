@@ -10,6 +10,8 @@ import net.ragnar.fmscraft.structure.envy.EnvyMazePiece;
 import net.ragnar.fmscraft.structure.envy.EnvyMazeStructure;
 import net.ragnar.fmscraft.structure.greed.GreedVaultPiece;
 import net.ragnar.fmscraft.structure.greed.GreedVaultStructure;
+import net.ragnar.fmscraft.structure.lust.LustGardenPiece;
+import net.ragnar.fmscraft.structure.lust.LustGardenStructure;
 import net.ragnar.fmscraft.structure.pride.PrideTowerPiece;
 import net.ragnar.fmscraft.structure.pride.PrideTowerStructure;
 import net.ragnar.fmscraft.structure.sloth.SlothSpherePiece;
@@ -35,6 +37,11 @@ public class ModStructures {
             Identifier.of(FmsCraft.MOD_ID, "greed_vault"), () -> GreedVaultStructure.CODEC);
     public static final StructurePieceType GREED_VAULT_PIECE = Registry.register(Registries.STRUCTURE_PIECE,
             Identifier.of(FmsCraft.MOD_ID, "greed_vault"), (context, nbt) -> new GreedVaultPiece(context.structureTemplateManager(), nbt));
+
+    public static final StructureType<LustGardenStructure> LUST_GARDEN = Registry.register(Registries.STRUCTURE_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "lusts_garden"), () -> LustGardenStructure.CODEC);
+    public static final StructurePieceType LUST_GARDEN_PIECE = Registry.register(Registries.STRUCTURE_PIECE,
+            Identifier.of(FmsCraft.MOD_ID, "lusts_garden"), (context, nbt) -> new LustGardenPiece(nbt));
 
     public static void initialize() {
     }

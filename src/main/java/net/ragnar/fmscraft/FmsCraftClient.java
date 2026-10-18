@@ -32,12 +32,16 @@ import net.ragnar.fmscraft.client.EnvyStatueModel;
 import net.ragnar.fmscraft.client.EnvyStatueRenderer;
 import net.ragnar.fmscraft.client.GreedStatueModel;
 import net.ragnar.fmscraft.client.GreedStatueRenderer;
+import net.ragnar.fmscraft.client.GardenFog;
+import net.ragnar.fmscraft.client.LustStatueModel;
+import net.ragnar.fmscraft.client.LustStatueRenderer;
 import net.ragnar.fmscraft.client.VaultFog;
 import net.ragnar.fmscraft.client.StatueGrindSound;
 import net.ragnar.fmscraft.entity.EnvyStatueEntity;
 import net.ragnar.fmscraft.entity.ModEntities;
 import net.ragnar.fmscraft.client.TomeWheelHud;
 import net.ragnar.fmscraft.network.BossMusicPayload;
+import net.ragnar.fmscraft.network.GardenFogPayload;
 import net.ragnar.fmscraft.network.TomeWheelPayload;
 import net.ragnar.fmscraft.network.VaultFogPayload;
 
@@ -71,6 +75,8 @@ public class FmsCraftClient implements ClientModInitializer {
         EnvyStatueEntity.clientTick = FmsCraftClient::statueEffects;
         EntityModelLayerRegistry.registerModelLayer(GreedStatueModel.LAYER, GreedStatueModel::getTexturedModelData);
         EntityRendererRegistry.register(ModEntities.GREED_STATUE, GreedStatueRenderer::new);
+        EntityModelLayerRegistry.registerModelLayer(LustStatueModel.LAYER, LustStatueModel::getTexturedModelData);
+        EntityRendererRegistry.register(ModEntities.LUST_STATUE, LustStatueRenderer::new);
 
         ClientPlayNetworking.registerGlobalReceiver(BossMusicPayload.ID,
                 (payload, context) -> context.client().execute(() -> ClientBossMusic.play(payload.sound())));
@@ -78,16 +84,20 @@ public class FmsCraftClient implements ClientModInitializer {
                 (payload, context) -> context.client().execute(() -> TomeWheelHud.start(payload)));
         ClientPlayNetworking.registerGlobalReceiver(VaultFogPayload.ID,
                 (payload, context) -> context.client().execute(() -> VaultFog.set(payload.inside())));
+        ClientPlayNetworking.registerGlobalReceiver(GardenFogPayload.ID,
+                (payload, context) -> context.client().execute(() -> GardenFog.set(payload.inside())));
         HudRenderCallback.EVENT.register(TomeWheelHud::render);
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             TomeWheelHud.tick();
             VaultFog.tick();
+            GardenFog.tick();
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
             ClientBossMusic.stop();
             TomeWheelHud.clear();
             VaultFog.clear();
+            GardenFog.clear();
         }));
     }
 

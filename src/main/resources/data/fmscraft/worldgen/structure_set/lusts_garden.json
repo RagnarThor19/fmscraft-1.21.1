@@ -1,0 +1,15 @@
+{
+  "structures": [
+    { "structure": "fmscraft:lusts_garden", "weight": 1 }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "spacing": 110,
+    "separation": 55,
+    "salt": 1592043877,
+    "exclusion_zone": {
+      "other_set": "fmscraft:greed_vault",
+      "chunk_count": 12
+    }
+  }
+}
