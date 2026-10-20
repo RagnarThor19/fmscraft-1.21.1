@@ -35,6 +35,9 @@ import net.ragnar.fmscraft.client.GreedStatueRenderer;
 import net.ragnar.fmscraft.client.GardenFog;
 import net.ragnar.fmscraft.client.LustStatueModel;
 import net.ragnar.fmscraft.client.LustStatueRenderer;
+import net.ragnar.fmscraft.client.MotherWardenRenderer;
+import net.ragnar.fmscraft.client.SleepZs;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.ragnar.fmscraft.client.VaultFog;
 import net.ragnar.fmscraft.client.StatueGrindSound;
 import net.ragnar.fmscraft.entity.EnvyStatueEntity;
@@ -77,6 +80,8 @@ public class FmsCraftClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.GREED_STATUE, GreedStatueRenderer::new);
         EntityModelLayerRegistry.registerModelLayer(LustStatueModel.LAYER, LustStatueModel::getTexturedModelData);
         EntityRendererRegistry.register(ModEntities.LUST_STATUE, LustStatueRenderer::new);
+        EntityRendererRegistry.register(ModEntities.MOTHER_WARDEN, MotherWardenRenderer::new);
+        WorldRenderEvents.AFTER_ENTITIES.register(SleepZs::render);
 
         ClientPlayNetworking.registerGlobalReceiver(BossMusicPayload.ID,
                 (payload, context) -> context.client().execute(() -> ClientBossMusic.play(payload.sound())));
@@ -91,6 +96,7 @@ public class FmsCraftClient implements ClientModInitializer {
             TomeWheelHud.tick();
             VaultFog.tick();
             GardenFog.tick();
+            SleepZs.tick(client);
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
@@ -98,6 +104,7 @@ public class FmsCraftClient implements ClientModInitializer {
             TomeWheelHud.clear();
             VaultFog.clear();
             GardenFog.clear();
+            SleepZs.clear();
         }));
     }
 

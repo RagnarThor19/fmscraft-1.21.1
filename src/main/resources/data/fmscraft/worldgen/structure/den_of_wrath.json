@@ -1,0 +1,11 @@
+{
+  "type": "fmscraft:den_of_wrath",
+  "biomes": "#fmscraft:has_structure/den_of_wrath",
+  "step": "top_layer_modification",
+  "spawn_overrides": {
+    "monster": { "bounding_box": "full", "spawns": [] },
+    "creature": { "bounding_box": "full", "spawns": [] },
+    "ambient": { "bounding_box": "full", "spawns": [] }
+  },
+  "terrain_adaptation": "none"
+}

@@ -9,7 +9,9 @@
 		"BredAnimalsCriterionMixin",
 		"BucketItemMixin",
 		"ItemStackMixin",
-		"PlayerEntityMixin"
+		"LivingEntityMixin",
+		"PlayerEntityMixin",
+		"ServerWorldMixin"
 	],
 	"client": [
 		"client.BackgroundRendererMixin",

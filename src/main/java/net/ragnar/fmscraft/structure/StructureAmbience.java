@@ -27,6 +27,8 @@ import net.ragnar.fmscraft.structure.pride.PrideTowerPiece;
 import net.ragnar.fmscraft.structure.sloth.SlothSphereShape;
 import net.ragnar.fmscraft.structure.sloth.SlothSpherePiece;
 import net.ragnar.fmscraft.structure.sloth.SlothSpheres;
+import net.ragnar.fmscraft.structure.wrath.WrathDenPiece;
+import net.ragnar.fmscraft.structure.wrath.WrathDens;
 import org.joml.Vector3f;
 
 /**
@@ -38,6 +40,7 @@ import org.joml.Vector3f;
  *   <li>Greed Vault: thick with dust down in its rooms: dark specks hanging everywhere, grey dust sifting from the
  *       ceiling, and the odd flake of gold leaf.</li>
  *   <li>Lust's Garden: blossom drifting down through the fog, and a few spores hanging in the air.</li>
+ *   <li>Den of Wrath (the hall): crimson spores drifting, and sculk soul specks rising off the floor.</li>
  * </ul>
  */
 public final class StructureAmbience {
@@ -68,7 +71,8 @@ public final class StructureAmbience {
             ServerWorld world = player.getServerWorld();
             var structures = world.getRegistryManager().get(RegistryKeys.STRUCTURE);
             Structure maze = structures.get(ENVY_MAZE), tower = structures.get(PRIDE_TOWER), sphere = structures.get(SlothSpheres.SPHERE),
-                    vault = structures.get(GreedVaults.VAULT), garden = structures.get(LustGardens.GARDEN);
+                    vault = structures.get(GreedVaults.VAULT), garden = structures.get(LustGardens.GARDEN),
+                    den = structures.get(WrathDens.DEN);
             BlockPos at = player.getBlockPos();
             if (maze != null && piece(world.getStructureAccessor().getStructureContaining(at, maze)) instanceof EnvyMazePiece) {
                 envy(world, player);
@@ -82,6 +86,9 @@ public final class StructureAmbience {
             } else if (garden != null && piece(world.getStructureAccessor().getStructureContaining(at, garden)) instanceof LustGardenPiece piece
                     && piece.inGarden(at) && !piece.inCrypt(at)) {
                 lust(world, player);
+            } else if (den != null && piece(world.getStructureAccessor().getStructureContaining(at, den)) instanceof WrathDenPiece piece
+                    && piece.inHall(at)) {
+                wrath(world, player);
             }
         }
     }
@@ -130,6 +137,18 @@ public final class StructureAmbience {
             world.spawnParticles(player, ParticleTypes.CHERRY_LEAVES, false, x, y, z, 1, 0, 0, 0, 0);
         } else if (random.nextFloat() < 0.4f) {
             world.spawnParticles(player, ParticleTypes.SPORE_BLOSSOM_AIR, false, x, y, z, 1, 0, 0, 0, 0);
+        }
+    }
+
+    private static void wrath(ServerWorld world, ServerPlayerEntity player) {
+        Random random = world.getRandom();
+        BlockPos pos = player.getBlockPos().add(random.nextInt(REACH * 2 + 1) - REACH, random.nextInt(8) - 2, random.nextInt(REACH * 2 + 1) - REACH);
+        if (!world.getBlockState(pos).isAir()) return;
+        double x = pos.getX() + random.nextDouble(), y = pos.getY() + random.nextDouble(), z = pos.getZ() + random.nextDouble();
+        if (random.nextFloat() < 0.6f) {
+            world.spawnParticles(player, ParticleTypes.CRIMSON_SPORE, false, x, y, z, 1, 0, 0, 0, 0);
+        } else if (random.nextFloat() < 0.3f && world.getBlockState(pos.down()).isOf(Blocks.SCULK)) {
+            world.spawnParticles(player, ParticleTypes.SCULK_SOUL, false, x, pos.getY() + 0.1, z, 1, 0, 0.02, 0, 0.01);
         }
     }
 

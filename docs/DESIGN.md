@@ -119,6 +119,7 @@ Special mechanics:
   air between the shells. Greed Vault (down in the rooms): thick with dust, dark specks hanging everywhere and grey
   dust sifting from the ceiling, and the odd flake of gold leaf.
   Lust's Garden: cherry blossom drifting down through the fog, spores hanging in the air.
+  Den of Wrath (the hall): crimson spores drifting, and sculk soul specks rising off the floor.
 - 1 overworld True Ending structure with 7 end-gateway-like soul pedestals.
 
 ### Envy: the buried maze (built)
@@ -186,8 +187,8 @@ Special mechanics:
   re-run the script. Positions the code relies on are in `GreedVaultLayout` and checked by a game test.
 - **Getting in and out:** drop down the pipe (about 13 blocks: it hurts) and climb back out by the ladder in it.
   Anyone down in the rooms (not up the pipe or on the surface, so you can build up to a pipe that stands tall) has
-  **Mining Fatigue X**, **Slowness II** and **Block Barrier** (a new effect: no placing blocks or emptying
-  buckets), so there's no digging, pillaring or walling off. Down there the fog turns nearly black and closes in
+  **Mining Fatigue X**, **Slowness II** and **Block Barrier** (a new effect: no placing or breaking blocks or emptying
+  buckets, like adventure mode), so there's no digging, pillaring or walling off. Down there the fog turns nearly black and closes in
   to about 12 blocks, and the light itself dims like the Darkness effect but without the pulsing (`VaultFog`, told
   by the server with `VaultFogPayload`), fading in and out over two seconds.
 - **The puzzle:** clue books hidden in the vault spell out 1, 5 and 7 (5: a chest and a decorated pot, Icelandic;
@@ -355,6 +356,77 @@ Special mechanics:
 - Textures: `tools/textures/lust_textures.py` (the statue in three eye states, and the Item Barrier icon).
 - Tuning knobs: `LustStatueEntity` (`SPEED`, `DAMAGE`, `SEEN_IN_FOG`, `VIEW_COS`, `FACE_COS`), `LustGardens`
   (`CAPTURE`, margins, effect levels), `LustGardenPlan` (sizes), `LustGardenStructure.MAX_UNEVENNESS`.
+
+### Wrath: the Den of Wrath (built)
+
+`structure/wrath/` + `entity/MotherWardenEntity`. Preview: `docs/den-of-wrath.png` (top: from above with the dome
+off; red = her, orange = chests, yellow = pressure plates, white = tripwires, cyan = shriekers, purple = the lock;
+bottom: cut through the middle from the gate (right) to the portal room (left)).
+- **Where:** the Nether only, buried with the hall's floor at y = 22 (under the lava sea). It needs to sit mostly in
+  solid ground (60% of the points sampled round its shell), and its entrance tunnel has to reach an open cave: for each
+  of the four ways it can face it looks out from the gate, takes the nearest cave (4 to 40 blocks past the wall), and
+  the tunnel runs exactly that far, so it always opens out of a cave wall. Kept 8 chunks from fortresses and bastions.
+  One chance per 32x32 chunks (`worldgen/structure_set/den_of_wrath.json`), and about one chance in five finds room,
+  so roughly 1100 blocks apart. Generates last; no mobs spawn in it. `/locate structure fmscraft:den_of_wrath` (in the
+  Nether).
+- **Shape** (`WrathDenShape`, pure logic, unit tested; built by `WrathDenPiece`): one round hall 88 blocks across,
+  straight walls 40 high and a dome up to 66, in a 4-thick shell (netherrack outside so it reads as rock). You come in
+  high on the east wall, through a gate of reinforced deepslate like the ancient cities' portal, onto a balcony that
+  looks out over the whole hall. A ledge winds down the wall once all the way round, in half-block steps (no jumping
+  anywhere, checked by a test that walks it), to the floor. At the foot of the west wall a doorway **one block wide and
+  two high** (far too small for her) leads through a 14-block tunnel to the portal room.
+- **Look:** an ancient city's hall gone feral in the Nether. Blackstone and basalt walls with sculk creeping up them,
+  a floor nearly all sculk, soul soil and old cracked tiles, crossed by glowing cracks of magma; a dome blotched with
+  crimson growth, weeping vines and the odd shroomlight; rock spires and stalactites; the ribcage of a Nether fossil
+  arching over the floor; soul lanterns on long chains. The ledge and gate are old deepslate, its rail mostly broken
+  away, lit by soul torches. Her **nest** in the middle is a ring of sculk and bone with four catalysts and four gaps,
+  six shriekers round it (they can't summon wardens; two stand right in front of gaps) and three soul campfires.
+- **The Mother Warden** (`MotherWardenEntity`): a real vanilla warden (same brain, roar, sniffing, darkness, sonic
+  boom), six times the size (scale attribute: 5.4 x 17.4 blocks), 1000 health, 45 attack, 10 armor, deeper voice. Her
+  textures are the warden's with every blue turned blood red (`tools/textures/wrath_textures.py` recolors the vanilla
+  ones out of the Minecraft jar), and a faint red haze always rises off her. Put in her nest, asleep, when someone comes
+  within 24 blocks of the den; taken away when everyone is 64 away. Never saved.
+  - **Asleep** she doesn't think at all (no AI), slumps over to one side with lavender Z's drifting up off her, exactly
+    like the magic mod's sleep darts, and snores every 6 seconds, very deep and loud (`entity.mother_warden.snore`: the
+    fox's sleeping breaths slowed to about a third of their pitch, below what the game itself can pitch a sound, by
+    `tools/sounds/wrath_sounds.py` with ffmpeg; heard across the hall, with a sniffer's breath under it). Her
+    heartbeat goes on as any warden's does.
+  - **Noise stirs her.** Anything a warden could hear, anywhere in the hall, by the vanilla sculk sensor rules:
+    sneaking muffles footsteps and landings, wool muffles everything, but chests, pressure plates, tripwires,
+    shriekers, eating, a fall or a hurt all count. Creative and spectating players don't, nor do mobs that wander in,
+    nor noise in the tunnels or the portal room. A vibration flies from the noise to her head, her tendrils twitch,
+    she growls, and everyone in the hall reads "The Mother Warden stirs... (n/3)". After each stir she lies listening
+    for 3 seconds, and anything in that time is the same disturbance (open a chest and close it quickly: one stir).
+    She forgets one stir per 2 minutes of quiet (`Stirring`).
+  - **The third stir wakes her**, and so does anything that hurts her. She roars and comes for whoever woke her (or
+    the nearest player in the hall), with a red boss bar for everyone in the hall (and only while she's awake). She
+    fights as a warden does: whoever she can reach she mauls; whoever she can't (up on the ledge or the balcony) gets
+    her sonic boom, which reaches 2.5 times as far as a warden's (37 blocks out, 50 up) and hits 1.5 times as hard. Her
+    rage doesn't cool while anyone is left in the hall, and she never digs away into the ground. She only hunts in her hall: anyone
+    who gets out of it (into the tunnels, the doorway, the portal room) is forgotten. Once nobody is left in the hall
+    for 15 seconds she walks back to her nest and nods off again, every stir forgotten ("The Mother Warden settles
+    back into her nest...").
+- **Traps** (things to make noise by accident): a chest in an alcove off three landings of the ledge, two of them with
+  a polished blackstone pressure plate on the polished blackstone right in front; tripwires across three landings
+  (strung between a post at the ledge's edge and the wall; you can squeeze past by the hooks, or hop it sneaking);
+  six pressure plates hidden in the old paving before the doorway, one right in the way; one under the fossil's ribs
+  by its chest; a chest in her nest beside her; shriekers round the nest; magma cracks that only hurt if you don't
+  sneak.
+- **The hall's rules:** anyone in the hall itself (alcoves and balcony too, not the tunnels or the portal room) has
+  **Mining Fatigue X**, **Block Barrier** (no placing or breaking blocks, enforced like adventure mode on both sides)
+  and **Item Barrier** (nothing but food can be used, so no pearls, rockets or bows across the hall).
+- **The portal room:** quiet polished blackstone with red nether brick, red candles burning in the corners, a red
+  runner from the doorway to the Wrath **Sin Portal Frame** (facing the doorway), and its frame 4 blocks behind,
+  reinforced deepslate at the corners.
+- **Loot:** the hall's chests (`chests/den_of_wrath`: echo shards, sculk, bones, gold, quartz, diamonds, golden apples,
+  Swift Sneak books, disc fragment 5..., plus a 5% Beginner and 5% Advanced tome), her hoard in the nest
+  (`chests/den_of_wrath_nest`: echo shards, diamonds, level-30 and Swift Sneak books, a god apple, netherite scrap,
+  Ward and Silence trims, Otherside, and a 10% Advanced tome), and two by the lock (`chests/den_of_wrath_sanctum`, the
+  same 10% Advanced / 2% Master tome chance as the other final rooms). Killing her (if anyone manages it) drops
+  sculk catalysts and echo shards; she stays dead until everyone has left. Gone any other way, she's back in her nest,
+  asleep.
+- Tuning knobs: `Stirring` (`WAKE_AT`, `LISTEN_TICKS`, `FORGET_TICKS`), `WrathDens` (`CALM_TICKS`, margins, fatigue),
+  `MotherWardenEntity` (attributes, `SCALE`, `BOOM_REACH`, `BOOM_DAMAGE`, `SNORE_TICKS`), `WrathDenStructure` (`FLOOR_Y`, `MIN_SOLID`).
 
 ## Compatibility with the other two mods
 

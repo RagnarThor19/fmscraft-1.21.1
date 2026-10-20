@@ -16,6 +16,8 @@ import net.ragnar.fmscraft.structure.pride.PrideTowerPiece;
 import net.ragnar.fmscraft.structure.pride.PrideTowerStructure;
 import net.ragnar.fmscraft.structure.sloth.SlothSpherePiece;
 import net.ragnar.fmscraft.structure.sloth.SlothSphereStructure;
+import net.ragnar.fmscraft.structure.wrath.WrathDenPiece;
+import net.ragnar.fmscraft.structure.wrath.WrathDenStructure;
 
 public class ModStructures {
     public static final StructureType<EnvyMazeStructure> ENVY_MAZE = Registry.register(Registries.STRUCTURE_TYPE,
@@ -42,6 +44,11 @@ public class ModStructures {
             Identifier.of(FmsCraft.MOD_ID, "lusts_garden"), () -> LustGardenStructure.CODEC);
     public static final StructurePieceType LUST_GARDEN_PIECE = Registry.register(Registries.STRUCTURE_PIECE,
             Identifier.of(FmsCraft.MOD_ID, "lusts_garden"), (context, nbt) -> new LustGardenPiece(nbt));
+
+    public static final StructureType<WrathDenStructure> WRATH_DEN = Registry.register(Registries.STRUCTURE_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "den_of_wrath"), () -> WrathDenStructure.CODEC);
+    public static final StructurePieceType WRATH_DEN_PIECE = Registry.register(Registries.STRUCTURE_PIECE,
+            Identifier.of(FmsCraft.MOD_ID, "den_of_wrath"), (context, nbt) -> new WrathDenPiece(nbt));
 
     public static void initialize() {
     }

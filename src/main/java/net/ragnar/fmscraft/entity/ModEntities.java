@@ -38,8 +38,18 @@ public class ModEntities {
                     .trackingTickInterval(1)
                     .build("lust_statue"));
 
+    /** A warden's size; she's made three times bigger by her scale attribute, which scales her box and model alike. */
+    public static final EntityType<MotherWardenEntity> MOTHER_WARDEN = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "mother_warden"),
+            EntityType.Builder.<MotherWardenEntity>create(MotherWardenEntity::new, SpawnGroup.MONSTER)
+                    .dimensions(0.9f, 2.9f)
+                    .makeFireImmune()
+                    .maxTrackingRange(16)
+                    .build("mother_warden"));
+
     public static void initialize() {
         FabricDefaultAttributeRegistry.register(GREED_STATUE, GreedStatueEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(LUST_STATUE, LustStatueEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(MOTHER_WARDEN, MotherWardenEntity.createAttributes());
     }
 }

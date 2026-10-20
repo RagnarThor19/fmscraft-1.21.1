@@ -12,7 +12,8 @@
 			"net.ragnar.fmscraft.gametest.GreedGameTests",
 			"net.ragnar.fmscraft.gametest.LustGameTests",
 			"net.ragnar.fmscraft.gametest.PrideGameTests",
-			"net.ragnar.fmscraft.gametest.SlothGameTests"
+			"net.ragnar.fmscraft.gametest.SlothGameTests",
+			"net.ragnar.fmscraft.gametest.WrathGameTests"
 		]
 	},
 	"mixins": [

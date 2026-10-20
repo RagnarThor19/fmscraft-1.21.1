@@ -1,0 +1,12 @@
+{
+  "entity.mother_warden.snore": {
+    "subtitle": "subtitles.fmscraft.entity.mother_warden.snore",
+    "sounds": [
+      { "name": "fmscraft:mob/mother_warden/snore1", "attenuation_distance": 64 },
+      { "name": "fmscraft:mob/mother_warden/snore2", "attenuation_distance": 64 },
+      { "name": "fmscraft:mob/mother_warden/snore3", "attenuation_distance": 64 },
+      { "name": "fmscraft:mob/mother_warden/snore4", "attenuation_distance": 64 },
+      { "name": "fmscraft:mob/mother_warden/snore5", "attenuation_distance": 64 }
+    ]
+  }
+}

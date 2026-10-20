@@ -75,6 +75,12 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add("message.fmscraft.lust_statue_home", "A statue has found its place... (%s/%s)");
         builder.add("message.fmscraft.lust_fountain_dry", "The fountain falls silent. Something lies open beneath it.");
 
+        builder.add(ModEntities.MOTHER_WARDEN, "Mother Warden");
+        builder.add("subtitles.fmscraft.entity.mother_warden.snore", "Mother Warden snores");
+        builder.add("message.fmscraft.mother_warden_stirs", "The Mother Warden stirs... (%s/%s)");
+        builder.add("message.fmscraft.mother_warden_wakes", "The Mother Warden awakens!");
+        builder.add("message.fmscraft.mother_warden_sleeps", "The Mother Warden settles back into her nest...");
+
         builder.add("advancements.fmscraft.root.title", "The Seven Sins");
         builder.add("advancements.fmscraft.root.description", "Obtain your first sin fragment");
         builder.add("advancements.fmscraft.true_ending.title", "True Ending");

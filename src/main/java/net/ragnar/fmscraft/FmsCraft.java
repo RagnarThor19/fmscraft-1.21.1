@@ -14,6 +14,8 @@ import net.ragnar.fmscraft.structure.envy.EnvyMazes;
 import net.ragnar.fmscraft.structure.greed.GreedVaults;
 import net.ragnar.fmscraft.structure.lust.LustGardens;
 import net.ragnar.fmscraft.structure.sloth.SlothSpheres;
+import net.ragnar.fmscraft.structure.wrath.WrathDens;
+import net.ragnar.fmscraft.sound.ModSounds;
 import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fragment.FragmentTriggers;
 import net.ragnar.fmscraft.item.ModItemGroups;
@@ -38,6 +40,7 @@ public class FmsCraft implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		ModItems.initialize();
+		ModSounds.initialize();
 		ModBlocks.initialize();
 		ModItemGroups.initialize();
 		ModBossEntities.initialize();
@@ -57,6 +60,7 @@ public class FmsCraft implements ModInitializer {
 		SlothSpheres.register();
 		GreedVaults.register();
 		LustGardens.register();
+		WrathDens.register();
 		StructureAmbience.register();
 		FmsCommands.register();
 

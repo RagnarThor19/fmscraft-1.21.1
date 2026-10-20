@@ -13,9 +13,9 @@ import net.ragnar.fmscraft.FmsCraft;
 
 public class ModEffects {
     /**
-     * Block Barrier: you can't place blocks (or empty buckets) while you have it, like being in adventure mode.
-     * Given inside the Greed Vault so nobody pillars out or walls the statues off. Enforced in BlockItemMixin and
-     * BucketItemMixin, on both sides, so there are no ghost blocks.
+     * Block Barrier: you can't place or break blocks (or empty buckets) while you have it, like being in adventure mode.
+     * Given inside the Greed Vault so nobody pillars out or walls the statues off, and in the Den of Wrath. Enforced in
+     * BlockItemMixin, BucketItemMixin and PlayerEntityMixin, on both sides, so there are no ghost blocks.
      */
     public static final RegistryEntry<StatusEffect> BLOCK_BARRIER = Registry.registerReference(Registries.STATUS_EFFECT,
             Identifier.of(FmsCraft.MOD_ID, "block_barrier"), new BarrierEffect(0xA8343A));
@@ -32,6 +32,11 @@ public class ModEffects {
 
     /** Whether this player is stopped from placing blocks right now. */
     public static boolean blocksPlacing(PlayerEntity player) {
+        return player != null && player.hasStatusEffect(BLOCK_BARRIER);
+    }
+
+    /** Whether this player is stopped from breaking blocks right now. */
+    public static boolean blocksBreaking(PlayerEntity player) {
         return player != null && player.hasStatusEffect(BLOCK_BARRIER);
     }
 

@@ -1,0 +1,15 @@
+{
+  "structures": [
+    { "structure": "fmscraft:den_of_wrath", "weight": 1 }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "spacing": 32,
+    "separation": 16,
+    "salt": 1840263751,
+    "exclusion_zone": {
+      "other_set": "minecraft:nether_complexes",
+      "chunk_count": 8
+    }
+  }
+}
