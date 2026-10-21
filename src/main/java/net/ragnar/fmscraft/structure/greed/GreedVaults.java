@@ -364,7 +364,8 @@ public final class GreedVaults {
         for (int i = 0; i < homes.size(); i++) {
             if (statue(vault, i) != null) continue;
             BlockPos home = homes.get(i);
-            if (!vault.world.isChunkLoaded(home)) continue;
+            // Not until entities can live there: one put in before then is lost track of, and another put in its place
+            if (!vault.world.shouldTickEntity(home)) continue;
             List<GreedStatueEntity> left = vault.world.getEntitiesByClass(GreedStatueEntity.class, Box.from(vault.box()).expand(4),
                     s -> s.isAlive() && home.equals(s.getHome()));
             if (!left.isEmpty()) {

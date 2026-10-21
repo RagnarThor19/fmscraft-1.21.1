@@ -70,10 +70,58 @@ public class FragmentGameTests implements FabricGameTest {
     }
 
     @GameTest(templateName = EMPTY_STRUCTURE)
-    public void greedFoundInAboutTenPercentOfAncientCityChests(TestContext ctx) {
-        int found = lootRolls(ctx, LootTables.ANCIENT_CITY_CHEST, Sin.GREED, 2000);
-        ctx.assertTrue(found >= 140 && found <= 260, "expected ~200 Greed fragments in 2000 ancient city chests, got " + found);
+    public void greedIsNoLongerInAncientCityChests(TestContext ctx) {
+        ctx.assertTrue(lootRolls(ctx, LootTables.ANCIENT_CITY_CHEST, Sin.GREED, 500) == 0, "Greed fragment in an ancient city chest");
         ctx.assertTrue(lootRolls(ctx, LootTables.ANCIENT_CITY_CHEST, Sin.ENVY, 300) == 0, "Envy fragment in an ancient city chest");
+        ctx.complete();
+    }
+
+    // ---- Greed: a villager's trade ----
+
+    /** A villager of {@code profession} at {@code level}, filling its trades for that level the way the game does. */
+    private static net.minecraft.entity.passive.VillagerEntity villager(TestContext ctx, net.minecraft.village.VillagerProfession profession, int level) {
+        var villager = EntityType.VILLAGER.create(ctx.getWorld());
+        villager.setVillagerData(villager.getVillagerData().withProfession(profession).withLevel(level));
+        villager.getOffers();
+        return villager;
+    }
+
+    private static List<net.minecraft.village.TradeOffer> greedOffers(net.minecraft.entity.passive.VillagerEntity villager) {
+        return villager.getOffers().stream().filter(o -> o.getSellItem().isOf(fragment(Sin.GREED))).toList();
+    }
+
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
+    public void someExpertVillagersSellAGreedFragment(TestContext ctx) {
+        var professions = List.of(net.minecraft.village.VillagerProfession.CLERIC, net.minecraft.village.VillagerProfession.FARMER,
+                net.minecraft.village.VillagerProfession.LIBRARIAN, net.minecraft.village.VillagerProfession.TOOLSMITH);
+        int selling = 0, tries = 1000;
+        java.util.Map<net.minecraft.item.Item, Integer> prices = new java.util.HashMap<>();
+        for (int i = 0; i < tries; i++) {
+            var villager = villager(ctx, professions.get(i % professions.size()), net.ragnar.fmscraft.fragment.GreedTrade.LEVEL);
+            var greed = greedOffers(villager);
+            ctx.assertTrue(greed.size() <= 1, "never more than one Greed trade, got " + greed.size());
+            if (greed.isEmpty()) {
+                ctx.assertTrue(villager.getOffers().size() == 2, "the usual trades for the level");
+                continue;
+            }
+            selling++;
+            ctx.assertTrue(villager.getOffers().size() == 3, "on top of the usual two, not instead of one");
+            var offer = greed.get(0);
+            ItemStack price = offer.getOriginalFirstBuyItem();
+            ctx.assertTrue(offer.getSecondBuyItem().isEmpty() && offer.getSellItem().getCount() == 1, "one fragment for one price");
+            ctx.assertTrue((price.isOf(Items.DIAMOND) && price.getCount() == 32) || (price.isOf(Items.EMERALD_BLOCK) && price.getCount() == 8)
+                    || (price.isOf(Items.GOLD_BLOCK) && price.getCount() == 16), "a price of 32 diamonds, 8 emerald blocks or 16 gold blocks, got " + price);
+            prices.merge(price.getItem(), 1, Integer::sum);
+        }
+        ctx.assertTrue(selling >= 150 && selling <= 250, "expected ~20% of expert villagers to sell one, got " + selling + "/" + tries);
+        ctx.assertTrue(prices.size() == 3, "all three prices turn up, got " + prices);
+
+        // Not at other levels, and not from nitwits or the unemployed
+        for (int i = 0; i < 200; i++) {
+            ctx.assertTrue(greedOffers(villager(ctx, net.minecraft.village.VillagerProfession.CLERIC, 1 + i % 3)).isEmpty(), "only at Expert");
+            ctx.assertTrue(greedOffers(villager(ctx, net.minecraft.village.VillagerProfession.CLERIC, 5)).isEmpty(), "only at Expert");
+            ctx.assertTrue(greedOffers(villager(ctx, net.minecraft.village.VillagerProfession.NITWIT, 4)).isEmpty(), "not from nitwits");
+        }
         ctx.complete();
     }
 

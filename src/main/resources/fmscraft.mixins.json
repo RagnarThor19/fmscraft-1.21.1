@@ -11,7 +11,8 @@
 		"ItemStackMixin",
 		"LivingEntityMixin",
 		"PlayerEntityMixin",
-		"ServerWorldMixin"
+		"ServerWorldMixin",
+		"VillagerEntityMixin"
 	],
 	"client": [
 		"client.BackgroundRendererMixin",

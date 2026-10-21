@@ -4,7 +4,7 @@ package net.ragnar.fmscraft.fragment;
  * How each sin's fragments are obtained (full rules in docs/DESIGN.md). The "first fragment" advancement is
  * data-driven (inventory_changed), so a trigger only has to put the fragment into the world.
  *
- *  - GREED    10% chance in ancient city chests                         {@link LootFragments}
+ *  - GREED    bought from a villager (sometimes, at Expert)             {@link GreedTrade} (mixin)
  *  - WRATH    3 warden kills within 4 minutes, any players               {@link WrathTrigger}
  *  - PRIDE    full netherite armor on an armor stand -> 5                 {@link PrideTrigger} (mixin)
  *  - GLUTTONY eat an enchanted golden apple                              {@link GluttonyTrigger} (mixin)

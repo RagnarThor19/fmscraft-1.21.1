@@ -13,14 +13,8 @@ import net.ragnar.fmscraft.sin.Sin;
 
 import java.util.Map;
 
-/**
- * Greed: 10% chance per ancient city chest.
- * Envy: a rare find in end cities, bastions and woodland mansions.
- */
+/** Envy: a rare find in end cities, bastions and woodland mansions. */
 public final class LootFragments {
-    public static final Map<RegistryKey<LootTable>, Float> GREED_CHANCES = Map.of(
-            LootTables.ANCIENT_CITY_CHEST, 0.10f);
-
     public static final Map<RegistryKey<LootTable>, Float> ENVY_CHANCES = Map.of(
             LootTables.END_CITY_TREASURE_CHEST, 0.05f,
             LootTables.BASTION_TREASURE_CHEST, 0.08f,
@@ -35,7 +29,6 @@ public final class LootFragments {
     public static void register() {
         LootTableEvents.MODIFY.register((key, builder, source, registries) -> {
             if (!source.isBuiltin()) return;
-            addPool(builder, Sin.GREED, GREED_CHANCES.get(key));
             addPool(builder, Sin.ENVY, ENVY_CHANCES.get(key));
         });
     }
