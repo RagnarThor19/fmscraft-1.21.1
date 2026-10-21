@@ -8,6 +8,8 @@ import net.minecraft.world.gen.structure.StructureType;
 import net.ragnar.fmscraft.FmsCraft;
 import net.ragnar.fmscraft.structure.envy.EnvyMazePiece;
 import net.ragnar.fmscraft.structure.envy.EnvyMazeStructure;
+import net.ragnar.fmscraft.structure.gluttony.GluttonyHallPiece;
+import net.ragnar.fmscraft.structure.gluttony.GluttonyHallStructure;
 import net.ragnar.fmscraft.structure.greed.GreedVaultPiece;
 import net.ragnar.fmscraft.structure.greed.GreedVaultStructure;
 import net.ragnar.fmscraft.structure.lust.LustGardenPiece;
@@ -49,6 +51,11 @@ public class ModStructures {
             Identifier.of(FmsCraft.MOD_ID, "den_of_wrath"), () -> WrathDenStructure.CODEC);
     public static final StructurePieceType WRATH_DEN_PIECE = Registry.register(Registries.STRUCTURE_PIECE,
             Identifier.of(FmsCraft.MOD_ID, "den_of_wrath"), (context, nbt) -> new WrathDenPiece(nbt));
+
+    public static final StructureType<GluttonyHallStructure> GLUTTONY_HALL = Registry.register(Registries.STRUCTURE_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "hall_of_gluttony"), () -> GluttonyHallStructure.CODEC);
+    public static final StructurePieceType GLUTTONY_HALL_PIECE = Registry.register(Registries.STRUCTURE_PIECE,
+            Identifier.of(FmsCraft.MOD_ID, "hall_of_gluttony"), (context, nbt) -> new GluttonyHallPiece(nbt));
 
     public static void initialize() {
     }

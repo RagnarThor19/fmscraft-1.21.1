@@ -30,7 +30,7 @@ part of vanilla Minecraft:
 
 | Sin | Boss (friend) | How to get fragments | Fragments per success | Portal structure dimension | Status |
 |---|---|---|---|---|---|
-| Greed | Ragnar Thor | 10% chance in each ancient city chest | 1 | Twilight (`ragnarstwilightdimension:twilight`) | Done |
+| Greed | Ragnar Thor | Bought from a villager: any villager reaching Expert has a 20% chance to add one extra trade, a Greed Fragment for **one** of 32 diamonds, 8 emerald blocks or 16 gold blocks (picked at random; 3 uses before it restocks; never replaces a vanilla trade) | 1 | Twilight (`ragnarstwilightdimension:twilight`) | Done |
 | Wrath | Aron Eggert | Kill 3 wardens within **4 minutes** (any players). A red boss bar counts down for everyone online; the 3rd warden drops the fragment | 1 | Nether | Done |
 | Pride | Leo Gunnlaugsson | Put full netherite armor on an armor stand. The armor crumbles into 5 fragments (so one set can't be reused forever) | 5 | Overworld | Done |
 | Gluttony | Larus Armann | Eat an enchanted golden apple | 1 | Nether | Done |
@@ -38,7 +38,7 @@ part of vanilla Minecraft:
 | Lust | Karl Phillip | The same player breeds all 25 "Two by Two" animals (tag `fmscraft:lust_breedables`). Progress shows in the action bar and resets after the reward, so it can be repeated | 5 | Twilight | Done |
 | Sloth | Patrik Atanaia | A tamed wolf (or tome summon from Ragnars Magic Mod) kills a mob: 5% chance | 1 | End | Done |
 
-Tuning knobs: chances in `fragment/LootFragments.java`, `SlothTrigger.CHANCE`, `WrathTracker.WINDOW_TICKS`.
+Tuning knobs: chances in `fragment/LootFragments.java`, `GreedTrade` (`CHANCE`, `LEVEL`, prices, `MAX_USES`), `SlothTrigger.CHANCE`, `WrathTracker.WINDOW_TICKS`.
 
 Open questions:
 - Wrath: the timer currently shows for everyone online. Change to nearby players only?
@@ -120,6 +120,13 @@ Special mechanics:
   dust sifting from the ceiling, and the odd flake of gold leaf.
   Lust's Garden: cherry blossom drifting down through the fog, spores hanging in the air.
   Den of Wrath (the hall): crimson spores drifting, and sculk soul specks rising off the floor.
+  Hall of Gluttony (the hall): white ash drifting down from the vault, and kitchen smoke hanging low.
+- **Sealed rooms** (`structure/SealedRooms.java`): nothing teleports at random (chorus fruit, endermen) into a room a
+  challenge still has shut: behind the Greed Vault's door, the Lust crypt, the Sloth core, behind the Gluttony gate.
+  Chorus fruit is food, so the barriers allow it, and it jumps 8 blocks through walls; without this one player could
+  eat past a challenge and open it for everyone. A chorus fruit that would land in one just lands somewhere else.
+- Statues, the Mother Warden and the Gorged Brute are only put in once their chunk's entities have loaded
+  (`shouldTickEntity`), or one put in too early is lost track of and a second is put in beside it.
 - 1 overworld True Ending structure with 7 end-gateway-like soul pedestals.
 
 ### Envy: the buried maze (built)
@@ -366,8 +373,8 @@ bottom: cut through the middle from the gate (right) to the portal room (left)).
   solid ground (60% of the points sampled round its shell), and its entrance tunnel has to reach an open cave: for each
   of the four ways it can face it looks out from the gate, takes the nearest cave (4 to 40 blocks past the wall), and
   the tunnel runs exactly that far, so it always opens out of a cave wall. Kept 8 chunks from fortresses and bastions.
-  One chance per 32x32 chunks (`worldgen/structure_set/den_of_wrath.json`), and about one chance in five finds room,
-  so roughly 1100 blocks apart. Generates last; no mobs spawn in it. `/locate structure fmscraft:den_of_wrath` (in the
+  One chance per 67x67 chunks (`worldgen/structure_set/den_of_wrath.json`), and about one chance in seven finds room,
+  so roughly 2500 to 3000 blocks apart (20,000 to 24,000 in the overworld), as rare as the Hall of Gluttony. Generates last; no mobs spawn in it. `/locate structure fmscraft:den_of_wrath` (in the
   Nether).
 - **Shape** (`WrathDenShape`, pure logic, unit tested; built by `WrathDenPiece`): one round hall 88 blocks across,
   straight walls 40 high and a dome up to 66, in a 4-thick shell (netherrack outside so it reads as rock). You come in
@@ -413,8 +420,9 @@ bottom: cut through the middle from the gate (right) to the portal room (left)).
   by its chest; a chest in her nest beside her; shriekers round the nest; magma cracks that only hurt if you don't
   sneak.
 - **The hall's rules:** anyone in the hall itself (alcoves and balcony too, not the tunnels or the portal room) has
-  **Mining Fatigue X**, **Block Barrier** (no placing or breaking blocks, enforced like adventure mode on both sides)
-  and **Item Barrier** (nothing but food can be used, so no pearls, rockets or bows across the hall).
+  **Block Barrier** (no placing or breaking blocks, enforced like adventure mode on both sides) and **Item Barrier**
+  (nothing but food can be used, so no pearls, rockets or bows across the hall). No Mining Fatigue: it slows your
+  swing (10% a level), and anyone who wakes her may have to fight.
 - **The portal room:** quiet polished blackstone with red nether brick, red candles burning in the corners, a red
   runner from the doorway to the Wrath **Sin Portal Frame** (facing the doorway), and its frame 4 blocks behind,
   reinforced deepslate at the corners.
@@ -425,8 +433,85 @@ bottom: cut through the middle from the gate (right) to the portal room (left)).
   same 10% Advanced / 2% Master tome chance as the other final rooms). Killing her (if anyone manages it) drops
   sculk catalysts and echo shards; she stays dead until everyone has left. Gone any other way, she's back in her nest,
   asleep.
-- Tuning knobs: `Stirring` (`WAKE_AT`, `LISTEN_TICKS`, `FORGET_TICKS`), `WrathDens` (`CALM_TICKS`, margins, fatigue),
+- Tuning knobs: `Stirring` (`WAKE_AT`, `LISTEN_TICKS`, `FORGET_TICKS`), `WrathDens` (`CALM_TICKS`, margins),
   `MotherWardenEntity` (attributes, `SCALE`, `BOOM_REACH`, `BOOM_DAMAGE`, `SNORE_TICKS`), `WrathDenStructure` (`FLOOR_Y`, `MIN_SOLID`).
+
+### Gluttony: the Hall of Gluttony (built)
+
+`structure/gluttony/` + `entity/GorgedBruteEntity`. Preview: `docs/hall-of-gluttony.png` (left: the front; right: the side,
+and under it the floor plan, the bridge on the right, the chapel on the left).
+- **Where:** the Nether only, standing in a big lava lake: its floor is at y = 34, three blocks over the lava sea.
+  The middle and two rings round it (20 and 40 blocks out) have to be open lava (one miss allowed on the inner ring,
+  four on the outer), then at least 75% of the points sampled under its terrace (the rest can be shore), with open air
+  through the hall up to the tops of its walls (85%) and at its ridge (50%); its spires may reach up into the cavern's
+  roof, as a fortress runs into the rock. Then its bridge has to reach land: for each of the four ways it can face it
+  looks out from the front of the terrace for the nearest shore (ground between the lava's surface and the bridge's
+  deck, air over it) within 80 blocks, and turns to the closest. Kept 8 chunks from fortresses and bastions. One
+  chance per 24x24 chunks (`worldgen/structure_set/hall_of_gluttony.json`), and only about one in 50 of those finds
+  a lake big enough, so roughly 2500 to 3000 blocks apart (20,000 to 24,000 in the overworld), as rare as the Den of Wrath. Generates last; no monsters spawn in
+  it. `/locate structure fmscraft:hall_of_gluttony` (in the Nether).
+- **Shape** (`GluttonyHallShape`, pure logic, unit tested; built by `GluttonyHallPiece`): a cathedral built the way the
+  piglins build bastions, on a paved terrace (105 x 53) with a crenellated parapet, its foundations going down into the
+  lava. A 5-wide bridge on arches runs from the terrace to the shore, its deck cut on into the land at the end.
+  - The nave: 64 long, 17 wide, a pointed vault 33 high with a rib across it at every pier and a ridge rib along the
+    top (shroomlights set in where they meet). Arcades of polished basalt piers with gilded capitals and pointed arches
+    open onto the aisles either side. Lancet windows in the clerestory, stained glass fading from red at the bottom
+    through orange to yellow, like the lava's glow.
+  - The aisles: lower vaulted passages with windows in the outer walls, lean-to roofs, and a buttress at every pier
+    with a pinnacle (gold-tipped) and a flying buttress up over the aisle roof to the clerestory.
+  - The front: two towers, 11 square, with belfries (a bell in each, open arches on every face) and nether brick
+    spires to 61 blocks, gold finials and corner pinnacles. Between them the great door, a pointed arch with gilded
+    archivolts, and a rose window over it (gold heart, orange ring, red and blue petals between polished blackstone
+    tracery). A gable with a gold finial over that, and a slender spire over the middle of the roof.
+  - Steep roofs of nether brick stairs with a red nether brick ridge. Walls of polished blackstone bricks, some
+    cracked, the odd one gilded.
+  - Inside, the banquet: a crimson table the length of the nave on a red nether brick runner, benches either side,
+    laid with cakes, candle cakes, melons, pumpkins, hay, pots and lanterns; lanterns hanging on long chains over it.
+    The aisles are the kitchens: in each bay a pantry barrel, a smoker, a cooking fire and hay against the outer wall.
+  - At the west end a dais, the Gorged Brute's, his hoard heaped behind him (gold blocks, raw gold, two chests), in
+    front of the **gate**: 3 wide and 4 high, gilded blackstone, in a frame with a gold keystone.
+  - Behind the gate a passage leads into the chapel: quiet polished blackstone, lit by soul fire (soul campfires and
+    hanging soul lanterns, which idle piglins keep away from), a yellow runner up to the Gluttony **Sin Portal Frame**
+    (facing the passage) and its frame 4 blocks behind with gold corners. Two chests by the lock.
+- **The feast:** when someone comes within 32 blocks, 10 piglins are put at the table and 4 piglin brutes about the
+  hall: real vanilla ones, grown, armed as a bastion's are (crossbows, golden swords, golden axes), and immune to
+  zombification. They behave exactly as they do anywhere: piglins leave you alone if you wear gold, brutes never do,
+  and opening a pantry barrel angers them. While anyone is in the hall, one more comes in every 10 seconds, out of
+  sight down the aisles (never within 12 blocks of anyone), up to as many as the feast began with. They're tagged
+  `fmscraft.gluttony_feast` and cleared away with the hall.
+- **The hall's rules:** anyone in the hall itself (the nave, the aisles and the dais, not the doorway or the chapel)
+  has **Block Barrier**, so nobody walls themselves in or tunnels round the gate. No Mining Fatigue, unlike the other
+  structures: it slows your swing (10% a level, so level X leaves you nearly harmless), and this hall is a fight.
+  Weapons, shields, bows and potions all work as normal.
+- **The Gorged Brute** (`GorgedBruteEntity`): a piglin brute twice the size (scale attribute: 1.2 x 3.9), the vanilla
+  brute's model and texture. He stands on his dais in front of the gate and never moves; he can't be hurt, pushed,
+  burned or blown up. He watches whoever comes near and grunts now and then, deep.
+  - **Feed him:** use any food on him (anything with a food component: bread, stew, rotten flesh, golden apples...). He
+    takes one mouthful a second, whoever is feeding him (try sooner and he grunts and the food stays in your hand),
+    holds it up, chews with crumbs flying, and burps every tenth. A bowl or bottle comes back to you. He swells as he
+    eats, up to 2.6 times a brute's size.
+  - A yellow boss bar ("Gorged Brute") fills as he eats, shown to everyone in the hall, and each mouthful tells the hall
+    "The Gorged Brute gulps it down... (n/30)".
+  - **At 30 he bursts:** a bang that harms nothing, a cloud of crumbs, a few gold ingots and porkchops spilled, the
+    challenge-complete fanfare for everyone near, "The Gorged Brute bursts! The way to the portal lies open.", the
+    rules lift, no more piglins come, and the gate sinks into the floor a row at a time. The feast that's left keeps
+    fighting.
+- **The chapel is safe:** nothing can target a player in the chapel or the passage to it (`LivingEntity.canTarget`,
+  LivingEntityMixin: brains and goals alike forget them), and any of the feast that wanders in is turned round and sent
+  back into the hall. Anyone in there while the gate is shut (back from the fight after a reset) gets it opened, so
+  nobody is ever shut in.
+- **Loot:** pantry barrels (`chests/hall_of_gluttony_pantry`: porkchops, bread, potatoes, beef, pie, cookies, stews,
+  honey, berries, golden carrots, rotten flesh, gold nuggets..., and a 2% Beginner tome), enough to feed him if you
+  can get at them; his hoard on the dais (`chests/hall_of_gluttony`: gold, porkchops, golden carrots and apples, cake,
+  diamonds, enchanted golden axes and crossbows, books, the Snout trim, plus a 5% Beginner and 5% Advanced tome); and
+  two by the lock (`chests/hall_of_gluttony_sanctum`, the same 10% Advanced / 2% Master tome chance as the other final
+  rooms).
+- **Resetting:** once nobody is within 64 blocks (and no Gluttony fight is on), the feast is cleared away, the gate
+  closes and he's back, hungry, next time. He's never saved; the gate is read back from the world, so a restart
+  changes nothing (what he's eaten is forgotten).
+- Tuning knobs: `GorgedBruteEntity` (`FOOD_TO_BURST`, `FEED_COOLDOWN`, `SCALE`, `FULL_SCALE`), `GluttonyHalls`
+  (`PIGLINS`, `BRUTES`, `REINFORCE_TICKS`, `REINFORCE_CLEARANCE`, margins), `GluttonyHallStructure`
+  (`FLOOR_Y`, `MIN_LAVA`, `MIN_OPEN`), `GluttonyHallShape` (sizes, `MAX_BRIDGE`).
 
 ## Compatibility with the other two mods
 

@@ -11,6 +11,7 @@ import net.ragnar.fmscraft.loot.ModLoot;
 import net.ragnar.fmscraft.structure.ModStructures;
 import net.ragnar.fmscraft.structure.StructureAmbience;
 import net.ragnar.fmscraft.structure.envy.EnvyMazes;
+import net.ragnar.fmscraft.structure.gluttony.GluttonyHalls;
 import net.ragnar.fmscraft.structure.greed.GreedVaults;
 import net.ragnar.fmscraft.structure.lust.LustGardens;
 import net.ragnar.fmscraft.structure.sloth.SlothSpheres;
@@ -61,6 +62,7 @@ public class FmsCraft implements ModInitializer {
 		GreedVaults.register();
 		LustGardens.register();
 		WrathDens.register();
+		GluttonyHalls.register();
 		StructureAmbience.register();
 		FmsCommands.register();
 

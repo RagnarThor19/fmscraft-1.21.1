@@ -19,6 +19,8 @@ import net.minecraft.world.gen.structure.Structure;
 import net.ragnar.fmscraft.FmsCraft;
 import net.ragnar.fmscraft.sin.Sin;
 import net.ragnar.fmscraft.structure.envy.EnvyMazePiece;
+import net.ragnar.fmscraft.structure.gluttony.GluttonyHallPiece;
+import net.ragnar.fmscraft.structure.gluttony.GluttonyHalls;
 import net.ragnar.fmscraft.structure.greed.GreedVaultPiece;
 import net.ragnar.fmscraft.structure.greed.GreedVaults;
 import net.ragnar.fmscraft.structure.lust.LustGardenPiece;
@@ -41,6 +43,7 @@ import org.joml.Vector3f;
  *       ceiling, and the odd flake of gold leaf.</li>
  *   <li>Lust's Garden: blossom drifting down through the fog, and a few spores hanging in the air.</li>
  *   <li>Den of Wrath (the hall): crimson spores drifting, and sculk soul specks rising off the floor.</li>
+ *   <li>Hall of Gluttony (the hall): white ash drifting down from the vault, and kitchen smoke hanging low.</li>
  * </ul>
  */
 public final class StructureAmbience {
@@ -72,7 +75,7 @@ public final class StructureAmbience {
             var structures = world.getRegistryManager().get(RegistryKeys.STRUCTURE);
             Structure maze = structures.get(ENVY_MAZE), tower = structures.get(PRIDE_TOWER), sphere = structures.get(SlothSpheres.SPHERE),
                     vault = structures.get(GreedVaults.VAULT), garden = structures.get(LustGardens.GARDEN),
-                    den = structures.get(WrathDens.DEN);
+                    den = structures.get(WrathDens.DEN), hall = structures.get(GluttonyHalls.HALL);
             BlockPos at = player.getBlockPos();
             if (maze != null && piece(world.getStructureAccessor().getStructureContaining(at, maze)) instanceof EnvyMazePiece) {
                 envy(world, player);
@@ -89,6 +92,9 @@ public final class StructureAmbience {
             } else if (den != null && piece(world.getStructureAccessor().getStructureContaining(at, den)) instanceof WrathDenPiece piece
                     && piece.inHall(at)) {
                 wrath(world, player);
+            } else if (hall != null && piece(world.getStructureAccessor().getStructureContaining(at, hall)) instanceof GluttonyHallPiece piece
+                    && piece.inHall(at)) {
+                gluttony(world, player);
             }
         }
     }
@@ -149,6 +155,18 @@ public final class StructureAmbience {
             world.spawnParticles(player, ParticleTypes.CRIMSON_SPORE, false, x, y, z, 1, 0, 0, 0, 0);
         } else if (random.nextFloat() < 0.3f && world.getBlockState(pos.down()).isOf(Blocks.SCULK)) {
             world.spawnParticles(player, ParticleTypes.SCULK_SOUL, false, x, pos.getY() + 0.1, z, 1, 0, 0.02, 0, 0.01);
+        }
+    }
+
+    private static void gluttony(ServerWorld world, ServerPlayerEntity player) {
+        Random random = world.getRandom();
+        BlockPos pos = player.getBlockPos().add(random.nextInt(REACH * 2 + 1) - REACH, random.nextInt(8) - 1, random.nextInt(REACH * 2 + 1) - REACH);
+        if (!world.getBlockState(pos).isAir()) return;
+        double x = pos.getX() + random.nextDouble(), y = pos.getY() + random.nextDouble(), z = pos.getZ() + random.nextDouble();
+        if (random.nextFloat() < 0.5f) {
+            world.spawnParticles(player, ParticleTypes.WHITE_ASH, false, x, y, z, 1, 0, 0, 0, 0);
+        } else if (random.nextFloat() < 0.15f && pos.getY() - player.getBlockY() <= 2) {
+            world.spawnParticles(player, ParticleTypes.SMOKE, false, x, y, z, 1, 0, 0.01, 0, 0.005);
         }
     }
 

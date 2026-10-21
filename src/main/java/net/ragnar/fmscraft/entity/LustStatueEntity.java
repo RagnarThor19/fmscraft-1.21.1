@@ -74,12 +74,14 @@ public class LustStatueEntity extends PathAwareEntity {
     public static final RegistryKey<DamageType> EMBRACE =
             RegistryKey.of(RegistryKeys.DAMAGE_TYPE, Identifier.of(FmsCraft.MOD_ID, "lust_statue"));
     private static final TrackedData<Boolean> EYES_OPEN = DataTracker.registerData(LustStatueEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+    /** Home on a fountain plinth: the client draws it there at once, seen or not (LustStatueRenderer). */
+    private static final TrackedData<Boolean> SETTLED = DataTracker.registerData(LustStatueEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
 
     /** Where it may go and who it hunts: the inside of its garden. Null when placed by hand (anywhere, anyone near). */
     private Predicate<BlockPos> garden;
     private BlockPos home;
     private float homeYaw;
-    private boolean awake, calm, settled, observed, frozen = true;
+    private boolean awake, calm, observed, frozen = true;
     private int strikeCooldown;
     private UUID targetId;
 
@@ -111,6 +113,7 @@ public class LustStatueEntity extends PathAwareEntity {
     protected void initDataTracker(DataTracker.Builder builder) {
         super.initDataTracker(builder);
         builder.add(EYES_OPEN, false);
+        builder.add(SETTLED, false);
     }
 
     @Override
@@ -137,7 +140,7 @@ public class LustStatueEntity extends PathAwareEntity {
     }
 
     public boolean isSettled() {
-        return settled;
+        return dataTracker.get(SETTLED);
     }
 
     /** Whether anyone could see it this tick (as of its last tick). */
@@ -164,7 +167,7 @@ public class LustStatueEntity extends PathAwareEntity {
     /** Steps up onto one of the fountain's plinths, turns to the fountain and closes its eyes, for good. */
     public void settle(BlockPos top, float yaw) {
         calm();
-        settled = true;
+        dataTracker.set(SETTLED, true);
         refreshPositionAndAngles(top.getX() + 0.5, top.getY(), top.getZ() + 0.5, yaw, 0);
         setHeadYaw(yaw);
         setBodyYaw(yaw);
@@ -188,7 +191,7 @@ public class LustStatueEntity extends PathAwareEntity {
         super.mobTick();
         if (!(getWorld() instanceof ServerWorld world)) return;
         if (strikeCooldown > 0) strikeCooldown--;
-        if (garden != null && home != null && !settled && !garden.test(getBlockPos())) goHome();
+        if (garden != null && home != null && !isSettled() && !garden.test(getBlockPos())) goHome();
 
         observed = computeObserved(world);
         if (calm || !awake) {

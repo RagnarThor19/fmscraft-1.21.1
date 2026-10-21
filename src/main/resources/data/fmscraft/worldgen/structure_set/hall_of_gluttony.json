@@ -1,0 +1,15 @@
+{
+  "structures": [
+    { "structure": "fmscraft:hall_of_gluttony", "weight": 1 }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "spacing": 24,
+    "separation": 12,
+    "salt": 1293847566,
+    "exclusion_zone": {
+      "other_set": "minecraft:nether_complexes",
+      "chunk_count": 8
+    }
+  }
+}

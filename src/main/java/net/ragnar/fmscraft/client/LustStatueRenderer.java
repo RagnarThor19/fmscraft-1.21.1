@@ -24,6 +24,7 @@ import net.ragnar.fmscraft.entity.LustStatueEntity;
  * Draws a Statue of Lust so that it is never seen to move. It's drawn where it was last caught standing, and that
  * pose (where it stands, which way it faces) only catches up with the real one while the statue can't be seen: off
  * screen, behind something, or lost in the fog. Look away and back and it's closer. No interpolation, no shadow.
+ * Once it has settled on a fountain plinth it's drawn there straight away, so what you see matches the count.
  *
  * Its eyes are the one thing that changes in view: dark slits ({@link #CLOSED}), for a moment mid grey, then pale grey.
  */
@@ -45,7 +46,14 @@ public class LustStatueRenderer extends EntityRenderer<LustStatueEntity> {
     /** Called every frame with the view's frustum: the one place to tell whether the drawn statue is in sight. */
     @Override
     public boolean shouldRender(LustStatueEntity statue, Frustum frustum, double x, double y, double z) {
-        if (!statue.shownSet || !inSight(statue, frustum)) {
+        if (statue.isSettled()) {
+            // Exactly where the server put it, not partway through the client's smoothing toward it
+            statue.shownX = statue.getLerpTargetX();
+            statue.shownY = statue.getLerpTargetY();
+            statue.shownZ = statue.getLerpTargetZ();
+            statue.shownYaw = statue.getLerpTargetYaw();
+            statue.shownSet = true;
+        } else if (!statue.shownSet || !inSight(statue, frustum)) {
             statue.shownX = statue.getX();
             statue.shownY = statue.getY();
             statue.shownZ = statue.getZ();

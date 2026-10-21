@@ -30,6 +30,7 @@ import net.ragnar.fmscraft.boss.TestBossEntity;
 import net.ragnar.fmscraft.client.ClientBossMusic;
 import net.ragnar.fmscraft.client.EnvyStatueModel;
 import net.ragnar.fmscraft.client.EnvyStatueRenderer;
+import net.ragnar.fmscraft.client.GorgedBruteRenderer;
 import net.ragnar.fmscraft.client.GreedStatueModel;
 import net.ragnar.fmscraft.client.GreedStatueRenderer;
 import net.ragnar.fmscraft.client.GardenFog;
@@ -81,6 +82,7 @@ public class FmsCraftClient implements ClientModInitializer {
         EntityModelLayerRegistry.registerModelLayer(LustStatueModel.LAYER, LustStatueModel::getTexturedModelData);
         EntityRendererRegistry.register(ModEntities.LUST_STATUE, LustStatueRenderer::new);
         EntityRendererRegistry.register(ModEntities.MOTHER_WARDEN, MotherWardenRenderer::new);
+        EntityRendererRegistry.register(ModEntities.GORGED_BRUTE, GorgedBruteRenderer::new);
         WorldRenderEvents.AFTER_ENTITIES.register(SleepZs::render);
 
         ClientPlayNetworking.registerGlobalReceiver(BossMusicPayload.ID,

@@ -4,8 +4,8 @@
   ],
   "placement": {
     "type": "minecraft:random_spread",
-    "spacing": 32,
-    "separation": 16,
+    "spacing": 67,
+    "separation": 33,
     "salt": 1840263751,
     "exclusion_zone": {
       "other_set": "minecraft:nether_complexes",

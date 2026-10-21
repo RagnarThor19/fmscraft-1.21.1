@@ -56,9 +56,9 @@ import java.util.UUID;
  * <ul>
  *   <li><b>The Mother Warden</b> ({@link MotherWardenEntity}) is put in her nest, asleep, once someone comes within
  *       {@link #ACTIVE_MARGIN} blocks of the den, and taken away again when everyone has gone.</li>
- *   <li><b>The hall's rules</b>: anyone in the hall itself (not the tunnels or the portal room) has Mining Fatigue X,
- *       Block Barrier (no placing or breaking blocks) and Item Barrier (nothing but food can be used, so no pearls or
- *       rockets across the hall).</li>
+ *   <li><b>The hall's rules</b>: anyone in the hall itself (not the tunnels or the portal room) has Block Barrier (no
+ *       placing or breaking blocks) and Item Barrier (nothing but food can be used, so no pearls or rockets across the
+ *       hall). Not Mining Fatigue: it slows your swing to nothing, and you may have to fight her.</li>
  *   <li><b>Noise</b>: anything a warden could hear, anywhere in the hall, stirs her: the same rules as a sculk
  *       sensor, so sneaking is silent and wool muffles, but chests, pressure plates, tripwires, shriekers, a fall or a
  *       hurt all count. Creative players and stray mobs don't. A vibration flies from the noise to her, her tendrils
@@ -74,8 +74,6 @@ import java.util.UUID;
 public final class WrathDens {
     public static final int ACTIVE_MARGIN = 24;
     public static final int RESET_MARGIN = 64;
-    /** Mining Fatigue X (amplifiers are one less). */
-    public static final int FATIGUE = 9;
     /** How long she waits, with nobody left to hunt, before heading home to sleep. */
     public static final int CALM_TICKS = 15 * 20;
     /** How long she may take to walk home before she's simply back in her nest. */
@@ -214,7 +212,6 @@ public final class WrathDens {
             if (box.expand(ACTIVE_MARGIN).contains(at)) active = true;
             if (!den.piece.inHall(at) || player.isCreative()) continue;
             inHall.add(player);
-            refresh(player, StatusEffects.MINING_FATIGUE, FATIGUE);
             refresh(player, ModEffects.BLOCK_BARRIER, 0);
             refresh(player, ModEffects.ITEM_BARRIER, 0);
         }
@@ -256,7 +253,8 @@ public final class WrathDens {
         if (mother != null) return mother;
         if (den.mother != null && den.world.getEntity(den.mother) != null) return null; // dying
         BlockPos nest = den.piece.nest();
-        if (!den.world.isChunkLoaded(nest)) return null;
+        // Not until entities can live there: one put in before then is lost track of, and another put in her place
+        if (!den.world.shouldTickEntity(nest)) return null;
         List<MotherWardenEntity> left = den.world.getEntitiesByClass(MotherWardenEntity.class, Box.from(den.box()), MotherWardenEntity::isAlive);
         if (!left.isEmpty()) {
             mother = left.get(0);

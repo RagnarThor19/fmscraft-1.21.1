@@ -420,6 +420,13 @@ public class LustGameTests implements FabricGameTest {
         ctx.runAtTick(80, () -> {
             ctx.assertEquals(garden.settledCount(), 4, "all four statues found their place");
             for (int i = 0; i < 4; i++) {
+                LustStatueEntity statue = LustGardens.settledOn(garden, i);
+                BlockPos top = piece.fountainHomes().get(i);
+                ctx.assertTrue(statue != null && statue.isSettled(), "statue " + i + " settled (and the client is told)");
+                ctx.assertTrue(statue.getPos().squaredDistanceTo(top.getX() + 0.5, top.getY(), top.getZ() + 0.5) < 1e-6,
+                        "statue " + i + " stands dead centre on its plinth, at " + statue.getPos());
+            }
+            for (int i = 0; i < 4; i++) {
                 for (BlockPos candle : piece.fountainCandles(i)) ctx.assertTrue(world.getBlockState(candle).get(CandleBlock.LIT), "candles lit at " + candle);
             }
             ctx.assertTrue(LustGardens.solved(garden), "the garden is at peace");

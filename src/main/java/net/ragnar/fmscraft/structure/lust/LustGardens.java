@@ -291,7 +291,8 @@ public final class LustGardens {
         for (int i = 0; i < homes.size(); i++) {
             if (statue(garden, garden.statues[i]) != null) continue;
             BlockPos home = homes.get(i);
-            if (!garden.world.isChunkLoaded(home)) continue;
+            // Not until entities can live there: one put in before then is lost track of, and another put in its place
+            if (!garden.world.shouldTickEntity(home)) continue;
             List<LustStatueEntity> left = garden.world.getEntitiesByClass(LustStatueEntity.class, area, s -> s.isAlive() && home.equals(s.getHome()));
             if (!left.isEmpty()) {
                 garden.statues[i] = left.get(0).getUuid();
@@ -351,6 +352,8 @@ public final class LustGardens {
         garden.settled[plinth] = statue.getUuid();
         setCandles(garden, plinth, true);
         garden.world.playSound(null, top, SoundEvents.BLOCK_GRINDSTONE_USE, SoundCategory.BLOCKS, 1.0f, 0.4f);
+        garden.world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, Blocks.CHISELED_TUFF_BRICKS.getDefaultState()),
+                top.getX() + 0.5, top.getY() + 0.1, top.getZ() + 0.5, 24, 0.4, 0.1, 0.4, 0.1);
         garden.world.playSound(null, top, SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.BLOCKS, 2.0f, 0.6f);
         int home = garden.settledCount();
         Text message = Text.translatable("message.fmscraft.lust_statue_home", home, 4).withColor(LUST_COLOR);
@@ -478,6 +481,11 @@ public final class LustGardens {
 
     public static Garden tracked(ServerWorld world, LustGardenPiece piece) {
         return GARDENS.get(new Key(world.getRegistryKey(), piece.id()));
+    }
+
+    /** The statue standing on fountain plinth {@code plinth}, or null. */
+    public static LustStatueEntity settledOn(Garden garden, int plinth) {
+        return statue(garden, garden.settled[plinth]);
     }
 
     public static boolean solved(Garden garden) {

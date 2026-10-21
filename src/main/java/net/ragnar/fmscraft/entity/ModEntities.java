@@ -47,9 +47,20 @@ public class ModEntities {
                     .maxTrackingRange(16)
                     .build("mother_warden"));
 
+    /** A piglin brute's size; he's made twice as big by his scale attribute, which scales his box and model alike. */
+    public static final EntityType<GorgedBruteEntity> GORGED_BRUTE = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "gorged_brute"),
+            EntityType.Builder.<GorgedBruteEntity>create(GorgedBruteEntity::new, SpawnGroup.MISC)
+                    .dimensions(0.6f, 1.95f)
+                    .eyeHeight(1.79f)
+                    .makeFireImmune()
+                    .maxTrackingRange(10)
+                    .build("gorged_brute"));
+
     public static void initialize() {
         FabricDefaultAttributeRegistry.register(GREED_STATUE, GreedStatueEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(LUST_STATUE, LustStatueEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(MOTHER_WARDEN, MotherWardenEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(GORGED_BRUTE, GorgedBruteEntity.createAttributes());
     }
 }

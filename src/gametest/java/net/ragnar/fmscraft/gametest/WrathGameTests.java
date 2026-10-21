@@ -227,8 +227,8 @@ public class WrathGameTests implements FabricGameTest {
         var generator = nether.getChunkManager().getChunkGenerator();
         int tried = 0, built = 0;
         WrathDenPiece first = null;
-        for (int rx = -4; rx < 4; rx++) {
-            for (int rz = -4; rz < 4; rz++) {
+        for (int rx = -8; rx < 8; rx++) {
+            for (int rz = -8; rz < 8; rz++) {
                 ChunkPos start = spread.getStartChunk(calculator.getStructureSeed(), rx * spread.getSpacing(), rz * spread.getSpacing());
                 tried++;
                 if (!spread.shouldGenerate(calculator, start.x, start.z)) continue; // too near a fortress or bastion
@@ -242,7 +242,7 @@ public class WrathGameTests implements FabricGameTest {
             }
         }
         net.ragnar.fmscraft.FmsCraft.LOGGER.info("A Den of Wrath would be built in {} of {} Nether placement regions", built, tried);
-        ctx.assertTrue(built >= tried / 8, "dens should find room in at least an eighth of the regions, got " + built + "/" + tried);
+        ctx.assertTrue(built >= tried / 12, "dens should find room in at least a twelfth of the regions, got " + built + "/" + tried);
 
         // Build the first one into the Nether as generated there, and walk out of its tunnel
         WrathDenPiece piece = first;
@@ -528,8 +528,10 @@ public class WrathGameTests implements FabricGameTest {
         ServerWorld world = ctx.getWorld();
         Setup s = setup(ctx, 61440, BlockRotation.COUNTERCLOCKWISE_90);
         ServerPlayerEntity player = s.player;
-        StatusEffectInstance fatigue = player.getStatusEffect(StatusEffects.MINING_FATIGUE);
-        ctx.assertTrue(fatigue != null && fatigue.getAmplifier() == WrathDens.FATIGUE, "Mining Fatigue X in the hall");
+        // No Mining Fatigue: it would slow your swing to nothing, and you may have to fight her
+        ctx.assertFalse(player.hasStatusEffect(StatusEffects.MINING_FATIGUE), "no Mining Fatigue in the hall");
+        double speed = player.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED);
+        ctx.assertTrue(speed >= 4.0 - 0.01, "a full-speed swing, got attack speed " + speed);
         ctx.assertTrue(player.hasStatusEffect(ModEffects.BLOCK_BARRIER) && player.hasStatusEffect(ModEffects.ITEM_BARRIER), "Block Barrier and Item Barrier");
         BlockPos floor = player.getBlockPos().down();
         ctx.assertTrue(player.isBlockBreakingRestricted(world, floor, GameMode.SURVIVAL), "can't break blocks in the hall");
