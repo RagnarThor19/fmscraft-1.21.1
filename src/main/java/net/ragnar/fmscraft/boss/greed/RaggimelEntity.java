@@ -105,9 +105,16 @@ public class RaggimelEntity extends SinBossEntity {
     public static final float FRENZY_AT = 0.3f;
     /** Damage he takes is multiplied by this per phase (on top of his armor), more while stunned, and capped per hit. */
     public static final float DAMAGE_TAKEN_ONE = 0.75f, DAMAGE_TAKEN_TWO = 0.85f, STUNNED_BONUS = 1.5f, MAX_HIT = 30f;
+    /** Every hit he deals (melee, darts, beams, rings, marks, slams) is multiplied by this, then rounded up. */
+    public static final float DAMAGE_DEALT = 1.35f;
     public static final float PHASE_TWO_SCALE = 1.5f;
     /** Ticks between attacks (he walks and punches in between). */
     private static final int REST_ONE = 26, REST_TWO = 18, REST_FRENZY = 10;
+
+    /** A hit he deals, after {@link #DAMAGE_DEALT}, rounded up to a whole number. */
+    private static float boosted(float damage) {
+        return (float) Math.ceil(damage * DAMAGE_DEALT);
+    }
 
     // ---- Synced to the client for the model and the beams ----
     public static final int POSE_IDLE = 0, POSE_CAST = 1, POSE_AIM = 2, POSE_CROUCH = 3, POSE_STUNNED = 4, POSE_SLAM = 5;
@@ -167,7 +174,7 @@ public class RaggimelEntity extends SinBossEntity {
                 .add(EntityAttributes.GENERIC_MAX_HEALTH, MAX_HEALTH)
                 .add(EntityAttributes.GENERIC_ARMOR, 10)
                 .add(EntityAttributes.GENERIC_ARMOR_TOUGHNESS, 6)
-                .add(EntityAttributes.GENERIC_ATTACK_DAMAGE, 5)
+                .add(EntityAttributes.GENERIC_ATTACK_DAMAGE, boosted(5))
                 .add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.3)
                 .add(EntityAttributes.GENERIC_FOLLOW_RANGE, 64)
                 .add(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE, 1.0)
@@ -674,6 +681,7 @@ public class RaggimelEntity extends SinBossEntity {
         projectile.setOwner(this);
         projectile.setPosition(from.x, from.y, from.z);
         projectile.setVelocity(dir.x, dir.y, dir.z, speed, inaccuracy);
+        if (projectile instanceof PersistentProjectileEntity p) p.setDamage(Math.ceil(p.getDamage() * DAMAGE_DEALT));
         world.spawnEntity(projectile);
         world.playSound(null, from.x, from.y, from.z, SoundEvents.ENTITY_ARROW_SHOOT, SoundCategory.HOSTILE, 1.0f, 1.6f);
     }
@@ -724,7 +732,7 @@ public class RaggimelEntity extends SinBossEntity {
             for (ServerPlayerEntity p : fighters) {
                 if (struck.contains(p.getUuid()) || !p.getBoundingBox().intersects(getBoundingBox().expand(0.5))) continue;
                 struck.add(p.getUuid());
-                p.damage(getDamageSources().mobAttack(this), one ? 7f : 11f);
+                p.damage(getDamageSources().mobAttack(this), boosted(one ? 7f : 11f));
                 p.takeKnockback(0.6, -dashDir.x, -dashDir.z);
                 world.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_GOAT_RAM_IMPACT, SoundCategory.HOSTILE, 1.5f, 0.9f);
             }
@@ -814,7 +822,7 @@ public class RaggimelEntity extends SinBossEntity {
             // Under the black: he grows, takes his perch, and night falls
             getAttributeInstance(EntityAttributes.GENERIC_SCALE).setBaseValue(PHASE_TWO_SCALE);
             getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED).setBaseValue(0.32);
-            getAttributeInstance(EntityAttributes.GENERIC_ATTACK_DAMAGE).setBaseValue(9);
+            getAttributeInstance(EntityAttributes.GENERIC_ATTACK_DAMAGE).setBaseValue(boosted(9));
             equipStack(EquipmentSlot.MAINHAND, MagicSpells.item(MagicSpells.NETHERITE_STAFF));
             Vec3d perch = Arenas.sinOf(world) == Sin.GREED ? GreedArena.PERCH : getPos().add(0, 10, 0);
             setNoGravity(true);
@@ -1011,7 +1019,7 @@ public class RaggimelEntity extends SinBossEntity {
             for (ServerPlayerEntity p : fighters) {
                 Vec3d to = p.getPos().subtract(getPos());
                 if (to.lengthSquared() > 3.6 * 3.6 || to.normalize().dotProduct(facing) < 0.2) continue;
-                p.damage(getDamageSources().mobAttack(this), 10f);
+                p.damage(getDamageSources().mobAttack(this), boosted(10f));
                 p.takeKnockback(0.5, -facing.x, -facing.z);
             }
         }
@@ -1130,7 +1138,7 @@ public class RaggimelEntity extends SinBossEntity {
                     var box = p.getBoundingBox().expand(b.sweep ? 0.1 : 0.35);
                     if (box.contains(origin) || box.raycast(origin, b.end).isPresent()) {
                         b.hit.add(p.getUuid());
-                        p.damage(getDamageSources().indirectMagic(this, this), b.damage);
+                        p.damage(getDamageSources().indirectMagic(this, this), boosted(b.damage));
                         Cinematics.flash(p, 0.25f, 6);
                     }
                 }
@@ -1214,7 +1222,7 @@ public class RaggimelEntity extends SinBossEntity {
                 if (Math.abs(d - ring.radius) > 0.8 || dy < -1.5 || dy > 1.5) continue;
                 if (!p.isOnGround()) continue;
                 ring.hit.add(p.getUuid());
-                p.damage(getDamageSources().mobAttack(this), ring.damage);
+                p.damage(getDamageSources().mobAttack(this), boosted(ring.damage));
                 p.addVelocity(0, 0.35, 0);
                 p.velocityModified = true;
             }
@@ -1268,7 +1276,7 @@ public class RaggimelEntity extends SinBossEntity {
             for (ServerPlayerEntity p : fighters) {
                 double dx = p.getX() - m.center.x, dz = p.getZ() - m.center.z, dy = p.getY() - m.center.y;
                 if (dx * dx + dz * dz <= Mark.RADIUS * Mark.RADIUS && dy > -2 && dy < 3) {
-                    p.damage(getDamageSources().mobAttack(this), m.damage);
+                    p.damage(getDamageSources().mobAttack(this), boosted(m.damage));
                 }
             }
             it.remove();
