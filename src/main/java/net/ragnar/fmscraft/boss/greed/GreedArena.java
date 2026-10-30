@@ -9,8 +9,8 @@ import net.ragnar.fmscraft.fight.ArenaLayout;
 /**
  * RAGGIMEL's arena: the floating island in data/fmscraft/structure/arena/greed.nbt (built by
  * tools/structures/greed_arena.py). He fights on the wide, flat grass plain west of the amethyst shrine near the
- * island's east end (template x 120-140, z 14-32, floor at template y 110); players arrive in the ring around that
- * shrine, whose pillars and the trees give cover from the lasers. The island drops into the void on every side.
+ * island's east end (template x 120-140, z 14-32, floor at template y 110). Players arrive on the plain too; the
+ * shrine's pillars and the trees give cover from the lasers. The island drops into the void on every side.
  * <p>
  * Positions are given in template coordinates (as the script prints them) and moved into the world by {@link #CORNER},
  * which puts the middle of the shrine ring at x/z 0 (so the plain's middle is at about x -30, z 0). They're checked by
@@ -22,9 +22,9 @@ public final class GreedArena {
     /** Where the template's corner goes. */
     public static final BlockPos CORNER = new BlockPos(-161, 20, -28);
 
-    /** Players arrive on the south side of the shrine ring, facing west towards the plain where he comes down. */
-    public static final Vec3d PLAYER_SPAWN = at(161.5, 119, 44.5);
-    public static final float PLAYER_YAW = 118f;
+    /** Players arrive on the west side of the plain (world x -40, z 0), facing east towards where he comes down. */
+    public static final Vec3d PLAYER_SPAWN = at(121.5, 112, 28.5);
+    public static final float PLAYER_YAW = -90f;
     /** The middle of the plain (world -30, 0), at floor height. He lands here, and the night's effects center on it. */
     public static final Vec3d CENTER = at(131.5, 111, 28.5);
     /** RAGGIMEL starts floating in his bubble 13 blocks over the middle of the plain. */

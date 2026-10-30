@@ -117,8 +117,8 @@ Special mechanics:
 Boss: Ragnar Thor - Sin of Greed. Boss bar: RAGGIMEL (light blue). His own skin on a player model.
 Song (phase 1): Milky - Just The Way You Are, 130 BPM, first beat 0.75 s (music.greed.phase_one)
 Song (phase 2): Lennsko - Panzerknacker (slowed), measured ~172 BPM, attacks on every other beat (86) (music.greed.phase_two)
-Arena: the floating island (structure/arena/greed.nbt, tools/structures/greed_arena.py). Players arrive in the
-       ring around the amethyst shrine at its east end; he comes down on the flat plain just west of it (x -30, z 0),
+Arena: the floating island (structure/arena/greed.nbt, tools/structures/greed_arena.py). The fight is on the flat
+       plain west of the amethyst shrine at its east end: players arrive at x -40, z 0, he comes down at x -30, z 0,
        where an empty deepslate-and-gold frame on the north edge fills with the exit portal when he's beaten.
        Pillars and trees block lasers. Falling off kills you. Own dimension type (greed_arena): always noon.
 Health / armor: 1000 HP, 10 armor, 6 toughness; takes x0.75 damage in phase 1, x0.85 in phase 2, x1.5 while
