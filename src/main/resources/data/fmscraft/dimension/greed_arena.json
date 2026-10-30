@@ -1,5 +1,5 @@
 {
-  "type": "fmscraft:arena",
+  "type": "fmscraft:greed_arena",
   "generator": {
     "type": "minecraft:flat",
     "settings": {

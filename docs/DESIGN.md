@@ -69,6 +69,8 @@ Open questions:
   the wheel only animates toward it, so lag or quitting can't change or lose the prize. Tomes are found by reading
   the magic mod's `TomeItem` tiers at runtime (`compat/MagicTomes.java`).
 - Defeated bosses can be fought again with another key.
+- Only one boss per arena: bosses are never saved with the world, and any boss in an arena that isn't the running
+  fight's boss removes itself (so one left over from a crash can't become a second boss).
 - Players left in an arena after a restart are sent back to their portal when they log in.
 - Test without structures: `/fmscraft fight <sin>`, `/fmscraft end <sin>`, `/fmscraft status`, `/fmscraft undefeat <sin>`.
 
@@ -84,10 +86,17 @@ off still hear them), loop, and pause vanilla music. The test boss uses Pigstep,
 ## Boss template
 
 Every boss extends `boss/SinBossEntity` and is swapped in for its sin in `boss/ModBossEntities.forSin`
-(all sins use the stand-in `TestBossEntity` for now):
-- Boss bar named after the friend.
-- **Phase 2 at half health** (`onPhaseTwo`) — switch songs and behaviour here.
+(Greed is RAGGIMEL; the other sins still use the stand-in `TestBossEntity`):
+- Boss bar named after the friend (`bossBarName` to call it something else).
+- **Phase 2 at half health** (`onPhaseTwo`; `phaseTwoHealth` to move it) — switch songs and behaviour here. A boss with
+  a transition returns false from `startsPhaseTwoSongAtOnce` and calls `playSong(song, fadeTicks)` when it's ready.
 - **Beat clock**: each phase has a `BossSong(soundId, bpm, firstBeatTick)`; `onBeat(phase, beat)` fires on each beat so attacks can land on the music.
+- **Intro** (optional, `ModBossEntities.introFor`): a `fight/FightIntro` cutscene that plays in the arena while the
+  portal is open, timed from the portal opening so late arrivals join it mid-way. A song it starts keeps playing into
+  the fight. `fight/Cinematics` freezes players (no moving, hitting, using or being hurt; the void still kills) and
+  covers their screens (`BossScreenPayload`: an intro picture, black, or a flash).
+- **Arena layout** (optional, `Arenas.layout`): where the template goes, the spawns and the exit portal, for arenas
+  that aren't a 36-block disc centered on 0,0.
 
 Per boss, fill in:
 
@@ -101,6 +110,52 @@ Phase 2 attacks: ...
 Health / armor:
 Special mechanics:
 ```
+
+## RAGGIMEL (Greed) (built: `boss/greed/`)
+
+```
+Boss: Ragnar Thor - Sin of Greed. Boss bar: RAGGIMEL (light blue). His own skin on a player model.
+Song (phase 1): Milky - Just The Way You Are, 130 BPM, first beat 0.75 s (music.greed.phase_one)
+Song (phase 2): Lennsko - Panzerknacker (slowed), measured ~172 BPM, attacks on every other beat (86) (music.greed.phase_two)
+Arena: the floating island (structure/arena/greed.nbt, tools/structures/greed_arena.py). Players arrive in the
+       ring around the amethyst shrine at its east end; he comes down on the flat plain just west of it (x -30, z 0),
+       where an empty deepslate-and-gold frame on the north edge fills with the exit portal when he's beaten.
+       Pillars and trees block lasers. Falling off kills you. Own dimension type (greed_arena): always noon.
+Health / armor: 1000 HP, 10 armor, 6 toughness; takes x0.75 damage in phase 1, x0.85 in phase 2, x1.5 while
+       stunned, at most 30 per hit, and phase 1 can't be skipped by one big hit. Aimed at 3-4 minutes for 5-7 players.
+```
+
+- **Intro (the 30 s the portal is open):** everyone who comes through is frozen behind the Seven Deadly Sins wheel
+  (`textures/gui/seven_sins.png`). From ~16 s it slowly zooms in on Greed; at 25 s Just The Way You Are fades in;
+  at 30 s the wheel fades and RAGGIMEL floats down in his bubble (shoot the bubble and he drops, stunned).
+- **Phase 1 (100-70%), light:** pale blue noon sky, white specks drifting. He walks after people and punches, and
+  on the beat picks one of: *Bubble Ride* (floats over everyone in a bubble dropping sleep darts; any hit or arrow
+  pops it, he falls and is stunned for 3.5 s taking extra damage), *Bubble Volley* (two slow bubbles that lift who
+  they touch for 3.5 s; a teammate's hit pops them early), *Sleep Darts* (three, at three players; Ragnars Magic
+  Mod's dart: drowsy, then asleep until hurt), *Dash Punch* (crouches with the goat's ram sound, charges), *Splash*
+  (hops and lands with a ring of water to jump over).
+- **Phase change (at 70%):** everything goes black, everyone freezes, music cuts; heartbeat and cave sounds for
+  5 s, then `greed_switch_voiceline`. Under the black he grows to 3 blocks, moves to a perch over the island's
+  middle shrine 50 blocks west and night falls (dark blue sky, stars, no sun, dimmer light, closer fog). As the
+  voice line ends the black lifts, lightning strikes, Panzerknacker fades in, and he fires lasers from the perch
+  for 12 s (break line of sight) before leaping back into the ring with a three-ring slam. Timings: `GreedTimeline`.
+- **Phase 2 (70-0%), scary:** faster, punches for 9, rests less. Picks from *Laser* (a thin beam follows you for
+  1.5 s, freezes white, fires; prefers anyone stuck in a bubble), *Laser Sweep* (a beam along the ground spins all
+  the way round him: jump it), *Bubble Prison* (one bubble per player, lifting 7.5 blocks for 5.5 s: pop each other
+  out), *Greed's Due* (a gold circle under every player, coins crash into it 1.6 s later), *Blink Strike* (portal
+  particles show where he'll appear behind three players in turn), *Tidal Slam* (three soul-fire rings to jump),
+  *Dart Fan* (seven darts) and a double *Dash Punch*. Below 30% he goes into a frenzy: a roar and a flash, two
+  lasers at once, a second wave of coins, four blink strikes, shorter rests, more lightning.
+- **The night:** snowflakes, glow specks and souls drifting around everyone, sparks off him, the shrine pulsing a
+  ring of light every 8 beats, cosmetic lightning striking the island and the void (with a flash on screen).
+  When he dies the night lifts again.
+- **Magic mod:** he holds its diamond staff (netherite in phase 2), can't be put to sleep or carried off in a
+  player's bubble (he wakes / bursts it at once), and status effects don't stick to him. Without the mod his darts
+  are plain arrows. The mod's built jar has to include Sleep Darts for those to work.
+- Tuning knobs: `RaggimelEntity` (health, damage taken, `MAX_HIT`, rests, attack weights and gaps in
+  `chooseAttack`), `GreedTimeline` (cutscene timings), `GreedArena` (positions).
+- Tests: `RaggimelGameTests` (the whole fight flow in the real arena, the phase 1 clamp, bubbles, magic bubbles),
+  `GreedTimelineTest`.
 
 ## Structures
 

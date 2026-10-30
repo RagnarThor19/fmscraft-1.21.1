@@ -150,22 +150,22 @@ public class FightGameTests implements FabricGameTest {
         ServerWorld world = ctx.getWorld();
         MinecraftServer server = world.getServer();
         BlockPos base = ctx.getAbsolutePos(new BlockPos(3, 1, 3));
-        BossFights.open(Sin.GREED, world, base, Direction.Axis.Z, JOIN);
+        BossFights.open(Sin.PRIDE, world, base, Direction.Axis.Z, JOIN);
         ServerPlayerEntity player = ctx.createMockCreativeServerPlayerInWorld();
-        BossFights.enter(player, Sin.GREED);
+        BossFights.enter(player, Sin.PRIDE);
 
         ctx.runAtTick(JOIN + 10, () -> {
-            FightSession session = BossFights.session(Sin.GREED);
+            FightSession session = BossFights.session(Sin.PRIDE);
             ctx.assertTrue(session != null && session.stage() == FightSession.Stage.ACTIVE, "fight should be running");
-            Entity boss = Arenas.world(server, Sin.GREED).getEntity(session.bossId());
+            Entity boss = Arenas.world(server, Sin.PRIDE).getEntity(session.bossId());
 
             player.getInventory().insertStack(new ItemStack(Items.DIAMOND_SWORD));
             player.onTeleportationDone(); // a real client confirms the teleport; until then players can't be hurt
             player.damage(player.getDamageSources().outOfWorld(), Float.MAX_VALUE);
 
-            ctx.assertTrue(BossFights.session(Sin.GREED) == null, "fight should end when someone dies");
+            ctx.assertTrue(BossFights.session(Sin.PRIDE) == null, "fight should end when someone dies");
             ctx.assertTrue(boss == null || boss.isRemoved(), "boss should be removed");
-            ctx.assertFalse(FmsWorldState.get(server).isDefeated(Sin.GREED), "Greed should not count as defeated");
+            ctx.assertFalse(FmsWorldState.get(server).isDefeated(Sin.PRIDE), "Pride should not count as defeated");
 
             boolean swordInChest = false;
             for (BlockPos pos : BlockPos.iterate(base.add(-7, -3, -7), base.add(7, 3, 7))) {

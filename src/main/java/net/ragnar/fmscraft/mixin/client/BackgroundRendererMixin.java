@@ -5,7 +5,9 @@ import net.minecraft.client.render.BackgroundRenderer;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import net.ragnar.fmscraft.client.GardenFog;
+import net.ragnar.fmscraft.client.GreedSky;
 import net.ragnar.fmscraft.client.VaultFog;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -15,7 +17,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Down in a Greed Vault, the fog turns dark gray and closes in. Never thinner than what's already there (darkness...).
- * In Lust's Garden it only takes on a rose tint.
+ * In Lust's Garden it only takes on a rose tint. Over RAGGIMEL's island it's pale blue by day and dark blue at night,
+ * when it also closes in a little (GreedSky).
  */
 @Mixin(BackgroundRenderer.class)
 public abstract class BackgroundRendererMixin {
@@ -25,6 +28,14 @@ public abstract class BackgroundRendererMixin {
 
     @Inject(method = "render", at = @At("TAIL"))
     private static void fmscraft$vaultFogColor(Camera camera, float tickDelta, ClientWorld world, int viewDistance, float skyDarkness, CallbackInfo ci) {
+        if (GreedSky.active()) {
+            Vec3d fog = GreedSky.mix(GreedSky.DAY_FOG, GreedSky.NIGHT_FOG, tickDelta);
+            red = (float) fog.x;
+            green = (float) fog.y;
+            blue = (float) fog.z;
+            RenderSystem.clearColor(red, green, blue, 0.0f);
+            return;
+        }
         float rose = GardenFog.strength(tickDelta), s = VaultFog.strength(tickDelta);
         if (rose <= 0 && s <= 0) return;
         if (rose > 0) {
@@ -42,6 +53,12 @@ public abstract class BackgroundRendererMixin {
 
     @Inject(method = "applyFog", at = @At("TAIL"))
     private static void fmscraft$vaultFog(Camera camera, BackgroundRenderer.FogType fogType, float viewDistance, boolean thickFog, float tickDelta, CallbackInfo ci) {
+        float night = GreedSky.night(tickDelta);
+        if (night > 0 && fogType == BackgroundRenderer.FogType.FOG_TERRAIN) {
+            float start = RenderSystem.getShaderFogStart(), end = RenderSystem.getShaderFogEnd();
+            RenderSystem.setShaderFogStart(Math.min(start, MathHelper.lerp(night, start, 24f)));
+            RenderSystem.setShaderFogEnd(Math.min(end, MathHelper.lerp(night, end, 120f)));
+        }
         float s = VaultFog.strength(tickDelta);
         if (s <= 0) return;
         float start = RenderSystem.getShaderFogStart(), end = RenderSystem.getShaderFogEnd();

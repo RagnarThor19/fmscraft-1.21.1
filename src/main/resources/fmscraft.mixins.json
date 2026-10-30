@@ -16,8 +16,11 @@
 	],
 	"client": [
 		"client.BackgroundRendererMixin",
+		"client.ClientWorldMixin",
 		"client.LightmapTextureManagerMixin",
-		"client.MusicTrackerMixin"
+		"client.MouseMixin",
+		"client.MusicTrackerMixin",
+		"client.WorldRendererMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

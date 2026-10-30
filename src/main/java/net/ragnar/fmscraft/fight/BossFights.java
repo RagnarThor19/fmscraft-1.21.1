@@ -88,6 +88,13 @@ public final class BossFights {
         return SESSIONS.get(sin);
     }
 
+    /** Whether {@code boss} is the boss of the fight running for its arena's sin. */
+    public static boolean isCurrentBoss(SinBossEntity boss) {
+        Sin sin = Arenas.sinOf(boss.getWorld());
+        FightSession session = sin == null ? null : SESSIONS.get(sin);
+        return session != null && boss.getUuid().equals(session.bossId);
+    }
+
     // ---- Opening ----
 
     public static boolean open(Sin sin, ServerWorld world, BlockPos base, Direction.Axis axis) {
@@ -163,14 +170,20 @@ public final class BossFights {
         FightSession session = SESSIONS.get(sin);
         if (session == null || session.stage != FightSession.Stage.JOINING) return;
 
+        FightIntro intro = ModBossEntities.introFor(sin);
         if (session.participants.add(player.getUuid())) {
             FmsWorldState.get(player.getServer()).setReturn(player.getUuid(), session.portal);
-            session.countdown.addPlayer(player);
+            // With an intro, the cutscene is the countdown
+            if (intro == null) session.countdown.addPlayer(player);
         }
         PENDING.put(player.getUuid(), p -> {
             ServerWorld arena = Arenas.world(p.getServer(), sin);
-            p.teleport(arena, Arenas.PLAYER_SPAWN.x, Arenas.PLAYER_SPAWN.y, Arenas.PLAYER_SPAWN.z, 180f, 0f);
+            ArenaLayout layout = Arenas.layout(sin);
+            p.teleport(arena, layout.playerSpawn().x, layout.playerSpawn().y, layout.playerSpawn().z, layout.playerYaw(), 0f);
             p.playSoundToPlayer(SoundEvents.BLOCK_PORTAL_TRAVEL, SoundCategory.PLAYERS, 0.4f, 1.2f);
+            if (SESSIONS.get(sin) != session || session.stage != FightSession.Stage.JOINING) return;
+            if (intro != null) intro.onEnter(p, session, (int) (p.getServer().getTicks() - session.openedTick));
+            if (session.song != null) sendMusicTo(p, new BossMusicPayload(session.song.soundId(), session.songFadeTicks));
         });
     }
 
@@ -206,6 +219,8 @@ public final class BossFights {
             switch (session.stage) {
                 case JOINING -> {
                     long left = session.openedTick + session.joinTicks - now;
+                    FightIntro intro = ModBossEntities.introFor(session.sin);
+                    if (left > 0 && intro != null) intro.tick(server, session, inArena(server, session), (int) (now - session.openedTick));
                     if (left > 0) {
                         warnIfClosing(server, session, left);
                         long seconds = (left + 19) / 20;
@@ -248,7 +263,8 @@ public final class BossFights {
                         SoundCategory.BLOCKS, 2.0f, 0.5f + (3 - seconds) * 0.25f);
             }
         }
-        // Players already waiting inside hear it too, so they know the fight is about to start
+        // Players already waiting inside hear it too, so they know the fight is about to start (unless a cutscene is the countdown)
+        if (ModBossEntities.introFor(session.sin) != null) return;
         for (ServerPlayerEntity player : online(server, session)) {
             if (player.getWorld() == world) continue;
             if (seconds == 5) player.playSoundToPlayer(SoundEvents.BLOCK_BELL_USE, SoundCategory.BLOCKS, 1.0f, 0.6f);
@@ -278,28 +294,46 @@ public final class BossFights {
             return;
         }
         boss.setSin(session.sin);
-        boss.refreshPositionAndAngles(Arenas.BOSS_SPAWN.x, Arenas.BOSS_SPAWN.y, Arenas.BOSS_SPAWN.z, 0f, 0f);
+        Vec3d spawn = Arenas.layout(session.sin).bossSpawn();
+        boss.refreshPositionAndAngles(spawn.x, spawn.y, spawn.z, 0f, 0f);
+        // A song the intro already started keeps playing; the boss's beat clock picks it up where it is
+        if (session.song != null) boss.continueSong(session.song, (int) (server.getTicks() - session.songStartTick));
         arena.spawnEntity(boss);
         session.bossId = boss.getUuid();
         session.stage = FightSession.Stage.ACTIVE;
-        for (ServerPlayerEntity player : online(server, session)) {
-            player.playSoundToPlayer(SoundEvents.ENTITY_WITHER_SPAWN, SoundCategory.HOSTILE, 0.6f, 0.8f);
+        FightIntro intro = ModBossEntities.introFor(session.sin);
+        if (intro != null) {
+            intro.onFightStart(inArena(server, session));
+        } else {
+            for (ServerPlayerEntity player : online(server, session)) {
+                player.playSoundToPlayer(SoundEvents.ENTITY_WITHER_SPAWN, SoundCategory.HOSTILE, 0.6f, 0.8f);
+            }
         }
     }
 
     // ---- Music ----
 
-    /** Called by a boss when its song should start (fight start and phase change). */
-    public static void onSongChange(SinBossEntity boss, BossSong song) {
+    /** Called by a boss when its song should start (fight start and phase change), or stop ({@code song} null). */
+    public static void onSongChange(SinBossEntity boss, BossSong song, int fadeTicks) {
         FightSession session = SESSIONS.get(boss.getSin());
         if (session == null || !boss.getUuid().equals(session.bossId)) return;
-        sendMusic(boss.getServer(), session, new BossMusicPayload(song.soundId()));
+        playSong(boss.getServer(), session, song, fadeTicks);
+    }
+
+    /** Starts {@code song} for everyone in the fight, fading in over {@code fadeTicks}; null stops the music. */
+    public static void playSong(MinecraftServer server, FightSession session, BossSong song, int fadeTicks) {
+        session.song = song;
+        session.songStartTick = server.getTicks();
+        session.songFadeTicks = fadeTicks;
+        sendMusic(server, session, song == null ? BossMusicPayload.STOP : new BossMusicPayload(song.soundId(), fadeTicks));
     }
 
     private static void sendMusic(MinecraftServer server, FightSession session, BossMusicPayload payload) {
-        for (ServerPlayerEntity player : online(server, session)) {
-            if (ServerPlayNetworking.canSend(player, BossMusicPayload.ID)) ServerPlayNetworking.send(player, payload);
-        }
+        for (ServerPlayerEntity player : online(server, session)) sendMusicTo(player, payload);
+    }
+
+    private static void sendMusicTo(ServerPlayerEntity player, BossMusicPayload payload) {
+        if (ServerPlayNetworking.canSend(player, BossMusicPayload.ID)) ServerPlayNetworking.send(player, payload);
     }
 
     // ---- Winning and losing ----
@@ -317,8 +351,11 @@ public final class BossFights {
         for (ServerPlayerEntity player : online(server, session)) {
             player.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 1.0f, 1.0f);
         }
-        placePortal(Arenas.world(server, session.sin), Arenas.EXIT_PORTAL, Direction.Axis.X, session.sin, 2, 3);
-        for (ServerPlayerEntity player : online(server, session)) TomeWheel.spin(player, session.sin);
+        placePortal(Arenas.world(server, session.sin), Arenas.layout(session.sin).exitPortal(), Direction.Axis.X, session.sin, 2, 3);
+        for (ServerPlayerEntity player : online(server, session)) {
+            Cinematics.release(player);
+            TomeWheel.spin(player, session.sin);
+        }
     }
 
     private static void onPlayerDeath(ServerPlayerEntity player) {
@@ -373,6 +410,7 @@ public final class BossFights {
                 ? Text.translatable("message.fmscraft.fight_failed", fallen.getDisplayName(), session.sin.displayName())
                 : Text.translatable("message.fmscraft.fight_ended", session.sin.displayName());
         for (ServerPlayerEntity player : online(server, session)) {
+            Cinematics.release(player);
             player.sendMessage(message.copy().formatted(Formatting.DARK_RED));
             if (player != fallen && player.getWorld() == arena) PENDING.put(player.getUuid(), BossFights::returnHome);
         }
@@ -404,6 +442,14 @@ public final class BossFights {
             if (player.getStackInHand(hand).isOf(Items.TOTEM_OF_UNDYING)) return true;
         }
         return false;
+    }
+
+    /** Participants who are in the arena right now. */
+    public static List<ServerPlayerEntity> inArena(MinecraftServer server, FightSession session) {
+        ServerWorld arena = Arenas.world(server, session.sin);
+        List<ServerPlayerEntity> players = online(server, session);
+        players.removeIf(p -> p.getWorld() != arena);
+        return players;
     }
 
     private static List<ServerPlayerEntity> online(MinecraftServer server, FightSession session) {

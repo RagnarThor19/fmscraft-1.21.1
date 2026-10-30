@@ -25,3 +25,5 @@ Bosses should read like the Wither, Ender Dragon or Warden: telegraphed attacks 
 - Item textures come from `tools/textures/sin_textures.py` (needs Pillow); edit there and re-run instead of editing PNGs.
 - `structure/greed_vault.nbt` is built by `tools/structures/greed_vault.py` from the two halves saved in the Builds
   world; re-run it instead of editing the template.
+- `structure/arena/greed.nbt` (RAGGIMEL's island) is built by `tools/structures/greed_arena.py` from
+  `greed_arena_source.nbt` (saved in a newer Minecraft; the script swaps blocks 1.21.1 lacks). Positions in `GreedArena`.

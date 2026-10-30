@@ -37,6 +37,9 @@ public class ModLanguageProvider extends FabricLanguageProvider {
 
         builder.add(ModBlocks.SIN_PORTAL, "Sin Portal");
         builder.add(ModBossEntities.TEST_BOSS, "Test Boss");
+        builder.add(ModBossEntities.RAGGIMEL, "RAGGIMEL");
+        builder.add(ModBossEntities.GREED_BUBBLE, "Bubble");
+        builder.add("subtitles.fmscraft.entity.raggimel.voiceline", "RAGGIMEL speaks");
         builder.add("bossbar.fmscraft.fight_starts", "The fight begins in %s");
         builder.add("message.fmscraft.boss_defeated", "%s, the Sin of %s, has been defeated!");
         builder.add("message.fmscraft.fight_failed", "%s has fallen. The Sin of %s endures.");

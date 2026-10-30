@@ -6,6 +6,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.GlobalPos;
+import net.ragnar.fmscraft.boss.BossSong;
 import net.ragnar.fmscraft.sin.Sin;
 
 import java.util.LinkedHashSet;
@@ -35,6 +36,10 @@ public class FightSession {
 
     Stage stage = Stage.JOINING;
     UUID bossId;
+    /** The boss song playing for everyone, and the server tick it started on (for anyone who arrives later). */
+    BossSong song;
+    long songStartTick;
+    int songFadeTicks;
 
     FightSession(Sin sin, GlobalPos portal, Direction.Axis axis, int width, int height, long openedTick, int joinTicks) {
         this.sin = sin;
@@ -52,6 +57,10 @@ public class FightSession {
 
     public UUID bossId() {
         return bossId;
+    }
+
+    public BossSong song() {
+        return song;
     }
 
     /** True while a death or disconnect would end the attempt. */
