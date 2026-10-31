@@ -10,6 +10,9 @@ import net.ragnar.fmscraft.FmsCraft;
 import net.ragnar.fmscraft.boss.greed.GreedBubbleEntity;
 import net.ragnar.fmscraft.boss.greed.GreedIntro;
 import net.ragnar.fmscraft.boss.greed.RaggimelEntity;
+import net.ragnar.fmscraft.boss.wrath.OrnamixEntity;
+import net.ragnar.fmscraft.boss.wrath.OrnamixFireballEntity;
+import net.ragnar.fmscraft.boss.wrath.WrathIntro;
 import net.ragnar.fmscraft.fight.FightIntro;
 import net.ragnar.fmscraft.sin.Sin;
 
@@ -45,21 +48,50 @@ public class ModBossEntities {
                     .trackingTickInterval(1)
                     .build("greed_bubble"));
 
+    /** Wrath. Player-sized: fast and hard to pin down. */
+    public static final EntityType<OrnamixEntity> ORNAMIX = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "ornamix"),
+            EntityType.Builder.create(OrnamixEntity::new, SpawnGroup.MONSTER)
+                    .dimensions(0.6f, 1.8f)
+                    .eyeHeight(1.62f)
+                    .makeFireImmune()
+                    .maxTrackingRange(12)
+                    .trackingTickInterval(1)
+                    .disableSaving()
+                    .build("ornamix"));
+
+    /** ORNAMIX's ghast fireballs (they break nothing). */
+    public static final EntityType<OrnamixFireballEntity> ORNAMIX_FIREBALL = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "ornamix_fireball"),
+            EntityType.Builder.<OrnamixFireballEntity>create(OrnamixFireballEntity::new, SpawnGroup.MISC)
+                    .dimensions(1.0f, 1.0f)
+                    .makeFireImmune()
+                    .disableSaving()
+                    .maxTrackingRange(8)
+                    .trackingTickInterval(1)
+                    .build("ornamix_fireball"));
+
     /** Which boss each sin's fight spawns. Swap in the real boss here once it's built. */
     public static EntityType<? extends SinBossEntity> forSin(Sin sin) {
         return switch (sin) {
             case GREED -> RAGGIMEL;
-            case WRATH, PRIDE, GLUTTONY, ENVY, LUST, SLOTH -> TEST_BOSS;
+            case WRATH -> ORNAMIX;
+            case PRIDE, GLUTTONY, ENVY, LUST, SLOTH -> TEST_BOSS;
         };
     }
 
     /** The cutscene that plays while a sin's portal is open, or null to just wait (with a countdown bar). */
     public static FightIntro introFor(Sin sin) {
-        return sin == Sin.GREED ? GreedIntro.INSTANCE : null;
+        return switch (sin) {
+            case GREED -> GreedIntro.INSTANCE;
+            case WRATH -> WrathIntro.INSTANCE;
+            default -> null;
+        };
     }
 
     public static void initialize() {
         FabricDefaultAttributeRegistry.register(TEST_BOSS, TestBossEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(RAGGIMEL, RaggimelEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(ORNAMIX, OrnamixEntity.createAttributes());
     }
 }

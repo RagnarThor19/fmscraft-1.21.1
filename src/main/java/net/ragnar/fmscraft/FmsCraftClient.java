@@ -31,6 +31,10 @@ import net.ragnar.fmscraft.client.BossScreen;
 import net.ragnar.fmscraft.client.ClientBossMusic;
 import net.ragnar.fmscraft.client.GreedBubbleRenderer;
 import net.ragnar.fmscraft.client.GreedSky;
+import net.ragnar.fmscraft.client.OrnamixRenderer;
+import net.ragnar.fmscraft.client.WrathSky;
+import net.ragnar.fmscraft.network.WrathSkyPayload;
+import net.minecraft.client.render.entity.FlyingItemEntityRenderer;
 import net.ragnar.fmscraft.client.RaggimelRenderer;
 import net.ragnar.fmscraft.client.EnvyStatueModel;
 import net.ragnar.fmscraft.client.EnvyStatueRenderer;
@@ -82,6 +86,9 @@ public class FmsCraftClient implements ClientModInitializer {
 
         EntityRendererRegistry.register(ModBossEntities.RAGGIMEL, RaggimelRenderer::new);
         EntityRendererRegistry.register(ModBossEntities.GREED_BUBBLE, GreedBubbleRenderer::new);
+        EntityRendererRegistry.register(ModBossEntities.ORNAMIX, OrnamixRenderer::new);
+        // Drawn like a ghast's fireball
+        EntityRendererRegistry.register(ModBossEntities.ORNAMIX_FIREBALL, ctx -> new FlyingItemEntityRenderer<>(ctx, 3.0f, true));
 
         EntityModelLayerRegistry.registerModelLayer(EnvyStatueModel.LAYER, EnvyStatueModel::getTexturedModelData);
         EntityRendererRegistry.register(ModEntities.ENVY_STATUE, EnvyStatueRenderer::new);
@@ -100,12 +107,15 @@ public class FmsCraftClient implements ClientModInitializer {
                 (payload, context) -> context.client().execute(() -> BossScreen.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(GreedSkyPayload.ID,
                 (payload, context) -> context.client().execute(() -> GreedSky.set(payload.phase())));
+        ClientPlayNetworking.registerGlobalReceiver(WrathSkyPayload.ID,
+                (payload, context) -> context.client().execute(() -> WrathSky.set(payload.phase())));
         ClientPlayNetworking.registerGlobalReceiver(TomeWheelPayload.ID,
                 (payload, context) -> context.client().execute(() -> TomeWheelHud.start(payload)));
         ClientPlayNetworking.registerGlobalReceiver(VaultFogPayload.ID,
                 (payload, context) -> context.client().execute(() -> VaultFog.set(payload.inside())));
         ClientPlayNetworking.registerGlobalReceiver(GardenFogPayload.ID,
                 (payload, context) -> context.client().execute(() -> GardenFog.set(payload.inside())));
+        HudRenderCallback.EVENT.register(WrathSky::render);
         HudRenderCallback.EVENT.register(TomeWheelHud::render);
         HudRenderCallback.EVENT.register(BossScreen::render);
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -115,6 +125,7 @@ public class FmsCraftClient implements ClientModInitializer {
             SleepZs.tick(client);
             BossScreen.tick();
             GreedSky.tick(client);
+            WrathSky.tick(client);
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
@@ -125,6 +136,7 @@ public class FmsCraftClient implements ClientModInitializer {
             SleepZs.clear();
             BossScreen.clear();
             GreedSky.clear();
+            WrathSky.clear();
         }));
     }
 

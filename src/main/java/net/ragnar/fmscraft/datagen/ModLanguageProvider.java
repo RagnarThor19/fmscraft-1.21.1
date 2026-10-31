@@ -40,6 +40,11 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add(ModBossEntities.RAGGIMEL, "RAGGIMEL");
         builder.add(ModBossEntities.GREED_BUBBLE, "Bubble");
         builder.add("subtitles.fmscraft.entity.raggimel.voiceline", "RAGGIMEL speaks");
+        builder.add(ModBossEntities.ORNAMIX, "ORNAMIX");
+        builder.add(ModBossEntities.ORNAMIX_FIREBALL, "Fireball");
+        builder.add("subtitles.fmscraft.entity.ornamix.ragemode", "ORNAMIX rages");
+        builder.add("message.fmscraft.ornamix_rooted", "You're caught in the flames!");
+        builder.add("message.fmscraft.ornamix_pit", "The flames drive you back into the pit!");
         builder.add("bossbar.fmscraft.fight_starts", "The fight begins in %s");
         builder.add("message.fmscraft.boss_defeated", "%s, the Sin of %s, has been defeated!");
         builder.add("message.fmscraft.fight_failed", "%s has fallen. The Sin of %s endures.");

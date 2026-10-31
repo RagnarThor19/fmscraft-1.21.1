@@ -27,3 +27,5 @@ Bosses should read like the Wither, Ender Dragon or Warden: telegraphed attacks 
   world; re-run it instead of editing the template.
 - `structure/arena/greed.nbt` (RAGGIMEL's island) is built by `tools/structures/greed_arena.py` from
   `greed_arena_source.nbt` (saved in a newer Minecraft; the script swaps blocks 1.21.1 lacks). Positions in `GreedArena`.
+- `structure/arena/wrath.nbt` (ORNAMIX's colosseum) is built by `tools/structures/wrath_arena.py` from
+  `wrath_arena_source.nbt` (bars the pit's tunnels, adds the fires). Positions in `WrathArena`.

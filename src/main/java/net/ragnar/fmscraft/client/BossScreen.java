@@ -12,15 +12,15 @@ import net.ragnar.fmscraft.network.BossScreenPayload;
 
 /**
  * What covers the screen during boss cutscenes ({@link BossScreenPayload}): the Seven Deadly Sins wheel that slowly
- * zooms in on Greed, a fade to black, and lightning flashes on top. Drawn over the whole HUD. While the wheel or the
- * black is up, the mouse doesn't turn the camera (MouseMixin).
+ * zooms in on the sin being fought, a fade to black, and flashes on top (lightning white, or firelight orange). Drawn
+ * over the whole HUD. While the wheel or the black is up, the mouse doesn't turn the camera (MouseMixin).
  */
 public final class BossScreen {
     private static final Identifier WHEEL = Identifier.of(FmsCraft.MOD_ID, "textures/gui/seven_sins.png");
     private static final int WHEEL_W = 1672, WHEEL_H = 941;
-    /** The middle of Greed's circle on the wheel, as a fraction of its width and height, and how far the zoom goes. */
-    private static final float GREED_X = 0.665f, GREED_Y = 0.272f, ZOOM = 3.4f;
-    private static final int FLASH_COLOR = 0xE6F4FF;
+    /** The middle of each sin's circle on the wheel, as a fraction of its width and height, and how far the zoom goes. */
+    private static final float GREED_X = 0.665f, GREED_Y = 0.272f, WRATH_X = 0.291f, WRATH_Y = 0.567f, ZOOM = 3.4f;
+    private static final int FLASH_COLOR = 0xE6F4FF, FIRE_COLOR = 0xFF6A1E;
 
     private enum Mode { NONE, INTRO, BLACK }
 
@@ -28,13 +28,25 @@ public final class BossScreen {
     private static float cover, prevCover, coverStep;
     private static boolean covering;
     private static int introStart, introDuration, introTicks;
+    private static float focusX = GREED_X, focusY = GREED_Y;
     private static float flash, prevFlash, flashStep;
+    private static int flashColor = FLASH_COLOR;
 
     private BossScreen() {
     }
 
     public static void receive(BossScreenPayload payload) {
-        switch (payload.screen()) {
+        String screen = payload.screen();
+        if (screen.startsWith(BossScreenPayload.INTRO + ":")) {
+            boolean wrath = screen.endsWith(":wrath");
+            focusX = wrath ? WRATH_X : GREED_X;
+            focusY = wrath ? WRATH_Y : GREED_Y;
+            screen = BossScreenPayload.INTRO;
+        } else if (screen.equals(BossScreenPayload.INTRO)) {
+            focusX = GREED_X;
+            focusY = GREED_Y;
+        }
+        switch (screen) {
             case BossScreenPayload.INTRO -> {
                 mode = Mode.INTRO;
                 introStart = payload.elapsed();
@@ -57,7 +69,8 @@ public final class BossScreen {
                     cover = prevCover = 0;
                 }
             }
-            case BossScreenPayload.FLASH -> {
+            case BossScreenPayload.FLASH, BossScreenPayload.FLASH_FIRE -> {
+                flashColor = screen.equals(BossScreenPayload.FLASH_FIRE) ? FIRE_COLOR : FLASH_COLOR;
                 flash = prevFlash = Math.max(flash, payload.elapsed() / 100f);
                 flashStep = flash / Math.max(1, payload.duration());
             }
@@ -99,14 +112,14 @@ public final class BossScreen {
             }
         }
         float f = MathHelper.lerp(delta, prevFlash, flash);
-        if (f > 0.01f) ctx.fill(0, 0, w, h, ((int) (Math.min(1f, f) * 255) << 24) | FLASH_COLOR);
+        if (f > 0.01f) ctx.fill(0, 0, w, h, ((int) (Math.min(1f, f) * 255) << 24) | flashColor);
     }
 
-    /** The wheel, covering the screen, zoomed in on Greed as far as the intro has got. */
+    /** The wheel, covering the screen, zoomed in on the sin as far as the intro has got. */
     private static void drawWheel(DrawContext ctx, int w, int h, float alpha, float elapsed) {
         float zoom = GreedTimeline.zoom(elapsed, introDuration);
         float scale = Math.max(w / (float) WHEEL_W, h / (float) WHEEL_H) * (1 + (ZOOM - 1) * zoom);
-        float fx = MathHelper.lerp(zoom, 0.5f, GREED_X) * WHEEL_W, fy = MathHelper.lerp(zoom, 0.5f, GREED_Y) * WHEEL_H;
+        float fx = MathHelper.lerp(zoom, 0.5f, focusX) * WHEEL_W, fy = MathHelper.lerp(zoom, 0.5f, focusY) * WHEEL_H;
         // Keep the focus in the middle of the screen, but never show past the picture's edges
         float tx = MathHelper.clamp(w / 2f - fx * scale, w - WHEEL_W * scale, 0);
         float ty = MathHelper.clamp(h / 2f - fy * scale, h - WHEEL_H * scale, 0);

@@ -47,5 +47,29 @@
         "name": "fmscraft:mob/raggimel/switch_voiceline"
       }
     ]
+  },
+  "music.wrath.phase_one": {
+    "sounds": [
+      {
+        "name": "fmscraft:music/wrath_phase_one",
+        "stream": true
+      }
+    ]
+  },
+  "music.wrath.phase_two": {
+    "sounds": [
+      {
+        "name": "fmscraft:music/wrath_phase_two",
+        "stream": true
+      }
+    ]
+  },
+  "entity.ornamix.ragemode": {
+    "subtitle": "subtitles.fmscraft.entity.ornamix.ragemode",
+    "sounds": [
+      {
+        "name": "fmscraft:mob/ornamix/ragemode"
+      }
+    ]
   }
 }

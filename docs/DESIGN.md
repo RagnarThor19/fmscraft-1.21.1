@@ -86,7 +86,7 @@ off still hear them), loop, and pause vanilla music. The test boss uses Pigstep,
 ## Boss template
 
 Every boss extends `boss/SinBossEntity` and is swapped in for its sin in `boss/ModBossEntities.forSin`
-(Greed is RAGGIMEL; the other sins still use the stand-in `TestBossEntity`):
+(Greed is RAGGIMEL, Wrath is ORNAMIX; the other sins still use the stand-in `TestBossEntity`):
 - Boss bar named after the friend (`bossBarName` to call it something else).
 - **Phase 2 at half health** (`onPhaseTwo`; `phaseTwoHealth` to move it) — switch songs and behaviour here. A boss with
   a transition returns false from `startsPhaseTwoSongAtOnce` and calls `playSong(song, fadeTicks)` when it's ready.
@@ -156,6 +156,72 @@ Health / armor: 1000 HP, 10 armor, 6 toughness; takes x0.75 damage in phase 1, x
   `chooseAttack`), `GreedTimeline` (cutscene timings), `GreedArena` (positions).
 - Tests: `RaggimelGameTests` (the whole fight flow in the real arena, the phase 1 clamp, bubbles, magic bubbles),
   `GreedTimelineTest`.
+
+## ORNAMIX (Wrath) (built: `boss/wrath/`)
+
+```
+Boss: Aron Eggert - Sin of Wrath. Boss bar: ORNAMIX (red). His own skin on a player model, a burning iron sword.
+Song (phase 1): Jay-Z & Kanye West - N***as in Paris, measured 140 BPM, first beat at tick 1 (music.wrath.phase_one)
+Song (phase 2): Return to Zero (super slowed + reverb), measured 100 BPM (0.6 s), the grid lined up with the bass at
+       19.25 s (music.wrath.phase_two)
+Arena: the colosseum (structure/arena/wrath.nbt, tools/structures/wrath_arena.py from the gladiator arena). The fight
+       is in its round sand pit, 81 blocks across, walled in 5 high, the stands rising all round; the tunnels out
+       under the stands are barred with iron. Players arrive on the south side, he comes down in the middle, the exit
+       frame (polished blackstone, gilded corners) stands by the north wall. Hundreds of fires burn on the pit wall and
+       the stands; fire in an arena never spreads or goes out (FireBlockMixin). Own dimension type (wrath_arena):
+       always noon, ultrawarm like the Nether (water boils away).
+Health / armor: 900 HP for 5-7 players (60% alone, 70% for two... OrnamixTimeline.healthScale), 8 armor, 4 toughness;
+       takes x0.8 damage in phase 1, x0.9 in phase 2, x1.5 while stuck or dizzy, at most 30 per hit, and phase 1
+       can't be skipped by one big hit. Not as tough as the others, but fast, he sidesteps blows (20%, 35% in
+       Ragemode, while he isn't attacking) and everything he does hits hard (x1.35, x1.2 more in Ragemode).
+       Aimed at 3-4 minutes for 5-7 players.
+```
+
+- **Intro (the 30 s the portal is open):** exactly like RAGGIMEL's, frozen behind the Seven Deadly Sins wheel, but
+  it zooms in on Wrath; at 25 s N***as in Paris fades in. When the wheel fades he's already coming down out of the
+  bright red sky like a meteor (a ring of fire marks where), lands kneeling in a blast of fire that throws everyone
+  near back (no damage), rises and roars in a pillar of flame. He can't be hurt until he's up (4 s).
+- **Always burning:** flames curl up round him, embers and smoke come off him, flames run along his sword's blade
+  (drawn on each client from where the blade actually is, `OrnamixRenderer`). His cuts set you alight.
+- **Phase 1 (100-40%), the red sky:** bright blood-red sky, orange-red haze, ash and embers on the air. He runs people
+  down and cuts them, and on the beat picks one of: *Stab and Leap* (a lunge at whoever is closest, then a leap back),
+  *Fire Wave* (sword raised, then a crescent wall of flame cut across the pit: too tall to jump, step aside), *Flame
+  Spin* (a fire whirl round him, flinging people far), *Flamethrower* (a cone of fire from his hand that turns after
+  its target, slower than you can circle him; walls block it), *Ignite* (Ragnars Magic Mod's Ignition: a ring of
+  fire bursts out to 10 blocks; a circle shows how far first), *Sun* (leaps far back, then casts the Tome of the
+  Sun: it swells before him, then drifts across the pit, growing, and bursts at the wall), *Flaming Arrows* (draws a
+  bow and looses a stream of burning arrows, sweeping from one player to the next; shields stop them), *Flurry*
+  (rushes in and cuts very fast), *Dash Stab* (crouches with a line of flame along the floor showing the way, then
+  charges straight through; into the wall and his sword sticks: stuck for 2.5 s, taking extra damage), *Floor
+  Waves* (slams his sword down, three rings of low fire roll out along the floor: jump each one or be stuck in the
+  flames for 5 s, burning) and *Haymaker* (rushes someone and punches them across the pit).
+- **Ragemode (at 40%):** everything goes black, everyone freezes, the music cuts; a heartbeat and the fires roaring
+  louder in the dark for 5 s (and something answering). Under the black the sky turns and he takes the middle of
+  the pit. Then his voice line, "ragemode" (`entity.ornamix.ragemode`), and as it ends the black lifts on him in a
+  pillar of fire with his eyes burning, a blast throws everyone back and Return to Zero starts. Timings:
+  `OrnamixTimeline`.
+- **Phase 2 (40-0%), Ragemode:** an almost black red sky, no sun, dimmer light, dark red fog closing in round the pit,
+  thick ash, embers and flames on the air, and harmless geysers of flame from the sand. **The world blinks dark on
+  every hit of the bass** (19.25 s, then every 0.6 s, through both stretches the bass plays: to 58.85 s and again
+  76.85-116.45 s; when the song loops it waits for 19.25 s again), timed on each client from the song's own clock
+  (`WrathSky`, `OrnamixTimeline.blink`). He's faster, winds up quicker, rests less, dodges more, hits harder, and
+  his attacks grow (three fire waves, four floor rings, two dashes, two punches, longer flurries). New: *Meteors*
+  (Tome of Meteor: charges up, a burning ring marks where each player stands, 4 s later a meteor crashes into each,
+  breaking nothing), *Wither Skeletons* (2-4, in iron, climb out of smouldering spots in the sand; never more than 6,
+  no loot, and they go with him), *Fireballs* (a stream of ghast fireballs that break nothing; punch or shoot one
+  back into him for 24 damage) and *Inferno* (rises over a huge circle of fire, then crashes down spinning in a
+  firestorm filling it: the hardest hit of the fight, then he's dizzy and takes extra damage).
+- **Staying in the pit:** anyone over the wall or up in the stands for 2 s is thrown back down by the flames.
+- **Magic mod:** like RAGGIMEL, he can't be put to sleep or carried off in a bubble, and status effects don't stick to
+  him. His Ignite, Sun and Meteor are the mod's spells cast by him (same look and sound), but they don't break or burn
+  the arena. They work without the mod too.
+- **Damage:** his hits count as attacks (Fire Resistance only spares you the burning), the fireballs as blasts.
+- Tuning knobs: `OrnamixEntity` (health, damage taken and dealt, `MAX_HIT`, dodge chances, rests, speeds, attack
+  weights and gaps in `chooseAttack`, each attack's numbers in its `tick...` method), `OrnamixTimeline` (cutscene
+  timings, the blink, `healthScale`), `WrathArena` (positions), `FlameRoot.TICKS`.
+- Tests: `OrnamixGameTests` (the whole fight flow in the real colosseum, the phase 1 clamp, floor waves rooting only
+  who doesn't jump, fireballs breaking nothing and hurting him when returned, meteors breaking nothing, skeletons in
+  armor that leave with him, arena fire never spreading), `OrnamixTimelineTest`.
 
 ## Structures
 

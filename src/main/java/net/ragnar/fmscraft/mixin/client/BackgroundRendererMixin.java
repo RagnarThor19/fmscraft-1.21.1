@@ -9,6 +9,7 @@ import net.minecraft.util.math.Vec3d;
 import net.ragnar.fmscraft.client.GardenFog;
 import net.ragnar.fmscraft.client.GreedSky;
 import net.ragnar.fmscraft.client.VaultFog;
+import net.ragnar.fmscraft.client.WrathSky;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -18,7 +19,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Down in a Greed Vault, the fog turns dark gray and closes in. Never thinner than what's already there (darkness...).
  * In Lust's Garden it only takes on a rose tint. Over RAGGIMEL's island it's pale blue by day and dark blue at night,
- * when it also closes in a little (GreedSky).
+ * when it also closes in a little (GreedSky). Over ORNAMIX's colosseum it's a hot orange red, and in Ragemode a dark
+ * red that closes right in round the pit (WrathSky).
  */
 @Mixin(BackgroundRenderer.class)
 public abstract class BackgroundRendererMixin {
@@ -30,6 +32,14 @@ public abstract class BackgroundRendererMixin {
     private static void fmscraft$vaultFogColor(Camera camera, float tickDelta, ClientWorld world, int viewDistance, float skyDarkness, CallbackInfo ci) {
         if (GreedSky.active()) {
             Vec3d fog = GreedSky.mix(GreedSky.DAY_FOG, GreedSky.NIGHT_FOG, tickDelta);
+            red = (float) fog.x;
+            green = (float) fog.y;
+            blue = (float) fog.z;
+            RenderSystem.clearColor(red, green, blue, 0.0f);
+            return;
+        }
+        if (WrathSky.active()) {
+            Vec3d fog = WrathSky.mix(WrathSky.RED_FOG, WrathSky.RAGE_FOG, tickDelta);
             red = (float) fog.x;
             green = (float) fog.y;
             blue = (float) fog.z;
@@ -58,6 +68,12 @@ public abstract class BackgroundRendererMixin {
             float start = RenderSystem.getShaderFogStart(), end = RenderSystem.getShaderFogEnd();
             RenderSystem.setShaderFogStart(Math.min(start, MathHelper.lerp(night, start, 24f)));
             RenderSystem.setShaderFogEnd(Math.min(end, MathHelper.lerp(night, end, 120f)));
+        }
+        float rage = WrathSky.rage(tickDelta);
+        if (rage > 0 && fogType == BackgroundRenderer.FogType.FOG_TERRAIN) {
+            float start = RenderSystem.getShaderFogStart(), end = RenderSystem.getShaderFogEnd();
+            RenderSystem.setShaderFogStart(Math.min(start, MathHelper.lerp(rage, start, WrathSky.RAGE_FOG_START)));
+            RenderSystem.setShaderFogEnd(Math.min(end, MathHelper.lerp(rage, end, WrathSky.RAGE_FOG_END)));
         }
         float s = VaultFog.strength(tickDelta);
         if (s <= 0) return;

@@ -8,6 +8,7 @@
 		"BlockItemMixin",
 		"BredAnimalsCriterionMixin",
 		"BucketItemMixin",
+		"FireBlockMixin",
 		"ItemStackMixin",
 		"LivingEntityMixin",
 		"PlayerEntityMixin",

@@ -19,6 +19,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.ragnar.fmscraft.FmsCraft;
 import net.ragnar.fmscraft.boss.greed.GreedArena;
+import net.ragnar.fmscraft.boss.wrath.WrathArena;
 import net.ragnar.fmscraft.sin.Sin;
 
 import java.util.Optional;
@@ -29,7 +30,8 @@ import java.util.Optional;
  *
  * To give a sin its own arena, save it with a structure block as {@code fmscraft:arena/<sin>} (centered on
  * x/z 0, floor at y 63) and put the .nbt in data/fmscraft/structure/arena/. Without one, a plain platform is built.
- * Arenas that don't fit that mold (Greed's floating island) give their own {@link ArenaLayout} in {@link #layout}.
+ * Arenas that don't fit that mold (Greed's floating island, Wrath's colosseum) give their own {@link ArenaLayout} in
+ * {@link #layout}.
  */
 public final class Arenas {
     public static final int RADIUS = 18;
@@ -56,7 +58,11 @@ public final class Arenas {
     }
 
     public static ArenaLayout layout(Sin sin) {
-        return sin == Sin.GREED ? GreedArena.LAYOUT : DEFAULT;
+        return switch (sin) {
+            case GREED -> GreedArena.LAYOUT;
+            case WRATH -> WrathArena.LAYOUT;
+            default -> DEFAULT;
+        };
     }
 
     public static Sin sinOf(World world) {

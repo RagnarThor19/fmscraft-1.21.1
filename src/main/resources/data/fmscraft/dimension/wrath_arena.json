@@ -1,5 +1,5 @@
 {
-  "type": "fmscraft:arena",
+  "type": "fmscraft:wrath_arena",
   "generator": {
     "type": "minecraft:flat",
     "settings": {

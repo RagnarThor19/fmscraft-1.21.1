@@ -25,6 +25,9 @@ import net.ragnar.fmscraft.fight.Cinematics;
 import net.ragnar.fmscraft.network.BossMusicPayload;
 import net.ragnar.fmscraft.network.BossScreenPayload;
 import net.ragnar.fmscraft.network.GreedSkyPayload;
+import net.ragnar.fmscraft.network.WrathSkyPayload;
+import net.ragnar.fmscraft.boss.wrath.FlameRoot;
+import net.ragnar.fmscraft.boss.wrath.OrnamixEntity;
 import net.ragnar.fmscraft.network.GardenFogPayload;
 import net.ragnar.fmscraft.network.TomeWheelPayload;
 import net.ragnar.fmscraft.network.VaultFogPayload;
@@ -58,11 +61,14 @@ public class FmsCraft implements ModInitializer {
 		PayloadTypeRegistry.playS2C().register(GardenFogPayload.ID, GardenFogPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(BossScreenPayload.ID, BossScreenPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(GreedSkyPayload.ID, GreedSkyPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(WrathSkyPayload.ID, WrathSkyPayload.CODEC);
 
 		FragmentTriggers.register();
 		BossFights.register();
 		Cinematics.register();
 		TomeWheel.register();
+		FlameRoot.register();
+		OrnamixEntity.registerEvents();
 		EnvyMazes.register();
 		SlothSpheres.register();
 		GreedVaults.register();

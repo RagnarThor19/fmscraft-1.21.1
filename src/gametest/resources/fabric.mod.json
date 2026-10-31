@@ -15,7 +15,8 @@
 			"net.ragnar.fmscraft.gametest.SlothGameTests",
 			"net.ragnar.fmscraft.gametest.WrathGameTests",
 			"net.ragnar.fmscraft.gametest.GluttonyGameTests",
-			"net.ragnar.fmscraft.gametest.RaggimelGameTests"
+			"net.ragnar.fmscraft.gametest.RaggimelGameTests",
+			"net.ragnar.fmscraft.gametest.OrnamixGameTests"
 		]
 	},
 	"mixins": [
