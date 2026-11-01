@@ -7,6 +7,9 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 import net.ragnar.fmscraft.FmsCraft;
+import net.ragnar.fmscraft.boss.envy.EnvyIntro;
+import net.ragnar.fmscraft.boss.envy.GummssEntity;
+import net.ragnar.fmscraft.boss.envy.GummssIllusionEntity;
 import net.ragnar.fmscraft.boss.greed.GreedBubbleEntity;
 import net.ragnar.fmscraft.boss.greed.GreedIntro;
 import net.ragnar.fmscraft.boss.greed.RaggimelEntity;
@@ -71,12 +74,36 @@ public class ModBossEntities {
                     .trackingTickInterval(1)
                     .build("ornamix_fireball"));
 
+    /** Envy. Player-sized, a caster who keeps his distance. */
+    public static final EntityType<GummssEntity> GUMMSS = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "gummss"),
+            EntityType.Builder.create(GummssEntity::new, SpawnGroup.MONSTER)
+                    .dimensions(0.6f, 1.8f)
+                    .eyeHeight(1.62f)
+                    .makeFireImmune()
+                    .maxTrackingRange(14)
+                    .trackingTickInterval(1)
+                    .disableSaving()
+                    .build("gummss"));
+
+    /** GUMMSS's Mirror Images: just like him, but they break at a touch. */
+    public static final EntityType<GummssIllusionEntity> GUMMSS_ILLUSION = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "gummss_illusion"),
+            EntityType.Builder.create(GummssIllusionEntity::new, SpawnGroup.MISC)
+                    .dimensions(0.6f, 1.8f)
+                    .eyeHeight(1.62f)
+                    .makeFireImmune()
+                    .maxTrackingRange(10)
+                    .disableSaving()
+                    .build("gummss_illusion"));
+
     /** Which boss each sin's fight spawns. Swap in the real boss here once it's built. */
     public static EntityType<? extends SinBossEntity> forSin(Sin sin) {
         return switch (sin) {
             case GREED -> RAGGIMEL;
             case WRATH -> ORNAMIX;
-            case PRIDE, GLUTTONY, ENVY, LUST, SLOTH -> TEST_BOSS;
+            case ENVY -> GUMMSS;
+            case PRIDE, GLUTTONY, LUST, SLOTH -> TEST_BOSS;
         };
     }
 
@@ -85,6 +112,7 @@ public class ModBossEntities {
         return switch (sin) {
             case GREED -> GreedIntro.INSTANCE;
             case WRATH -> WrathIntro.INSTANCE;
+            case ENVY -> EnvyIntro.INSTANCE;
             default -> null;
         };
     }
@@ -93,5 +121,7 @@ public class ModBossEntities {
         FabricDefaultAttributeRegistry.register(TEST_BOSS, TestBossEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(RAGGIMEL, RaggimelEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(ORNAMIX, OrnamixEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(GUMMSS, GummssEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(GUMMSS_ILLUSION, GummssIllusionEntity.createAttributes());
     }
 }

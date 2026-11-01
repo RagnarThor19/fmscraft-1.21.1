@@ -71,5 +71,13 @@
         "name": "fmscraft:mob/ornamix/ragemode"
       }
     ]
+  },
+  "music.envy.theme": {
+    "sounds": [
+      {
+        "name": "fmscraft:music/envy_theme",
+        "stream": true
+      }
+    ]
   }
 }

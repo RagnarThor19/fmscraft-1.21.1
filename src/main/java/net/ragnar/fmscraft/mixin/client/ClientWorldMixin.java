@@ -3,6 +3,7 @@ package net.ragnar.fmscraft.mixin.client;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.ragnar.fmscraft.client.EnvySky;
 import net.ragnar.fmscraft.client.GreedSky;
 import net.ragnar.fmscraft.client.WrathSky;
 import org.spongepowered.asm.mixin.Mixin;
@@ -13,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * Over RAGGIMEL's island the sky is pale blue by day and dark blue at night, and the night dims the light (GreedSky).
  * Over ORNAMIX's colosseum it's bright red, then almost black red in Ragemode, which dims the light too (WrathSky).
+ * Round GUMMSS's eye the light is always dim (EnvySky).
  */
 @Mixin(ClientWorld.class)
 public abstract class ClientWorldMixin {
@@ -34,5 +36,6 @@ public abstract class ClientWorldMixin {
         if (night > 0) cir.setReturnValue(MathHelper.lerp(night, cir.getReturnValue(), GreedSky.NIGHT_LIGHT));
         float rage = WrathSky.rage(tickDelta);
         if (rage > 0) cir.setReturnValue(MathHelper.lerp(rage, cir.getReturnValue(), WrathSky.RAGE_LIGHT));
+        if (EnvySky.active()) cir.setReturnValue(EnvySky.LIGHT);
     }
 }

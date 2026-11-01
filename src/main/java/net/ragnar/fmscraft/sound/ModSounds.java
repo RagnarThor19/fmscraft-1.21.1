@@ -25,6 +25,9 @@ public class ModSounds {
     /** "Ragemode": what ORNAMIX says in the dark before his second phase. */
     public static final SoundEvent ORNAMIX_RAGEMODE = register("entity.ornamix.ragemode");
 
+    /** GUMMSS's theme: Seekae - Test & Recognise (Flume re-work, slowed). The bass drops at 21.575 s, as everyone lands. */
+    public static final SoundEvent ENVY_THEME = register("music.envy.theme");
+
     private static SoundEvent register(String name) {
         Identifier id = Identifier.of(FmsCraft.MOD_ID, name);
         return Registry.register(Registries.SOUND_EVENT, id, SoundEvent.of(id));

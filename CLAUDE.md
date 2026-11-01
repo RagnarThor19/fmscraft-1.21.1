@@ -29,3 +29,6 @@ Bosses should read like the Wither, Ender Dragon or Warden: telegraphed attacks 
   `greed_arena_source.nbt` (saved in a newer Minecraft; the script swaps blocks 1.21.1 lacks). Positions in `GreedArena`.
 - `structure/arena/wrath.nbt` (ORNAMIX's colosseum) is built by `tools/structures/wrath_arena.py` from
   `wrath_arena_source.nbt` (bars the pit's tunnels, adds the fires). Positions in `WrathArena`.
+- GUMMSS's arena (Envy) is built in code by `EnvyArena.build`, not a template. Its watching eyes come from
+  `tools/textures/envy_eye_textures.py` (from `tools/textures/source/analog_eye.png`), his glowing eyes from
+  `tools/textures/gummss_textures.py`.

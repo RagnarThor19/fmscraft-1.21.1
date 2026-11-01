@@ -28,10 +28,12 @@ public final class MagicSpells {
     public static final Identifier BUBBLE = Identifier.of(MagicTomes.MOD_ID, "bubble");
     public static final Identifier DIAMOND_STAFF = Identifier.of(MagicTomes.MOD_ID, "diamond_staff");
     public static final Identifier NETHERITE_STAFF = Identifier.of(MagicTomes.MOD_ID, "netherite_staff");
+    public static final Identifier GOLDEN_STAFF = Identifier.of(MagicTomes.MOD_ID, "golden_staff");
     private static final String SLEEP_CLASS = "net.ragnar.ragnarsmagicmod.sleep.Sleep";
+    private static final String UPSIDE_DOWN_CLASS = "net.ragnar.ragnarsmagicmod.upsidedown.UpsideDown";
 
-    private static boolean looked;
-    private static Method isSleepy, wake;
+    private static boolean looked, lookedFlip;
+    private static Method isSleepy, wake, isFlipped, setFlipped;
 
     private MagicSpells() {
     }
@@ -46,6 +48,12 @@ public final class MagicSpells {
 
     public static ItemStack item(Identifier id) {
         return Registries.ITEM.getOrEmpty(id).map(Item::getDefaultStack).orElse(ItemStack.EMPTY);
+    }
+
+    /** One of the mod's items by its id ({@code "tome_of_the_moon"}), or {@code fallback} without the mod. */
+    public static ItemStack itemOr(String id, Item fallback) {
+        ItemStack stack = item(Identifier.of(MagicTomes.MOD_ID, id));
+        return stack.isEmpty() ? new ItemStack(fallback) : stack;
     }
 
     /** Whether {@code entity} is drowsy or asleep from a sleep dart or potion. */
@@ -68,6 +76,47 @@ public final class MagicSpells {
             wake.invoke(null, entity, true);
         } catch (ReflectiveOperationException e) {
             wake = null;
+        }
+    }
+
+    /**
+     * Flips {@code player}'s gravity with the mod's Tome of Upside Down (their view rolls over, everyone sees them
+     * hanging upside down), or back. False if the mod (or its upside down) isn't there.
+     */
+    public static boolean setFlipped(net.minecraft.entity.player.PlayerEntity player, boolean flipped) {
+        lookUpFlip();
+        if (setFlipped == null) return false;
+        try {
+            setFlipped.invoke(null, player, flipped);
+            return true;
+        } catch (ReflectiveOperationException | ClassCastException e) {
+            setFlipped = null;
+            return false;
+        }
+    }
+
+    /** Whether {@code entity}'s gravity is flipped by the Tome of Upside Down. */
+    public static boolean isFlipped(Entity entity) {
+        lookUpFlip();
+        if (isFlipped == null) return false;
+        try {
+            return (boolean) isFlipped.invoke(null, entity);
+        } catch (ReflectiveOperationException | ClassCastException e) {
+            isFlipped = null;
+            return false;
+        }
+    }
+
+    private static synchronized void lookUpFlip() {
+        if (lookedFlip) return;
+        lookedFlip = true;
+        if (!FabricLoader.getInstance().isModLoaded(MagicTomes.MOD_ID)) return;
+        try {
+            Class<?> flip = Class.forName(UPSIDE_DOWN_CLASS, true, MagicSpells.class.getClassLoader());
+            isFlipped = flip.getMethod("isFlipped", Entity.class);
+            setFlipped = flip.getMethod("setFlipped", net.minecraft.entity.player.PlayerEntity.class, boolean.class);
+        } catch (ReflectiveOperationException e) {
+            FmsCraft.LOGGER.warn("Couldn't find Ragnars Magic Mod's Tome of Upside Down ({}); GUMMSS throws players up himself", e.toString());
         }
     }
 

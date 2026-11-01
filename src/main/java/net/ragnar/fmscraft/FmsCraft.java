@@ -28,6 +28,7 @@ import net.ragnar.fmscraft.network.GreedSkyPayload;
 import net.ragnar.fmscraft.network.WrathSkyPayload;
 import net.ragnar.fmscraft.boss.wrath.FlameRoot;
 import net.ragnar.fmscraft.boss.wrath.OrnamixEntity;
+import net.ragnar.fmscraft.boss.envy.GummssEntity;
 import net.ragnar.fmscraft.network.GardenFogPayload;
 import net.ragnar.fmscraft.network.TomeWheelPayload;
 import net.ragnar.fmscraft.network.VaultFogPayload;
@@ -69,6 +70,7 @@ public class FmsCraft implements ModInitializer {
 		TomeWheel.register();
 		FlameRoot.register();
 		OrnamixEntity.registerEvents();
+		GummssEntity.registerEvents();
 		EnvyMazes.register();
 		SlothSpheres.register();
 		GreedVaults.register();

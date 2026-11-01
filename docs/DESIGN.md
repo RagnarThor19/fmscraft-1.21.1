@@ -86,7 +86,7 @@ off still hear them), loop, and pause vanilla music. The test boss uses Pigstep,
 ## Boss template
 
 Every boss extends `boss/SinBossEntity` and is swapped in for its sin in `boss/ModBossEntities.forSin`
-(Greed is RAGGIMEL, Wrath is ORNAMIX; the other sins still use the stand-in `TestBossEntity`):
+(Greed is RAGGIMEL, Wrath is ORNAMIX, Envy is GUMMSS; the other sins still use the stand-in `TestBossEntity`):
 - Boss bar named after the friend (`bossBarName` to call it something else).
 - **Phase 2 at half health** (`onPhaseTwo`; `phaseTwoHealth` to move it) — switch songs and behaviour here. A boss with
   a transition returns false from `startsPhaseTwoSongAtOnce` and calls `playSong(song, fadeTicks)` when it's ready.
@@ -222,6 +222,108 @@ Health / armor: 900 HP for 5-7 players (60% alone, 70% for two... OrnamixTimelin
 - Tests: `OrnamixGameTests` (the whole fight flow in the real colosseum, the phase 1 clamp, floor waves rooting only
   who doesn't jump, fireballs breaking nothing and hurting him when returned, meteors breaking nothing, skeletons in
   armor that leave with him, arena fire never spreading), `OrnamixTimelineTest`.
+
+## GUMMSS (Envy) (built: `boss/envy/`)
+
+```
+Boss: Gudmundur Sigurdsson - Sin of Envy. Boss bar: GUMMSS (green). His own skin on a player model, Ragnars Magic Mod's
+       golden staff (a blaze rod without the mod). His eyes glow green while he casts (gummss_eyes.png).
+Song: Seekae - Test & Recognise (Flume re-work, slowed), 6:06, measured 90 BPM (0.667 s); the bass drops at 21.575 s
+       and the beat grid is lined up on it (first beat tick 5, the drop is beat 32) (music.envy.theme). One song, no
+       phase 2.
+Arena: built in code (EnvyArena), not a template: a round floor 101 blocks across (radius 50) floating in a black void,
+       blackstone, deepslate and obsidian, an island-like cone of blackstone and basalt underneath. Seen from above the
+       floor is one great eye: a calcite, copper and obsidian eye 26 blocks long in the middle (with the three glints
+       of the eye it was drawn from in its pupil), sixteen iris fibres of polished blackstone running out to the rim
+       with verdant froglights set in them, a blackstone ring and an obsidian ring, a low blackstone wall round the
+       edge. Twelve obsidian pillars ring it at 43 blocks (every third broken off short, with rubble), six broken
+       deepslate columns at 25: cover from his darts, swords and threads. Players wait south of the middle, the exit
+       frame (polished blackstone bricks, oxidized chiseled copper corners) stands near the north edge.
+       Own dimension type (envy_arena): midnight, the Nether's sky effects (no sun, moon, stars or clouds), so EnvySky
+       draws a deep green fog over the black and a dim light. Eyes hang everywhere: the pixel-art version of
+       analog_eye.png (tools/textures/envy_eye_textures.py), 40 huge ones out in the void that turn to follow you and
+       blink, and smaller ones on the tall pillars staring in at the middle. They open one by one when he arrives and
+       close when he dies.
+Health / armor: 950 HP for 5-7 players (60% alone, 70% for two..., and 8% more for each player past 7: 124% for 10,
+       at most double; GummssTimeline.healthScale). Minecraft caps health at 1024, so past that he keeps 1024 and takes
+       proportionally less damage instead (effectiveMaxHealth). 8 armor, 4 toughness; takes x0.8 damage, x0.35 during
+       Arrow Rain, x1.5 while reeling, at most 30 per hit. No phase 2.
+Damage: every hit he deals is x1.2, rounded up (DAMAGE_DEALT): his staff (10), everything he throws, his slams, and
+       his arrows and darts. Poison and other effects are unchanged.
+```
+
+- **Intro (the 30 s the portal is open):** the same wheel as RAGGIMEL's and ORNAMIX's, zooming in on Envy. Test &
+  Recognise starts 9.1 s before the portal closes, during the zoom (`GummssTimeline.musicStart`). When it closes,
+  everyone is lifted 62 blocks over the arena into a ring round GUMMSS, 6.5 blocks out, facing him, while the wheel
+  fades. They hang there for 1.5 s, then fall with him for 11 s, frozen, free to look round: drifting at first, then
+  faster and faster, the eye of the floor rushing up out of the fog, specks hanging in the air going past, a
+  heartbeat. He falls in the middle, arms out, turning slowly to look at each of them. Everyone lands as the bass drops
+  at 21.575 s: a flash, a blast of his mind throws them all back (it hurts nobody: they're frozen while they fall,
+  Slow Falling wipes the fall, and he puts them on the floor himself). He rises with his staff high; he can't be hurt
+  until he's up (1.7 s). A shorter intro (tests, `/fmscraft fight` with a short timer) starts the song at once and
+  falls longer, so the landing still lands on the drop.
+- **How he fights:** from the middle distance. Between attacks he circles whoever he's after at 7-16 blocks, backs off
+  when they come close and comes in when they're far, and pokes with the staff if cornered. Kept in close for 1.5 s,
+  he gets out (Vanish, Ender Pearl, Force Push or Poison Slash). On the beat he picks an attack, weighted by how close
+  everyone is. His great spells have a cast: he raises his staff and the magic mod's tome for it floats open before
+  him, glyphs streaming into its pages. The eye in the floor pulses with the bass every 4 beats.
+- **Attacks:** *Force Push* (a ring drawn in to him, then everyone within 9 thrown back), *Force Pull* (threads of
+  his mind reach for everyone he can see within 26, then drag them in, then a sweep of the staff: a pillar between you
+  cuts your thread), *Telekinetic Slam* (one player is marked by a ring closing round their feet, lifted 6 blocks,
+  shaken and dashed down; break line of sight before he lifts, or hit him for 24 while he holds them and his focus
+  breaks: they float down unhurt and he reels), *Tome of Reckoning* (cast, then a silent sculk ripple runs out to 22
+  blocks: whoever is on the ground as it passes is lifted, shaken and slammed; jump it), *Ender Pearl* (thrown somewhere
+  far from everyone; he goes with it), *Vanish* (gone in a puff of green smoke, walking unseen with the faintest trail
+  at his feet, then out behind someone with a Poison Slash or far away to cast; a hit while he's unseen knocks him into
+  sight, reeling), *arrow catch* (35% of arrows shot at him stop dead in the air, circle him once and fly straight
+  back at the archer), *Tome of the Moon* (a pale moon of end stone forms over where most of them stand and sinks
+  slowly; its shadow spreads on the floor, and whoever is still under it after 2.3 s is lifted and swept round
+  beneath it, then slammed when it lands; a ring of force runs out from it, jump it; he stands still holding it up the
+  whole time), *Arrow Rain* (looks up, arms spread, and arrows pour down over the whole arena for 5 s, aimed round
+  everyone; he takes far less damage meanwhile, but none fall within 5 blocks of him, so the safest place is right
+  next to him), *Tome of the Quiver* (seven spectral arrows circle over his head and are loosed one by one, dead
+  straight at where you stand), *Poison Darts* (two fans of three poison-tipped darts), *Tome of Swords* (five iron
+  swords fan out behind him and are thrown one by one at where you were: no homing, they stick in walls and shatter),
+  *Tome of Swapping* (a thread between him and whoever is furthest; when it snaps tight he swaps places with them, then
+  goes straight into a Force Push or darts; a pillar between you breaks it), *Psychic Slash* (three crescents of mind
+  cut loose across the arena, waist high so jumping won't clear them: step aside), *Poison Slash* (rushes in, three
+  poisoned cuts, leaves a poison cloud and flips away out of it), *Tome of Judgement* (a giant iron sword forms over
+  each player, marked by a beam of light, and drops; more of them once he's desperate).
+- **Ideas of mine added:** *Mirror Images* (three more of him in a ring, keeping their distance and flicking darts;
+  they break at a touch; the real one is the only one with a shadow), *Evil Eye* (every eye in the void turns green
+  and widens, the fog closes in and the screen's edges throb; a great eye opens over him as he turns slowly; anyone
+  looking at him when it ends takes 10, Nausea and Darkness: look away), *Venom Flasks* (three lingering poison flasks
+  thrown where you're heading; the clouds last 8 s).
+- **Rare attacks** (long gaps, none in the first 20 s): *Tome of Levitation* (motes rise round everyone's feet, then
+  everyone levitates for 5 s, and he looses the Tome of the Quiver at them while they hang there; the drop afterwards
+  hurts), *the full Tome of Judgement* (as the magic mod casts it: a colossal netherite sword forms 48 blocks over where
+  most of them stand, the gold beam and a 7-block ring marking the spot for 2.5 s, then it drops and buries itself:
+  60 in the middle down to 20 at the edge, x1.2, everyone near thrown into the air; get out of the ring),
+  *Tome of Upside Down* (motes fall upward off everyone, then the magic mod's own Tome of Upside Down flips everyone's
+  gravity for 1 s, so they fall up into the dark with their view rolled over, then flips it back and they fall to the
+  floor; without the mod he throws them up himself). Nobody is ever left flipped, even if the fight ends mid-spell.
+- **Any number of players (1 to 10 and more):** the ring in the intro widens past 10 so nobody's crowded
+  (`GummssTimeline.ringRadius`), his health scales as above, Tome of Judgement rains a sword on every player (a dozen
+  at most, faster one after another past six), Venom Flasks throws one for every two players (3-6), and with six or
+  more he brings down a second moon over the other crowd. Everything else goes for everyone or picks among them.
+- **Desperate (under 50%):** shorter rests, his great spells come round a quarter sooner, faster windups, more darts,
+  quicker swords and arrows, more giant swords.
+- **The edge:** anyone over the rim (for half a second) or falling into the void is caught by his mind and dragged
+  back onto the floor (4 damage), so nobody dies to the void.
+- **Poison never kills** (vanilla: it stops at half a heart). His slams and the Evil Eye ignore shields; his darts,
+  swords, crescents and staff can be blocked.
+- **Magic mod:** he can't be put to sleep or carried off in a bubble, and status effects don't stick to him. His tomes
+  are built to look like the mod's (Swords, Judgement, the Moon, Reckoning, the Quiver, Swapping); without the mod they
+  still work, with an enchanted book in place of the tome.
+- Tuning knobs: `GummssEntity` (health, damage taken, `MAX_HIT`, `CATCH_CHANCE`, `LIFT_BREAK`, `DESPERATE_AT`, rests,
+  distances, attack weights and gaps in `chooseAttack`, each attack's numbers in its `tick...` method),
+  `EnvyHazards` (the tomes' numbers), `GummssTimeline` (song timing, the fall, `healthScale`), `EnvyArena` (shape,
+  positions, the eyes).
+- Tests: `GummssGameTests` (the whole fight flow in the real arena: the build, the fall, landing on the drop unhurt,
+  the edge, no phase 2, winning; arrows caught and sent back; Reckoning catching only who's on the ground; the Evil
+  Eye punishing only who looks; Mirror Images breaking and leaving with him; Swapping; Poison Slash; Levitation;
+  the full Judgement crushing only the crowd it falls on; Upside Down flipping everyone and back, and never leaving
+  anyone flipped; ten players falling in the ring and all landing unhurt), `GummssTimelineTest`.
 
 ## Structures
 

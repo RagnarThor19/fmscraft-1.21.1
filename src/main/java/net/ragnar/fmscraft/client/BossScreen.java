@@ -20,6 +20,7 @@ public final class BossScreen {
     private static final int WHEEL_W = 1672, WHEEL_H = 941;
     /** The middle of each sin's circle on the wheel, as a fraction of its width and height, and how far the zoom goes. */
     private static final float GREED_X = 0.665f, GREED_Y = 0.272f, WRATH_X = 0.291f, WRATH_Y = 0.567f, ZOOM = 3.4f;
+    private static final float ENVY_X = 0.595f, ENVY_Y = 0.805f;
     private static final int FLASH_COLOR = 0xE6F4FF, FIRE_COLOR = 0xFF6A1E;
 
     private enum Mode { NONE, INTRO, BLACK }
@@ -38,9 +39,17 @@ public final class BossScreen {
     public static void receive(BossScreenPayload payload) {
         String screen = payload.screen();
         if (screen.startsWith(BossScreenPayload.INTRO + ":")) {
-            boolean wrath = screen.endsWith(":wrath");
-            focusX = wrath ? WRATH_X : GREED_X;
-            focusY = wrath ? WRATH_Y : GREED_Y;
+            String sin = screen.substring(screen.indexOf(':') + 1);
+            focusX = switch (sin) {
+                case "wrath" -> WRATH_X;
+                case "envy" -> ENVY_X;
+                default -> GREED_X;
+            };
+            focusY = switch (sin) {
+                case "wrath" -> WRATH_Y;
+                case "envy" -> ENVY_Y;
+                default -> GREED_Y;
+            };
             screen = BossScreenPayload.INTRO;
         } else if (screen.equals(BossScreenPayload.INTRO)) {
             focusX = GREED_X;

@@ -18,6 +18,7 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.ragnar.fmscraft.FmsCraft;
+import net.ragnar.fmscraft.boss.envy.EnvyArena;
 import net.ragnar.fmscraft.boss.greed.GreedArena;
 import net.ragnar.fmscraft.boss.wrath.WrathArena;
 import net.ragnar.fmscraft.sin.Sin;
@@ -30,7 +31,7 @@ import java.util.Optional;
  *
  * To give a sin its own arena, save it with a structure block as {@code fmscraft:arena/<sin>} (centered on
  * x/z 0, floor at y 63) and put the .nbt in data/fmscraft/structure/arena/. Without one, a plain platform is built.
- * Arenas that don't fit that mold (Greed's floating island, Wrath's colosseum) give their own {@link ArenaLayout} in
+ * Arenas that don't fit that mold (Greed's floating island, Wrath's colosseum, Envy's eye) give their own {@link ArenaLayout} in
  * {@link #layout}.
  */
 public final class Arenas {
@@ -61,6 +62,7 @@ public final class Arenas {
         return switch (sin) {
             case GREED -> GreedArena.LAYOUT;
             case WRATH -> WrathArena.LAYOUT;
+            case ENVY -> EnvyArena.LAYOUT;
             default -> DEFAULT;
         };
     }
@@ -91,6 +93,12 @@ public final class Arenas {
             }
         }
 
+        if (sin == Sin.ENVY) {
+            // GUMMSS's floating eye is built in code, not saved from a build
+            EnvyArena.build(world);
+            buildExitFrame(world, layout, flags);
+            return;
+        }
         Optional<StructureTemplate> template = world.getStructureTemplateManager()
                 .getTemplate(Identifier.of(FmsCraft.MOD_ID, "arena/" + sin.id()));
         if (template.isPresent()) {

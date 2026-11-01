@@ -8,6 +8,7 @@
 		"fabric-gametest": [
 			"net.ragnar.fmscraft.gametest.FragmentGameTests",
 			"net.ragnar.fmscraft.gametest.FightGameTests",
+			"net.ragnar.fmscraft.gametest.GummssGameTests",
 			"net.ragnar.fmscraft.gametest.EnvyGameTests",
 			"net.ragnar.fmscraft.gametest.GreedGameTests",
 			"net.ragnar.fmscraft.gametest.LustGameTests",

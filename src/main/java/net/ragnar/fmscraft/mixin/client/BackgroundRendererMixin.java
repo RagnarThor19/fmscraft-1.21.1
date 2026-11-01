@@ -6,6 +6,10 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.block.enums.CameraSubmersionType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.effect.StatusEffects;
+import net.ragnar.fmscraft.client.EnvySky;
 import net.ragnar.fmscraft.client.GardenFog;
 import net.ragnar.fmscraft.client.GreedSky;
 import net.ragnar.fmscraft.client.VaultFog;
@@ -20,7 +24,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Down in a Greed Vault, the fog turns dark gray and closes in. Never thinner than what's already there (darkness...).
  * In Lust's Garden it only takes on a rose tint. Over RAGGIMEL's island it's pale blue by day and dark blue at night,
  * when it also closes in a little (GreedSky). Over ORNAMIX's colosseum it's a hot orange red, and in Ragemode a dark
- * red that closes right in round the pit (WrathSky).
+ * red that closes right in round the pit (WrathSky). Round GUMMSS's floating eye it's a deep green over the black void,
+ * thinning out far enough to see across the arena, and closing in, brighter, during his Evil Eye (EnvySky).
  */
 @Mixin(BackgroundRenderer.class)
 public abstract class BackgroundRendererMixin {
@@ -32,6 +37,14 @@ public abstract class BackgroundRendererMixin {
     private static void fmscraft$vaultFogColor(Camera camera, float tickDelta, ClientWorld world, int viewDistance, float skyDarkness, CallbackInfo ci) {
         if (GreedSky.active()) {
             Vec3d fog = GreedSky.mix(GreedSky.DAY_FOG, GreedSky.NIGHT_FOG, tickDelta);
+            red = (float) fog.x;
+            green = (float) fog.y;
+            blue = (float) fog.z;
+            RenderSystem.clearColor(red, green, blue, 0.0f);
+            return;
+        }
+        if (EnvySky.active()) {
+            Vec3d fog = EnvySky.fog(tickDelta);
             red = (float) fog.x;
             green = (float) fog.y;
             blue = (float) fog.z;
@@ -68,6 +81,20 @@ public abstract class BackgroundRendererMixin {
             float start = RenderSystem.getShaderFogStart(), end = RenderSystem.getShaderFogEnd();
             RenderSystem.setShaderFogStart(Math.min(start, MathHelper.lerp(night, start, 24f)));
             RenderSystem.setShaderFogEnd(Math.min(end, MathHelper.lerp(night, end, 120f)));
+        }
+        if (EnvySky.active() && fogType == BackgroundRenderer.FogType.FOG_TERRAIN) {
+            // The Nether's thick fog would hide the far side of the arena: set our own, unless something else (Blindness,
+            // the Evil Eye's Darkness, water) is already closing it in
+            boolean clouded = camera.getSubmersionType() != CameraSubmersionType.NONE || camera.getFocusedEntity() instanceof LivingEntity living
+                    && (living.hasStatusEffect(StatusEffects.BLINDNESS) || living.hasStatusEffect(StatusEffects.DARKNESS));
+            float start = EnvySky.fogStart(tickDelta), end = EnvySky.fogEnd(tickDelta);
+            if (clouded) {
+                start = Math.min(start, RenderSystem.getShaderFogStart());
+                end = Math.min(end, RenderSystem.getShaderFogEnd());
+            }
+            RenderSystem.setShaderFogStart(start);
+            RenderSystem.setShaderFogEnd(end);
+            return;
         }
         float rage = WrathSky.rage(tickDelta);
         if (rage > 0 && fogType == BackgroundRenderer.FogType.FOG_TERRAIN) {
