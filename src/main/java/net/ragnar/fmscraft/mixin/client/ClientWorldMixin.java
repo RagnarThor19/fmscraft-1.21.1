@@ -4,6 +4,7 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.ragnar.fmscraft.client.EnvySky;
+import net.ragnar.fmscraft.client.GluttonySky;
 import net.ragnar.fmscraft.client.GreedSky;
 import net.ragnar.fmscraft.client.WrathSky;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,7 +15,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * Over RAGGIMEL's island the sky is pale blue by day and dark blue at night, and the night dims the light (GreedSky).
  * Over ORNAMIX's colosseum it's bright red, then almost black red in Ragemode, which dims the light too (WrathSky).
- * Round GUMMSS's eye the light is always dim (EnvySky).
+ * Round GUMMSS's eye the light is always dim (EnvySky). In space round LalliLarge's Earth the sky is black and the sun
+ * shines full; over his snowfield it's a grey overcast and the light is dimmer (GluttonySky).
  */
 @Mixin(ClientWorld.class)
 public abstract class ClientWorldMixin {
@@ -22,6 +24,8 @@ public abstract class ClientWorldMixin {
     private void fmscraft$greedSky(Vec3d cameraPos, float tickDelta, CallbackInfoReturnable<Vec3d> cir) {
         if (GreedSky.active()) cir.setReturnValue(GreedSky.mix(GreedSky.DAY_SKY, GreedSky.NIGHT_SKY, tickDelta));
         else if (WrathSky.active()) cir.setReturnValue(WrathSky.mix(WrathSky.RED_SKY, WrathSky.RAGE_SKY, tickDelta));
+        else if (GluttonySky.space()) cir.setReturnValue(Vec3d.ZERO);
+        else if (GluttonySky.snow()) cir.setReturnValue(GluttonySky.SNOW_SKY);
     }
 
     @Inject(method = "getCloudsColor", at = @At("RETURN"), cancellable = true)
@@ -37,5 +41,7 @@ public abstract class ClientWorldMixin {
         float rage = WrathSky.rage(tickDelta);
         if (rage > 0) cir.setReturnValue(MathHelper.lerp(rage, cir.getReturnValue(), WrathSky.RAGE_LIGHT));
         if (EnvySky.active()) cir.setReturnValue(EnvySky.LIGHT);
+        if (GluttonySky.space()) cir.setReturnValue(1.0f);
+        if (GluttonySky.snow()) cir.setReturnValue(GluttonySky.SNOW_LIGHT);
     }
 }

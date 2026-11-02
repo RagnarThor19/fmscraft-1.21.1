@@ -109,13 +109,13 @@ public class FightGameTests implements FabricGameTest {
         ServerWorld world = ctx.getWorld();
         MinecraftServer server = world.getServer();
         BlockPos base = ctx.getAbsolutePos(new BlockPos(2, 1, 2));
-        BossFights.open(Sin.GLUTTONY, world, base, Direction.Axis.X, JOIN);
+        BossFights.open(Sin.LUST, world, base, Direction.Axis.X, JOIN);
         ServerPlayerEntity player = ctx.createMockCreativeServerPlayerInWorld();
-        BossFights.enter(player, Sin.GLUTTONY);
+        BossFights.enter(player, Sin.LUST);
 
         ctx.runAtTick(JOIN + 10, () -> {
-            ServerWorld arena = Arenas.world(server, Sin.GLUTTONY);
-            FightSession session = BossFights.session(Sin.GLUTTONY);
+            ServerWorld arena = Arenas.world(server, Sin.LUST);
+            FightSession session = BossFights.session(Sin.LUST);
             ctx.assertTrue(session != null && session.stage() == FightSession.Stage.ACTIVE, "fight should be running");
             ctx.assertTrue(player.getServerWorld() == arena, "player should be in the arena");
             ctx.assertTrue(world.getBlockState(base).isAir(), "entry portal should be closed");
@@ -124,10 +124,10 @@ public class FightGameTests implements FabricGameTest {
             ctx.assertTrue(boss instanceof SinBossEntity, "boss should be spawned, got " + boss);
             ((LivingEntity) boss).damage(arena.getDamageSources().playerAttack(player), Float.MAX_VALUE);
 
-            ctx.assertTrue(FmsWorldState.get(server).isDefeated(Sin.GLUTTONY), "Gluttony should be marked defeated");
+            ctx.assertTrue(FmsWorldState.get(server).isDefeated(Sin.LUST), "Lust should be marked defeated");
             ctx.assertTrue(session.stage() == FightSession.Stage.WON, "fight should be won");
             ctx.assertTrue(!arena.getEntitiesByClass(ItemEntity.class, new Box(boss.getBlockPos()).expand(3),
-                    e -> e.getStack().isOf(ModItems.SOULS.get(Sin.GLUTTONY))).isEmpty(), "Soul of Gluttony should drop");
+                    e -> e.getStack().isOf(ModItems.SOULS.get(Sin.LUST))).isEmpty(), "Soul of Lust should drop");
             ctx.assertTrue(arena.getBlockState(Arenas.EXIT_PORTAL).isOf(ModBlocks.SIN_PORTAL), "exit portal should open");
         });
 
@@ -139,8 +139,8 @@ public class FightGameTests implements FabricGameTest {
                 for (WheelTier tier : WheelTier.values()) if (MagicTomes.of(tier).contains(stack.getItem())) tomes++;
             }
             ctx.assertEquals(tomes, 1, "tomes won from the wheel");
-            BossFights.forceEnd(server, Sin.GLUTTONY);
-            FmsWorldState.get(server).clearDefeated(Sin.GLUTTONY);
+            BossFights.forceEnd(server, Sin.LUST);
+            FmsWorldState.get(server).clearDefeated(Sin.LUST);
             ctx.complete();
         });
     }

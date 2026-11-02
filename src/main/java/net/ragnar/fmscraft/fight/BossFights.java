@@ -320,12 +320,12 @@ public final class BossFights {
         playSong(boss.getServer(), session, song, fadeTicks);
     }
 
-    /** Starts {@code song} for everyone in the fight, fading in over {@code fadeTicks}; null stops the music. */
+    /** Starts {@code song} for everyone in the fight, fading in over {@code fadeTicks}; null fades the music out over them. */
     public static void playSong(MinecraftServer server, FightSession session, BossSong song, int fadeTicks) {
         session.song = song;
         session.songStartTick = server.getTicks();
         session.songFadeTicks = fadeTicks;
-        sendMusic(server, session, song == null ? BossMusicPayload.STOP : new BossMusicPayload(song.soundId(), fadeTicks));
+        sendMusic(server, session, new BossMusicPayload(song == null ? "" : song.soundId(), fadeTicks));
     }
 
     private static void sendMusic(MinecraftServer server, FightSession session, BossMusicPayload payload) {

@@ -13,7 +13,7 @@ import net.ragnar.fmscraft.sin.Sin;
  * <ul>
  *   <li>{@link #INTRO}: the Seven Deadly Sins wheel, {@code elapsed} ticks into a {@code duration}-tick intro, zooming
  *       in on Greed; {@link #intro} names another sin to zoom in on.</li>
- *   <li>{@link #BLACK}: fade to black over {@code duration} ticks.</li>
+ *   <li>{@link #BLACK}: fade to black over {@code duration} ticks. {@link #WHITE}: the same, to a frosty white.</li>
  *   <li>{@link #CLEAR}: fade whatever covers the screen away over {@code duration} ticks.</li>
  *   <li>{@link #FLASH}: a lightning-white flash on top of everything, fading over {@code duration} ticks;
  *       {@code elapsed} is its strength in percent. {@link #FLASH_FIRE} is the same in the orange of firelight.</li>
@@ -21,7 +21,7 @@ import net.ragnar.fmscraft.sin.Sin;
  * While the intro or black screen is up, the client also stops the mouse turning the camera.
  */
 public record BossScreenPayload(String screen, int elapsed, int duration) implements CustomPayload {
-    public static final String INTRO = "intro", BLACK = "black", CLEAR = "clear", FLASH = "flash", FLASH_FIRE = "flash_fire";
+    public static final String INTRO = "intro", BLACK = "black", WHITE = "white", CLEAR = "clear", FLASH = "flash", FLASH_FIRE = "flash_fire";
 
     public static final Id<BossScreenPayload> ID = new Id<>(Identifier.of(FmsCraft.MOD_ID, "boss_screen"));
     public static final PacketCodec<RegistryByteBuf, BossScreenPayload> CODEC = PacketCodec.tuple(

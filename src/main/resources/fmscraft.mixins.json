@@ -21,6 +21,7 @@
 		"client.LightmapTextureManagerMixin",
 		"client.MouseMixin",
 		"client.MusicTrackerMixin",
+		"client.WorldMixin",
 		"client.WorldRendererMixin"
 	],
 	"injectors": {

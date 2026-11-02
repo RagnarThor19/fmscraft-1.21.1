@@ -25,6 +25,11 @@ public final class ClientBossMusic {
     }
 
     public static void play(String soundId, int fadeTicks) {
+        if (soundId.isEmpty() && fadeTicks > 0 && current != null) {
+            // Fade out what's playing, then stop it (it keeps its place in time while it fades)
+            current.fadeOut(fadeTicks);
+            return;
+        }
         stop();
         if (soundId.isEmpty()) return;
         MinecraftClient client = MinecraftClient.getInstance();
@@ -55,7 +60,8 @@ public final class ClientBossMusic {
     /** A looping, non-positional song that ramps its volume up over its first {@code fadeTicks}. */
     private static final class Song extends MovingSoundInstance {
         private final int fadeTicks;
-        private int age;
+        private int age, fadeOut, fadeOutLeft;
+        private float fadeFrom;
 
         Song(SoundEvent sound, int fadeTicks) {
             super(sound, SoundCategory.RECORDS, SoundInstance.createRandom());
@@ -72,9 +78,25 @@ public final class ClientBossMusic {
             return true;
         }
 
+        void fadeOut(int ticks) {
+            fadeOut = fadeOutLeft = ticks;
+            fadeFrom = volume;
+        }
+
         @Override
         public void tick() {
             age++;
+            if (fadeOut > 0) {
+                volume = Math.max(0.0f, fadeFrom * --fadeOutLeft / (float) fadeOut);
+                if (fadeOutLeft <= 0) {
+                    setDone();
+                    if (current == this) {
+                        current = null;
+                        currentId = "";
+                    }
+                }
+                return;
+            }
             if (fadeTicks > 0) volume = Math.max(0.01f, Math.min(1.0f, age / (float) fadeTicks));
         }
     }

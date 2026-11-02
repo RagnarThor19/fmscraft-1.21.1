@@ -49,6 +49,8 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add(ModBossEntities.GUMMSS_ILLUSION, "GUMMSS");
         builder.add("message.fmscraft.gummss_stare", "Don't look at him...");
         builder.add("message.fmscraft.gummss_caught", "GUMMSS drags you back. You leave when he says so.");
+        builder.add(ModBossEntities.LALLI, "LalliLarge");
+        builder.add("message.fmscraft.lalli_caught", "The cold wind carries you back to LalliLarge.");
         builder.add("bossbar.fmscraft.fight_starts", "The fight begins in %s");
         builder.add("message.fmscraft.boss_defeated", "%s, the Sin of %s, has been defeated!");
         builder.add("message.fmscraft.fight_failed", "%s has fallen. The Sin of %s endures.");

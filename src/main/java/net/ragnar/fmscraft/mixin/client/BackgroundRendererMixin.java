@@ -11,6 +11,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffects;
 import net.ragnar.fmscraft.client.EnvySky;
 import net.ragnar.fmscraft.client.GardenFog;
+import net.ragnar.fmscraft.client.GluttonySky;
 import net.ragnar.fmscraft.client.GreedSky;
 import net.ragnar.fmscraft.client.VaultFog;
 import net.ragnar.fmscraft.client.WrathSky;
@@ -25,7 +26,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * In Lust's Garden it only takes on a rose tint. Over RAGGIMEL's island it's pale blue by day and dark blue at night,
  * when it also closes in a little (GreedSky). Over ORNAMIX's colosseum it's a hot orange red, and in Ragemode a dark
  * red that closes right in round the pit (WrathSky). Round GUMMSS's floating eye it's a deep green over the black void,
- * thinning out far enough to see across the arena, and closing in, brighter, during his Evil Eye (EnvySky).
+ * thinning out far enough to see across the arena, and closing in, brighter, during his Evil Eye (EnvySky). Round
+ * LalliLarge's Earth it's the black of space; over his snowfield a grey haze that lets you see out to the castle (GluttonySky).
  */
 @Mixin(BackgroundRenderer.class)
 public abstract class BackgroundRendererMixin {
@@ -37,6 +39,15 @@ public abstract class BackgroundRendererMixin {
     private static void fmscraft$vaultFogColor(Camera camera, float tickDelta, ClientWorld world, int viewDistance, float skyDarkness, CallbackInfo ci) {
         if (GreedSky.active()) {
             Vec3d fog = GreedSky.mix(GreedSky.DAY_FOG, GreedSky.NIGHT_FOG, tickDelta);
+            red = (float) fog.x;
+            green = (float) fog.y;
+            blue = (float) fog.z;
+            RenderSystem.clearColor(red, green, blue, 0.0f);
+            return;
+        }
+        if (GluttonySky.space() || GluttonySky.snow()) {
+            // Space is black all the way out; the snowfield is lost in grey
+            Vec3d fog = GluttonySky.space() ? Vec3d.ZERO : GluttonySky.SNOW_FOG;
             red = (float) fog.x;
             green = (float) fog.y;
             blue = (float) fog.z;
@@ -88,6 +99,19 @@ public abstract class BackgroundRendererMixin {
             boolean clouded = camera.getSubmersionType() != CameraSubmersionType.NONE || camera.getFocusedEntity() instanceof LivingEntity living
                     && (living.hasStatusEffect(StatusEffects.BLINDNESS) || living.hasStatusEffect(StatusEffects.DARKNESS));
             float start = EnvySky.fogStart(tickDelta), end = EnvySky.fogEnd(tickDelta);
+            if (clouded) {
+                start = Math.min(start, RenderSystem.getShaderFogStart());
+                end = Math.min(end, RenderSystem.getShaderFogEnd());
+            }
+            RenderSystem.setShaderFogStart(start);
+            RenderSystem.setShaderFogEnd(end);
+            return;
+        }
+        if (GluttonySky.snow() && fogType == BackgroundRenderer.FogType.FOG_TERRAIN) {
+            // Far enough to see the castle and the statue through the snow, never thinner than something closer (Blindness...)
+            boolean clouded = camera.getSubmersionType() != CameraSubmersionType.NONE || camera.getFocusedEntity() instanceof LivingEntity living
+                    && (living.hasStatusEffect(StatusEffects.BLINDNESS) || living.hasStatusEffect(StatusEffects.DARKNESS));
+            float start = GluttonySky.SNOW_FOG_START, end = GluttonySky.SNOW_FOG_END;
             if (clouded) {
                 start = Math.min(start, RenderSystem.getShaderFogStart());
                 end = Math.min(end, RenderSystem.getShaderFogEnd());

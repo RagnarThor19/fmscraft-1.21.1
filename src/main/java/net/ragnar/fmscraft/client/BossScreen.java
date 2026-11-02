@@ -20,10 +20,11 @@ public final class BossScreen {
     private static final int WHEEL_W = 1672, WHEEL_H = 941;
     /** The middle of each sin's circle on the wheel, as a fraction of its width and height, and how far the zoom goes. */
     private static final float GREED_X = 0.665f, GREED_Y = 0.272f, WRATH_X = 0.291f, WRATH_Y = 0.567f, ZOOM = 3.4f;
-    private static final float ENVY_X = 0.595f, ENVY_Y = 0.805f;
+    private static final float ENVY_X = 0.595f, ENVY_Y = 0.805f, GLUTTONY_X = 0.400f, GLUTTONY_Y = 0.797f;
+    private static final int WHITE_COLOR = 0xF2F8FF;
     private static final int FLASH_COLOR = 0xE6F4FF, FIRE_COLOR = 0xFF6A1E;
 
-    private enum Mode { NONE, INTRO, BLACK }
+    private enum Mode { NONE, INTRO, BLACK, WHITE }
 
     private static Mode mode = Mode.NONE;
     private static float cover, prevCover, coverStep;
@@ -43,11 +44,13 @@ public final class BossScreen {
             focusX = switch (sin) {
                 case "wrath" -> WRATH_X;
                 case "envy" -> ENVY_X;
+                case "gluttony" -> GLUTTONY_X;
                 default -> GREED_X;
             };
             focusY = switch (sin) {
                 case "wrath" -> WRATH_Y;
                 case "envy" -> ENVY_Y;
+                case "gluttony" -> GLUTTONY_Y;
                 default -> GREED_Y;
             };
             screen = BossScreenPayload.INTRO;
@@ -64,9 +67,10 @@ public final class BossScreen {
                 cover = prevCover = 1;
                 covering = true;
             }
-            case BossScreenPayload.BLACK -> {
-                if (mode != Mode.BLACK) cover = prevCover = 0;
-                mode = Mode.BLACK;
+            case BossScreenPayload.BLACK, BossScreenPayload.WHITE -> {
+                Mode to = screen.equals(BossScreenPayload.WHITE) ? Mode.WHITE : Mode.BLACK;
+                if (mode != to) cover = prevCover = 0;
+                mode = to;
                 covering = true;
                 coverStep = 1f / Math.max(1, payload.duration());
             }
@@ -116,7 +120,7 @@ public final class BossScreen {
         if (mode != Mode.NONE) {
             float alpha = MathHelper.lerp(delta, prevCover, cover);
             if (alpha > 0) {
-                ctx.fill(0, 0, w, h, ((int) (alpha * 255) << 24));
+                ctx.fill(0, 0, w, h, ((int) (alpha * 255) << 24) | (mode == Mode.WHITE ? WHITE_COLOR : 0));
                 if (mode == Mode.INTRO) drawWheel(ctx, w, h, alpha, introStart + introTicks + delta);
             }
         }

@@ -86,7 +86,8 @@ off still hear them), loop, and pause vanilla music. The test boss uses Pigstep,
 ## Boss template
 
 Every boss extends `boss/SinBossEntity` and is swapped in for its sin in `boss/ModBossEntities.forSin`
-(Greed is RAGGIMEL, Wrath is ORNAMIX, Envy is GUMMSS; the other sins still use the stand-in `TestBossEntity`):
+(Greed is RAGGIMEL, Wrath is ORNAMIX, Envy is GUMMSS, Gluttony is LalliLarge; the other sins still use the stand-in
+`TestBossEntity`):
 - Boss bar named after the friend (`bossBarName` to call it something else).
 - **Phase 2 at half health** (`onPhaseTwo`; `phaseTwoHealth` to move it) — switch songs and behaviour here. A boss with
   a transition returns false from `startsPhaseTwoSongAtOnce` and calls `playSong(song, fadeTicks)` when it's ready.
@@ -324,6 +325,98 @@ Damage: every hit he deals is x1.2, rounded up (DAMAGE_DEALT): his staff (10), e
   Eye punishing only who looks; Mirror Images breaking and leaving with him; Swapping; Poison Slash; Levitation;
   the full Judgement crushing only the crowd it falls on; Upside Down flipping everyone and back, and never leaving
   anyone flipped; ten players falling in the ring and all landing unhurt), `GummssTimelineTest`.
+
+## LalliLarge (Gluttony) (built: `boss/gluttony/`)
+
+```
+Boss: Larus Armann - Sin of Gluttony. Boss bar: LalliLarge (blue). His own skin (slim arms) on a player model, 3 blocks
+       tall (scale attribute), empty-handed. All ice. Slow, and the toughest of them. In phase 2 his eyes burn a glacier
+       blue (lalli_eyes.png, tools/textures/lalli_textures.py) in a strong freezing aura.
+Song (phase 1): Travis Scott - Apple Pie (slowed + reverb), 3:29, measured 124.1 BPM, kick first at 3.69 s
+       (music.gluttony.phase_one). Its chord strums (3.49, 3.97, 4.71, 5.41, 5.88, 6.63 s, then every 3.867 s, eight
+       times round, the last at 33.7 s) turn the sky.
+Song (phase 2): Travis Scott - SIRENS, 3:26. A floating opening, then the switch-up at 26.005 s and 128 BPM from
+       there; the beat grid starts on the switch-up (music.gluttony.phase_two).
+       (Both measured from the audio by onset detection; the strums by ear were 3.6, 4.1, 4.9, 5.5, 6.0, 6.8 s.)
+Arena: two worlds in one dimension (gluttony_arena: 512 high, its own frozen biome fmscraft:frozen_void, no mobs).
+       Phase 1: the Earth (structure/arena/gluttony.nbt, tools/structures/gluttony_arena.py from the-earth), a hollow
+       globe 258 across hanging in space; the fight is on its north pole (an ice cap, falling away 2 blocks 20 out, 7 at
+       40). Phase 2: the snowfield 1000 blocks south: flat snowy grass under a layer of snow, 170 out (past the fog),
+       grey overcast, snow always falling, the ruined castle (gluttony_castle.nbt, snowed over by the script) in the
+       distance north, seven giant statues scattered round the fight (80-100 out). Exit frame (packed ice, blue ice corners) north of the snowfield's middle.
+       Both are built whole once at server start (~15 s on a new world, while the chunks are made); before each fight
+       only the patch round the pole and the snowfield's middle are wiped and put back. Positions: GluttonyArena.
+Health / armor: 1400 HP for 5-7 players (healthScale: 60% alone ... 124% for 10, at most double; past the 1024 cap he
+       takes proportionally less damage instead), 14 armor, 8 toughness; takes x0.7 damage in phase 1, x0.8 in
+       phase 2, x1.5 while open after a Jump Slam, at most 24 per hit; phase 1 can't be skipped by one big hit.
+       Phase 2 hits x1.25. Walks at 0.2 (0.24 in phase 2), slow to turn while winding up.
+```
+
+- **Intro (the 30 s the portal is open):** frozen behind the Seven Deadly Sins wheel, zooming in on Gluttony. Apple Pie
+  starts 3.5 s before the portal closes, so its first 3.5 s are the last of the wheel; the wheel fades as the first
+  strum hits. Everyone is then 170 blocks over the pole, in space, frozen in a ring, looking down at the Earth, and
+  floats down to it (stars streaking past) while **the stars and the sun turn 30% of their cycle on every strum**,
+  swinging round in 0.22 s (`LalliTimeline.skyTurn`, drawn by `GluttonySky` from the song's own clock on each client).
+  They land softly round the pole at 25 s and can move. At 20 s a cold light flashes high over the pole and LalliLarge
+  is there; he sinks slowly, arms spread, then crashes down at 35 s as the strums fall out: a great wave of snow
+  throws everyone back (it hurts nobody) and he rises roaring. He can't be hurt until he's up. The sky holds still
+  from then on.
+- **Phase 1 (100-50%), the Earth:** he walks after whoever he's picked and punches, and on the beat picks one of:
+  *Ice Punch* (fist drawn back while frost gathers on it, a chiming build, then a lunge: a huge knock, and you're
+  frozen solid where you land), *Ice Beam* (like the Tome of Ice Beam: a dotted line marks you, then a thin icy beam
+  lances out and follows you, slower than you can run, freezing what it touches; drawn like the guardian's beam),
+  *Dash* (crouches, a line of frost on the ground shows the way, then he charges down it), *Tome of the Glacier*
+  (points at you a long moment, a chunk of ice growing in his hand and a dotted line where it's going, set just before
+  he throws; it bursts into a 5x5x5 block of ice entombing whoever it reaches), *Icicle Crash* (like the Tome of
+  Falling Stalactite: a great icicle forms over each of you, drifts after you, trembles, drops; the ring on the ground
+  shows where), *Frost Breath* (a cone of freezing breath that turns after you; stay in it and you freeze), *Large
+  Push* (arms crossed while the snow is drawn in from the ring marking his reach, then a blast that throws everyone in
+  it right across the pole), and the basic ones, *Ice Shards* (fans of ice thrown dead straight) and *Frost Stomp* (a
+  ring of frost to jump).
+- **Frozen:** a block of ice round you (a display entity), held where you are, vanilla's frost creeping over your
+  sight, then it bursts. Nobody is ever left frozen: taken away early, the ice goes at once (`GluttonyHazards.Frozen`).
+- **Half health:** his health stops exactly at half (`setHealth`, after his armor), and a mini cutscene starts
+  (4.6 s, everyone held still, `tickCutscene`): everything of his shatters, ice cracks and breaks off him and he's
+  brought to his knees while Apple Pie fades out (3 s); in the quiet he stands and looks up, a thread of light comes
+  down to him out of the stars, he spreads his arms, crystals gather round him, and as SIRENS begins he lifts off.
+  Through SIRENS's heavenly opening everyone can move and watch while he flies up into the sky over the pole, 55
+  blocks up by 24.5 s, light streaming past him, the sky drifting on faster and faster; he can't be hurt. At 24.5 s
+  the screen whites out and everyone is held still; under the white everyone, and he, are taken to the snowfield;
+  **on the beat drop (26.005 s)** the white lifts on him with his eyes burning, a roar and a blast of cold, and the
+  fight goes on. Timings: `LalliTimeline` (`PIE_FADE`, `STAND_AT`, `LIFT_AT`, `CUTSCENE`, `ascent`).
+- **Phase 2 (50-0%), the snowfield:** harder, faster, rests less, and a strong ice aura: anyone within 6.5 blocks is
+  slowed and starts to freeze. Everything from phase 1 grows (two dashes, two Glaciers, two volleys of shards, an
+  icicle for every one of you, a wider breath) and he casts his Ice Beam far more. New: *Tome of Freezing* (a frost
+  sigil, crystals circling him, a globe of frost swelling to 16 blocks in steps you can see; when it bursts everyone
+  in it is frozen), *Jump Slam* (leaps 20 blocks up over where most of you stand, hangs there with the landing ringed,
+  then comes down in a Tome of Earthquake: the tome's own fissures crack out over the ground while he's in the air,
+  then the ground heaves and ripples out 25 blocks exactly as the tome does it (MagicSpells sends the magic mod's
+  earthquake packets; particles without the mod), jump it, then two aftershocks; then he's open, taking extra damage), *Rising Ice Spikes* (rows of ice shards bursting out of the ground
+  from him towards you, three lanes wide), *Impaling* (a spot marked under each of you, then a huge ice spike crowned
+  with smaller ones bursts up out of it), *Ice Blade* (a great blade of ice, about four blocks long, freezes together in
+  his hand and he cuts at you five times in a row, stepping in with each, a wide arc in front of him) and straight
+  after it *Blade Throw* (he spins round with the blade out, then hurls it, spinning flat, at one of you: 22 and frozen;
+  then he's empty-handed again).
+- **Ice Cannon** (both phases; the Tome of Stone Cannon, in ice and much bigger): three great icicles form over his head,
+  spin up faster and faster, are set on you (a dotted line) and fire one by one, dead straight and fast, drilling
+  through whoever is in the way.
+- **The statues:** seven of them scattered round the snowfield, 80-100 blocks out, players 45 blocks tall in
+  statue.png facing the fight. They do nothing but nod their heads to every beat of SIRENS from the switch-up, and stop
+  when the song stops (`LalliTimeline.nod`, drawn by `GluttonySky`; they aren't entities; spots in `GluttonyArena`).
+- **The edge:** blown off the pole (58 out, or 24 under it) or out into the snowfield's blizzard (62 out), the cold
+  wind carries you back (4 damage), so nobody dies falling off the Earth.
+- **Any number of players:** icicles and impaling spikes one per player (up to 6 / 10), shards at up to 3, a spike row
+  for every three, his health scales, the rings in the sky and round him in the snowfield widen.
+- **Magic mod:** he can't be put to sleep or carried off in a bubble, and status effects don't stick to him. His tomes
+  are built to look like the mod's, all of ice, and work without it. None of his ice places or breaks a block.
+- Tuning knobs: `LalliEntity` (health, damage taken and dealt, `MAX_HIT`, speeds, rests, `AURA_RADIUS`, attack weights
+  and gaps in `chooseAttack`, each attack's numbers in its `tick...` method), `GluttonyHazards` (the tomes' numbers),
+  `LalliTimeline` (song timings, the strums and how far the sky turns, the float down, the transition, the nod,
+  `healthScale`), `GluttonyArena` (positions, sizes), `GluttonySky` (colours, fog).
+- Tests: `LalliGameTests` (the whole fight in the real arena: both worlds built, the float down, landing unhurt, his
+  landing, the phase 1 clamp, the cold wind, the transition to the snowfield on the switch-up, winning, nothing left
+  behind; the punch freezing and letting go; nobody left frozen when he goes; Large Push; Tome of Freezing; his ice
+  never placing a block; the Ice Blade cutting, thrown, and him empty-handed after; the Ice Cannon), `LalliTimelineTest`.
 
 ## Structures
 

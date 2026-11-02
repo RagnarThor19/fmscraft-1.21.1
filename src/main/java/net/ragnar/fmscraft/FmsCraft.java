@@ -69,6 +69,7 @@ public class FmsCraft implements ModInitializer {
 		Cinematics.register();
 		TomeWheel.register();
 		FlameRoot.register();
+		net.ragnar.fmscraft.boss.gluttony.GluttonyArena.register();
 		OrnamixEntity.registerEvents();
 		GummssEntity.registerEvents();
 		EnvyMazes.register();

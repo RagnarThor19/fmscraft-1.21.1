@@ -1,9 +1,9 @@
 {
-  "type": "fmscraft:arena",
+  "type": "fmscraft:gluttony_arena",
   "generator": {
     "type": "minecraft:flat",
     "settings": {
-      "biome": "minecraft:the_void",
+      "biome": "fmscraft:frozen_void",
       "layers": [],
       "lakes": false,
       "features": false,

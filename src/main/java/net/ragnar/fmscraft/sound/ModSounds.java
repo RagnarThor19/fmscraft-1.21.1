@@ -28,6 +28,13 @@ public class ModSounds {
     /** GUMMSS's theme: Seekae - Test & Recognise (Flume re-work, slowed). The bass drops at 21.575 s, as everyone lands. */
     public static final SoundEvent ENVY_THEME = register("music.envy.theme");
 
+    /**
+     * LalliLarge's themes: Travis Scott - Apple Pie (slowed + reverb) over the Earth, whose chord strums turn the sky;
+     * then SIRENS, whose switch-up at 26 s takes the fight to the snowfield.
+     */
+    public static final SoundEvent GLUTTONY_PHASE_ONE = register("music.gluttony.phase_one");
+    public static final SoundEvent GLUTTONY_PHASE_TWO = register("music.gluttony.phase_two");
+
     private static SoundEvent register(String name) {
         Identifier id = Identifier.of(FmsCraft.MOD_ID, name);
         return Registry.register(Registries.SOUND_EVENT, id, SoundEvent.of(id));

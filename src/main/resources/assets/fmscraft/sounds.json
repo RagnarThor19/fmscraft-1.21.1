@@ -79,5 +79,21 @@
         "stream": true
       }
     ]
+  },
+  "music.gluttony.phase_one": {
+    "sounds": [
+      {
+        "name": "fmscraft:music/gluttony_phase_one",
+        "stream": true
+      }
+    ]
+  },
+  "music.gluttony.phase_two": {
+    "sounds": [
+      {
+        "name": "fmscraft:music/gluttony_phase_two",
+        "stream": true
+      }
+    ]
   }
 }

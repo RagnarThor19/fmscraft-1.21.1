@@ -9,7 +9,7 @@ import net.ragnar.fmscraft.FmsCraft;
 
 /**
  * Server -> client: start looping a boss song (sound event id), fading it in over {@code fadeTicks} (0 = at once),
- * or stop the boss music when {@code sound} is empty.
+ * or stop the boss music when {@code sound} is empty (fading it out over {@code fadeTicks}, or at once).
  */
 public record BossMusicPayload(String sound, int fadeTicks) implements CustomPayload {
     public static final Id<BossMusicPayload> ID = new Id<>(Identifier.of(FmsCraft.MOD_ID, "boss_music"));

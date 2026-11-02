@@ -10,6 +10,7 @@ import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.RotationAxis;
 import net.ragnar.fmscraft.client.EnvySky;
+import net.ragnar.fmscraft.client.GluttonySky;
 import net.ragnar.fmscraft.client.GreedSky;
 import net.ragnar.fmscraft.client.WrathSky;
 import org.joml.Matrix4f;
@@ -22,7 +23,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * RAGGIMEL's night: no sun and no daylit dome, only vanilla's stars, turning slowly, over the dark blue the fog
  * clears the screen to (BackgroundRendererMixin). ORNAMIX's Ragemode: no sky at all, just the black red the fog clears
- * the screen to. GUMMSS's void: no sky either, only the deep green fog over the black.
+ * the screen to. GUMMSS's void: no sky either, only the deep green fog over the black. LalliLarge's space: the stars and
+ * the sun on black, turning on Apple Pie's strums; his snowfield: a grey overcast and no clouds (GluttonySky).
  */
 @Mixin(WorldRenderer.class)
 public abstract class WorldRendererMixin {
@@ -32,7 +34,13 @@ public abstract class WorldRendererMixin {
     @Inject(method = "renderSky", at = @At("HEAD"), cancellable = true)
     private void fmscraft$greedNight(Matrix4f matrix4f, Matrix4f projectionMatrix, float tickDelta, Camera camera,
                                      boolean thickFog, Runnable fogCallback, CallbackInfo ci) {
-        if (WrathSky.rage(tickDelta) >= 0.5f || EnvySky.active()) {
+        if (GluttonySky.space()) {
+            ci.cancel();
+            fogCallback.run();
+            GluttonySky.renderSpace(matrix4f, projectionMatrix, tickDelta, starsBuffer, fogCallback);
+            return;
+        }
+        if (WrathSky.rage(tickDelta) >= 0.5f || EnvySky.active() || GluttonySky.snow()) {
             ci.cancel();
             fogCallback.run();
             return;
@@ -60,5 +68,12 @@ public abstract class WorldRendererMixin {
         RenderSystem.disableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.depthMask(true);
+    }
+
+    /** No clouds round LalliLarge: in space they'd cut through the Earth, and the snowfield's sky is one grey overcast. */
+    @Inject(method = "renderClouds", at = @At("HEAD"), cancellable = true)
+    private void fmscraft$noClouds(MatrixStack matrices, Matrix4f matrix4f, Matrix4f matrix4f2, float tickDelta, double cameraX, double cameraY,
+                                   double cameraZ, CallbackInfo ci) {
+        if (GluttonySky.space() || GluttonySky.snow()) ci.cancel();
     }
 }

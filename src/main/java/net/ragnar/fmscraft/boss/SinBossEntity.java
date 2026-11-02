@@ -75,9 +75,14 @@ public abstract class SinBossEntity extends HostileEntity {
 
     /** Stops the music; the beat clock goes quiet until the next {@link #playSong}. */
     protected void stopSong() {
+        stopSong(0);
+    }
+
+    /** Fades the music out over {@code fadeTicks}; the beat clock goes quiet at once. */
+    protected void stopSong(int fadeTicks) {
         song = null;
         musicStarted = true;
-        BossFights.onSongChange(this, null, 0);
+        BossFights.onSongChange(this, null, fadeTicks);
     }
 
     /** The fight started {@code song} before the boss spawned (an intro), {@code ticksPlayed} ago: keep the beat on it. */

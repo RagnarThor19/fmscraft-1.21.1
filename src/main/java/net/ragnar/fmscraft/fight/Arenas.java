@@ -19,6 +19,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.ragnar.fmscraft.FmsCraft;
 import net.ragnar.fmscraft.boss.envy.EnvyArena;
+import net.ragnar.fmscraft.boss.gluttony.GluttonyArena;
 import net.ragnar.fmscraft.boss.greed.GreedArena;
 import net.ragnar.fmscraft.boss.wrath.WrathArena;
 import net.ragnar.fmscraft.sin.Sin;
@@ -63,6 +64,7 @@ public final class Arenas {
             case GREED -> GreedArena.LAYOUT;
             case WRATH -> WrathArena.LAYOUT;
             case ENVY -> EnvyArena.LAYOUT;
+            case GLUTTONY -> GluttonyArena.LAYOUT;
             default -> DEFAULT;
         };
     }
@@ -76,6 +78,11 @@ public final class Arenas {
 
     /** Removes everything left over from the last fight and builds the arena again. */
     public static void reset(ServerWorld world, Sin sin) {
+        if (sin == Sin.GLUTTONY) {
+            // LalliLarge's Earth and snowfield are far too big to wipe whole; only the fighting ground is (GluttonyArena)
+            GluttonyArena.build(world);
+            return;
+        }
         ArenaLayout layout = layout(sin);
         Box box = layout.clearBox();
         for (Entity entity : world.getEntitiesByClass(Entity.class, box, e -> !(e instanceof PlayerEntity))) {

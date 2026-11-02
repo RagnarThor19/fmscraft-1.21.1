@@ -34,6 +34,8 @@ import net.ragnar.fmscraft.client.GreedSky;
 import net.ragnar.fmscraft.client.OrnamixRenderer;
 import net.ragnar.fmscraft.client.EnvySky;
 import net.ragnar.fmscraft.client.GummssRenderer;
+import net.ragnar.fmscraft.client.GluttonySky;
+import net.ragnar.fmscraft.client.LalliRenderer;
 import net.ragnar.fmscraft.client.WrathSky;
 import net.ragnar.fmscraft.network.WrathSkyPayload;
 import net.minecraft.client.render.entity.FlyingItemEntityRenderer;
@@ -94,6 +96,7 @@ public class FmsCraftClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModBossEntities.GUMMSS, ctx -> new GummssRenderer<>(ctx, 0.5f));
         // His Mirror Images cast no shadow: the tell
         EntityRendererRegistry.register(ModBossEntities.GUMMSS_ILLUSION, ctx -> new GummssRenderer<>(ctx, 0f));
+        EntityRendererRegistry.register(ModBossEntities.LALLI, LalliRenderer::new);
 
         EntityModelLayerRegistry.registerModelLayer(EnvyStatueModel.LAYER, EnvyStatueModel::getTexturedModelData);
         EntityRendererRegistry.register(ModEntities.ENVY_STATUE, EnvyStatueRenderer::new);
@@ -106,6 +109,7 @@ public class FmsCraftClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.GORGED_BRUTE, GorgedBruteRenderer::new);
         WorldRenderEvents.AFTER_ENTITIES.register(SleepZs::render);
         WorldRenderEvents.AFTER_ENTITIES.register(EnvySky::renderEyes);
+        WorldRenderEvents.AFTER_ENTITIES.register(GluttonySky::renderStatue);
 
         ClientPlayNetworking.registerGlobalReceiver(BossMusicPayload.ID,
                 (payload, context) -> context.client().execute(() -> ClientBossMusic.play(payload.sound(), payload.fadeTicks())));
@@ -134,6 +138,7 @@ public class FmsCraftClient implements ClientModInitializer {
             GreedSky.tick(client);
             WrathSky.tick(client);
             EnvySky.tick(client);
+            GluttonySky.tick(client);
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
@@ -146,6 +151,7 @@ public class FmsCraftClient implements ClientModInitializer {
             GreedSky.clear();
             WrathSky.clear();
             EnvySky.clear();
+            GluttonySky.clear();
         }));
     }
 

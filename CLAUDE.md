@@ -32,3 +32,7 @@ Bosses should read like the Wither, Ender Dragon or Warden: telegraphed attacks 
 - GUMMSS's arena (Envy) is built in code by `EnvyArena.build`, not a template. Its watching eyes come from
   `tools/textures/envy_eye_textures.py` (from `tools/textures/source/analog_eye.png`), his glowing eyes from
   `tools/textures/gummss_textures.py`.
+- LalliLarge's arenas (Gluttony): `structure/arena/gluttony.nbt` (the Earth) and `gluttony_castle.nbt` are built by
+  `tools/structures/gluttony_arena.py` from `gluttony_earth_source.nbt` / `gluttony_castle_source.nbt`; the snowfield
+  is built in code (`GluttonyArena`). His sky, snowfall and the nodding statue are drawn client-side by `GluttonySky`
+  from the song's clock. His glowing eyes come from `tools/textures/lalli_textures.py`.

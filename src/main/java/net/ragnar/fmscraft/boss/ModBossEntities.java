@@ -10,6 +10,8 @@ import net.ragnar.fmscraft.FmsCraft;
 import net.ragnar.fmscraft.boss.envy.EnvyIntro;
 import net.ragnar.fmscraft.boss.envy.GummssEntity;
 import net.ragnar.fmscraft.boss.envy.GummssIllusionEntity;
+import net.ragnar.fmscraft.boss.gluttony.GluttonyIntro;
+import net.ragnar.fmscraft.boss.gluttony.LalliEntity;
 import net.ragnar.fmscraft.boss.greed.GreedBubbleEntity;
 import net.ragnar.fmscraft.boss.greed.GreedIntro;
 import net.ragnar.fmscraft.boss.greed.RaggimelEntity;
@@ -97,13 +99,26 @@ public class ModBossEntities {
                     .disableSaving()
                     .build("gummss_illusion"));
 
+    /** Gluttony. Three blocks tall (his scale attribute), slow and the toughest of them. */
+    public static final EntityType<LalliEntity> LALLI = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "lalli"),
+            EntityType.Builder.create(LalliEntity::new, SpawnGroup.MONSTER)
+                    .dimensions(0.6f, 1.8f)
+                    .eyeHeight(1.62f)
+                    .makeFireImmune()
+                    .maxTrackingRange(16)
+                    .trackingTickInterval(1)
+                    .disableSaving()
+                    .build("lalli"));
+
     /** Which boss each sin's fight spawns. Swap in the real boss here once it's built. */
     public static EntityType<? extends SinBossEntity> forSin(Sin sin) {
         return switch (sin) {
             case GREED -> RAGGIMEL;
             case WRATH -> ORNAMIX;
             case ENVY -> GUMMSS;
-            case PRIDE, GLUTTONY, LUST, SLOTH -> TEST_BOSS;
+            case GLUTTONY -> LALLI;
+            case PRIDE, LUST, SLOTH -> TEST_BOSS;
         };
     }
 
@@ -113,6 +128,7 @@ public class ModBossEntities {
             case GREED -> GreedIntro.INSTANCE;
             case WRATH -> WrathIntro.INSTANCE;
             case ENVY -> EnvyIntro.INSTANCE;
+            case GLUTTONY -> GluttonyIntro.INSTANCE;
             default -> null;
         };
     }
@@ -123,5 +139,6 @@ public class ModBossEntities {
         FabricDefaultAttributeRegistry.register(ORNAMIX, OrnamixEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(GUMMSS, GummssEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(GUMMSS_ILLUSION, GummssIllusionEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(LALLI, LalliEntity.createAttributes());
     }
 }
