@@ -41,6 +41,26 @@ public class RaggimelModel extends PlayerEntityModel<RaggimelEntity> {
                 rightArm.roll = 0.15f;
                 leftArm.roll = -0.15f;
             }
+            case RaggimelEntity.POSE_SHAKE -> {
+                // Shaking his head hard, like a wet dog
+                head.yaw = MathHelper.sin(age * 1.9f) * 0.7f;
+                head.roll = MathHelper.sin(age * 1.9f + 0.6f) * 0.25f;
+                head.pitch = 0.15f;
+                rightArm.pitch = 0.1f;
+                leftArm.pitch = 0.1f;
+                rightArm.roll = 0.3f;
+                leftArm.roll = -0.3f;
+            }
+            case RaggimelEntity.POSE_SMASH -> {
+                // The staff brought down in front of him in both hands
+                rightArm.pitch = -0.55f;
+                leftArm.pitch = -0.55f;
+                rightArm.yaw = -0.15f;
+                leftArm.yaw = 0.35f;
+                rightArm.roll = 0;
+                leftArm.roll = 0;
+                head.pitch = 0.5f;
+            }
             case RaggimelEntity.POSE_STUNNED -> {
                 head.roll = MathHelper.sin(age * 0.3f) * 0.35f;
                 head.pitch = 0.4f;

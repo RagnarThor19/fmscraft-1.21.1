@@ -38,6 +38,12 @@ public class ModItems {
     public static final SinPortalFrameItem SIN_PORTAL_FRAME = (SinPortalFrameItem) register("sin_portal_frame",
             new SinPortalFrameItem(ModBlocks.SIN_PORTAL_FRAME, new Item.Settings().rarity(Rarity.EPIC)));
 
+    // What MUGEN throws, drawn by item displays in his fight. Not obtainable, and in no creative tab
+    public static final Item KUNAI = register("kunai", new Item(new Item.Settings()));
+    public static final Item SHURIKEN = register("shuriken", new Item(new Item.Settings()));
+    public static final Item SHADOW_ORB = register("shadow_orb", new Item(new Item.Settings()));
+    public static final Item SHADOW_CHARGE = register("shadow_charge", new Item(new Item.Settings()));
+
     private static Item register(String name, Item item) {
         return Registry.register(Registries.ITEM, Identifier.of(FmsCraft.MOD_ID, name), item);
     }

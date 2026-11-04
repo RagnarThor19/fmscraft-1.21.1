@@ -11,7 +11,8 @@ Both were saved by other Minecraft versions; this:
 - writes them in the 1.21.1 structure format (data version 3955), keeping each template's size and positions
   (GluttonyArena.java relies on the Earth's: its north pole is the top block of template column 128, 128),
 - swaps every block 1.21.1 doesn't know for the closest one it does (SWAPS below),
-- drops the air, and the castle's mobs (creepers, skeletons... saved with it),
+- drops the air, and from the castle its mobs (creepers, skeletons... saved with it) and its two glowstone corner
+  markers,
 - snows the castle over: grass turns snowy and a layer of snow lies on every open top it could settle on.
 
 It prints the numbers GluttonyArena.java uses. Re-run after replacing a source.
@@ -42,7 +43,7 @@ AIR = ("air", "cave_air", "structure_void")
 
 # Tops snow can settle on in the castle (a full top face)
 FULL_TOP = {"stone", "andesite", "tuff", "cobblestone", "mossy_cobblestone", "moss_block", "grass_block", "dirt",
-            "cobbled_deepslate", "dead_brain_coral_block", "dead_fire_coral_block", "gray_wool", "glowstone"}
+            "cobbled_deepslate", "dead_brain_coral_block", "dead_fire_coral_block", "gray_wool"}
 SLAB_TOP = {"andesite_slab", "stone_slab", "smooth_stone_slab", "mossy_cobblestone_slab", "polished_tuff_slab",
             "tuff_brick_slab"}
 
@@ -103,6 +104,9 @@ def earth():
 
 def castle():
     size, blocks, swapped = load(CASTLE)
+    # The two glowstone blocks are the build's corner markers (one hangs in the air at the top corner): not part of it
+    for pos in [p for p, (name, _) in blocks.items() if name == "glowstone"]:
+        del blocks[pos]
     snow, snowy = 0, 0
     for pos, (name, props) in list(blocks.items()):
         x, y, z = pos

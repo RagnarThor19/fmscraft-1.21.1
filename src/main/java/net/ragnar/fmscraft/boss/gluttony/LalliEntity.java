@@ -179,7 +179,7 @@ public class LalliEntity extends SinBossEntity {
 
     @Override
     protected Text bossBarName() {
-        return Text.literal("LalliLarge");
+        return Text.literal("LALLILARGE");
     }
 
     @Override

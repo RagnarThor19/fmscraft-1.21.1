@@ -117,7 +117,8 @@ public class RaggimelEntity extends SinBossEntity {
     }
 
     // ---- Synced to the client for the model and the beams ----
-    public static final int POSE_IDLE = 0, POSE_CAST = 1, POSE_AIM = 2, POSE_CROUCH = 3, POSE_STUNNED = 4, POSE_SLAM = 5;
+    public static final int POSE_IDLE = 0, POSE_CAST = 1, POSE_AIM = 2, POSE_CROUCH = 3, POSE_STUNNED = 4, POSE_SLAM = 5,
+            POSE_SHAKE = 6, POSE_SMASH = 7;
     public static final int BEAM_SLOTS = 3;
     /** Beam stages, 2 bits per slot (plus a "low" bit: fired along the ground from his feet). */
     public static final int BEAM_OFF = 0, BEAM_CHARGE = 1, BEAM_LOCK = 2, BEAM_FIRE = 3;
@@ -138,7 +139,7 @@ public class RaggimelEntity extends SinBossEntity {
         ENTRANCE, CHASE, FALLING, STUNNED,
         BUBBLE_RIDE, BUBBLE_VOLLEY, DARTS, DASH, SPLASH,
         TRANSITION, PERCH, LEAP,
-        LASER, SWEEP, COIN_STORM, BLINK, TIDAL_SLAM
+        LASER, SWEEP, COIN_STORM, BLINK, TIDAL_SLAM, WATER_SPROUT, DIVE, GIANT_SLAM
     }
 
     private Action action = Action.ENTRANCE;
@@ -158,6 +159,12 @@ public class RaggimelEntity extends SinBossEntity {
     private final List<Beam> beams = new ArrayList<>();
     private final List<Ring> rings = new ArrayList<>();
     private final List<Mark> marks = new ArrayList<>();
+    private final List<Sprout> sprouts = new ArrayList<>();
+    /** Players a Water Sprout shot up: no fall damage until they're down. */
+    private final Set<UUID> floating = new HashSet<>();
+    private Vec3d diveFrom, diveTo, giantSpot;
+    /** His size before a Giant Slam (0 when he isn't in one): he's always put back to it. */
+    private float giantBase;
     private List<ServerPlayerEntity> fighters = List.of();
 
     public RaggimelEntity(EntityType<? extends HostileEntity> type, World world) {
@@ -256,6 +263,11 @@ public class RaggimelEntity extends SinBossEntity {
         return frenzy;
     }
 
+    /** For tests: a Water Sprout bursts at {@code at} (the real ones land at random round him). */
+    public void sproutAt(Vec3d at) {
+        sprouts.add(new Sprout(at));
+    }
+
     public String currentAction() {
         return action.name();
     }
@@ -302,7 +314,7 @@ public class RaggimelEntity extends SinBossEntity {
 
     @Override
     public boolean isPushable() {
-        return action != Action.PERCH && action != Action.LEAP;
+        return action != Action.PERCH && action != Action.LEAP && action != Action.DIVE;
     }
 
     @Override
@@ -360,10 +372,14 @@ public class RaggimelEntity extends SinBossEntity {
             case COIN_STORM -> tickCoinStorm(world);
             case BLINK -> tickBlink(world);
             case TIDAL_SLAM -> tickTidalSlam(world);
+            case WATER_SPROUT -> tickWaterSprout(world);
+            case DIVE -> tickDive(world);
+            case GIANT_SLAM -> tickGiantSlam(world);
         }
         tickBeams(world);
         tickRings(world);
         tickMarks(world);
+        tickSprouts(world);
         if (inArena) {
             tickAmbience(world, phase);
             tickVoid(world);
@@ -407,6 +423,9 @@ public class RaggimelEntity extends SinBossEntity {
             offer(options, weights, Action.TIDAL_SLAM, 2, 200);
             offer(options, weights, Action.DARTS, 2, 0);
             offer(options, weights, Action.DASH, 2, 0);
+            offer(options, weights, Action.WATER_SPROUT, 2, 260);
+            offer(options, weights, Action.DIVE, 2, 280);
+            offer(options, weights, Action.GIANT_SLAM, 2, 400);
         }
         if (options.isEmpty()) return phase == 1 ? Action.DASH : Action.LASER;
         int total = weights.stream().mapToInt(Integer::intValue).sum(), roll = random.nextInt(total);
@@ -439,6 +458,8 @@ public class RaggimelEntity extends SinBossEntity {
         action = Action.CHASE;
         actionTicks = 0;
         setPoseState(POSE_IDLE);
+        setInvisible(false);
+        shrinkBack();
         rest = getPhase() == 1 ? REST_ONE : frenzy ? REST_FRENZY : REST_TWO;
     }
 
@@ -793,6 +814,9 @@ public class RaggimelEntity extends SinBossEntity {
         beams.clear();
         rings.clear();
         marks.clear();
+        sprouts.clear();
+        setInvisible(false);
+        shrinkBack();
         for (GreedBubbleEntity bubble : world.getEntitiesByClass(GreedBubbleEntity.class, getBoundingBox().expand(96), b -> true)) bubble.pop(world);
         for (Entity dart : world.getOtherEntities(this, getBoundingBox().expand(96),
                 e -> e instanceof ProjectileEntity p && p.getOwner() == this)) dart.discard();
@@ -1055,6 +1079,316 @@ public class RaggimelEntity extends SinBossEntity {
         for (ServerPlayerEntity p : audience(world)) {
             if (p.squaredDistanceTo(this) < 24 * 24) Cinematics.flash(p, 0.3f, 10);
         }
+    }
+
+    // ---- Water Sprout: he drives his staff into the ground and water bursts up out of it all round him ----
+
+    /** One spot about to burst: where, and how long until it does. */
+    static final class Sprout {
+        static final int CHARGE = 10, GUSH = 16;
+        static final double ON_TOP = 1.3, NEAR = 3.2;
+        final Vec3d at;
+        int age;
+
+        Sprout(Vec3d at) {
+            this.at = at;
+        }
+    }
+
+    private void tickWaterSprout(ServerWorld world) {
+        int t = actionTicks;
+        if (t == 1) {
+            setPoseState(POSE_SLAM);
+            swingHand(Hand.MAIN_HAND);
+            int made = 0;
+            for (int tries = 0; tries < 80 && made < 10; tries++) {
+                double a = random.nextDouble() * MathHelper.TAU, d = 3 + random.nextDouble() * 13;
+                Vec3d spot = standingSpot(getPos().add(Math.cos(a) * d, 0, Math.sin(a) * d));
+                if (spot == null) continue;
+                boolean crowded = false;
+                for (Sprout s : sprouts) crowded |= s.at.squaredDistanceTo(spot) < 2.5 * 2.5;
+                if (crowded) continue;
+                sprouts.add(new Sprout(spot));
+                made++;
+            }
+            world.spawnParticles(ParticleTypes.SPLASH, getX(), getY() + 0.2, getZ(), 60, 1.0, 0.2, 1.0, 0.3);
+            world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, groundState()), getX(), getY() + 0.1, getZ(), 40, 1.0, 0.1, 1.0, 0.15);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_IRON_GOLEM_ATTACK, SoundCategory.HOSTILE, 2.0f, 0.6f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_TRIDENT_RIPTIDE_3.value(), SoundCategory.HOSTILE, 2.0f, 0.8f);
+        }
+        getNavigation().stop();
+        setVelocity(0, getVelocity().y, 0);
+        if (t >= Sprout.CHARGE + Sprout.GUSH + 6) endAttack();
+    }
+
+    private void tickSprouts(ServerWorld world) {
+        Iterator<Sprout> it = sprouts.iterator();
+        while (it.hasNext()) {
+            Sprout s = it.next();
+            s.age++;
+            Vec3d at = s.at;
+            if (s.age < Sprout.CHARGE) {
+                // The ground bubbling where it's about to burst
+                for (int i = 0; i < 6; i++) {
+                    double a = i * MathHelper.TAU / 6 + s.age * 0.4;
+                    world.spawnParticles(ParticleTypes.SPLASH, at.x + Math.cos(a) * 1.1, at.y + 0.1, at.z + Math.sin(a) * 1.1, 1, 0, 0.05, 0, 0);
+                }
+                world.spawnParticles(ParticleTypes.BUBBLE_POP, at.x, at.y + 0.2, at.z, 3, 0.4, 0.05, 0.4, 0.02);
+                world.spawnParticles(ParticleTypes.FISHING, at.x, at.y + 0.1, at.z, 2, 0.5, 0, 0.5, 0.02);
+                if (s.age == 1) world.playSound(null, at.x, at.y, at.z, SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundCategory.HOSTILE, 2.0f, 0.8f);
+                continue;
+            }
+            if (s.age == Sprout.CHARGE) {
+                // It bursts: whoever is on it is shot high into the air, whoever is near it not so high. It hurts nobody.
+                for (ServerPlayerEntity p : fighters) {
+                    double d = Math.sqrt(MathHelper.square(p.getX() - at.x) + MathHelper.square(p.getZ() - at.z));
+                    if (d > Sprout.NEAR || p.getY() < at.y - 1 || p.getY() > at.y + 3) continue;
+                    double up = d <= Sprout.ON_TOP ? 1.9 : MathHelper.lerp((d - Sprout.ON_TOP) / (Sprout.NEAR - Sprout.ON_TOP), 1.15, 0.7);
+                    if (p.getVelocity().y >= up) continue;
+                    p.setVelocity(p.getVelocity().x * 0.3, up, p.getVelocity().z * 0.3);
+                    p.velocityModified = true;
+                    p.fallDistance = 0;
+                    floating.add(p.getUuid());
+                }
+                world.spawnParticles(ParticleTypes.SPLASH, at.x, at.y + 0.5, at.z, 80, 0.6, 0.4, 0.6, 0.5);
+                world.playSound(null, at.x, at.y, at.z, SoundEvents.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.HOSTILE, 2.0f, 0.8f);
+                world.playSound(null, at.x, at.y, at.z, SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_INSIDE, SoundCategory.HOSTILE, 2.0f, 0.7f);
+            }
+            // The column of water shooting up out of the ground, then falling back
+            int g = s.age - Sprout.CHARGE;
+            double height = Math.min(10, g * 1.4);
+            for (int i = 0; i < 8; i++) {
+                double y = at.y + random.nextDouble() * height;
+                world.spawnParticles(i % 3 == 0 ? ParticleTypes.CLOUD : ParticleTypes.SPLASH, at.x, y, at.z, 2, 0.35, 0.2, 0.35, 0.05);
+            }
+            world.spawnParticles(ParticleTypes.FALLING_WATER, at.x, at.y + height, at.z, 6, 0.8, 0.2, 0.8, 0);
+            world.spawnParticles(ParticleTypes.BUBBLE_POP, at.x, at.y + 0.3, at.z, 4, 0.5, 0.1, 0.5, 0.05);
+            if (s.age >= Sprout.CHARGE + Sprout.GUSH) it.remove();
+        }
+        // Shot up by the water, not hurt by the fall back down
+        floating.removeIf(id -> {
+            ServerPlayerEntity p = fighter(id);
+            if (p == null) return true;
+            if (p.isOnGround() && p.getVelocity().y <= 0) return true;
+            p.fallDistance = 0;
+            return false;
+        });
+    }
+
+    // ---- Dive: he dives into the ground, a wake running under it, and bursts out under one of you ----
+
+    private void tickDive(ServerWorld world) {
+        int crouch = 12, under = frenzy ? 26 : 34, lock = 12, t = actionTicks;
+        if (t == 1) {
+            ServerPlayerEntity target = pick(null);
+            if (target == null) {
+                endAttack();
+                return;
+            }
+            focus = target.getUuid();
+            diveFrom = getPos();
+            diveTo = null;
+            setPoseState(POSE_CROUCH);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_GOAT_PREPARE_RAM, SoundCategory.HOSTILE, 2.0f, 0.8f);
+        }
+        getNavigation().stop();
+        setVelocity(0, getVelocity().y, 0);
+        if (t < crouch) {
+            world.spawnParticles(ParticleTypes.SPLASH, getX(), getY() + 0.1, getZ(), 10, 0.8, 0.05, 0.8, 0.1);
+            world.spawnParticles(ParticleTypes.BUBBLE_POP, getX(), getY() + 0.2, getZ(), 4, 0.6, 0.05, 0.6, 0.02);
+            return;
+        }
+        if (t == crouch) {
+            // Down into the ground with a splash
+            untouchable = true;
+            setInvisible(true);
+            setNoGravity(true);
+            world.spawnParticles(ParticleTypes.SPLASH, getX(), getY() + 0.3, getZ(), 120, 0.8, 0.4, 0.8, 0.5);
+            world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, groundState()), getX(), getY() + 0.2, getZ(), 60, 0.8, 0.2, 0.8, 0.2);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.HOSTILE, 2.5f, 0.6f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_ROOTED_DIRT_BREAK, SoundCategory.HOSTILE, 2.0f, 0.5f);
+        }
+        int u = t - crouch;
+        ServerPlayerEntity target = fighter(focus);
+        if (u < under) {
+            // Where he'll come up follows you, until a moment before he does
+            if (target != null && (diveTo == null || u < under - lock)) {
+                Vec3d spot = standingSpot(target.getPos());
+                if (spot != null) diveTo = spot;
+            }
+            if (diveTo == null) diveTo = diveFrom;
+            // His wake, running under the ground towards it
+            Vec3d wake = diveFrom.lerp(diveTo, Math.min(1, (u + 1) / (double) (under - 4)));
+            double ground = groundBelow(wake.add(0, 2, 0), 6);
+            if (!Double.isNaN(ground)) {
+                world.spawnParticles(ParticleTypes.FISHING, wake.x, ground + 0.1, wake.z, 6, 0.4, 0, 0.4, 0.05);
+                world.spawnParticles(ParticleTypes.SPLASH, wake.x, ground + 0.1, wake.z, 4, 0.3, 0, 0.3, 0.1);
+                world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, getWorld().getBlockState(BlockPos.ofFloored(wake.x, ground - 0.5, wake.z))),
+                        wake.x, ground + 0.1, wake.z, 3, 0.3, 0, 0.3, 0.1);
+            }
+            if (u % 6 == 0) world.playSound(null, wake.x, wake.y, wake.z, SoundEvents.BLOCK_GRAVEL_BREAK, SoundCategory.HOSTILE, 1.5f, 0.5f);
+            if (u >= under - lock) {
+                // The ground churning where he'll burst out
+                for (int i = 0; i < 10; i++) {
+                    double a = i * MathHelper.TAU / 10 + u * 0.3;
+                    world.spawnParticles(ParticleTypes.SPLASH, diveTo.x + Math.cos(a) * 2.8, diveTo.y + 0.1, diveTo.z + Math.sin(a) * 2.8, 1, 0, 0.05, 0, 0);
+                }
+                world.spawnParticles(ParticleTypes.BUBBLE_POP, diveTo.x, diveTo.y + 0.2, diveTo.z, 6, 1.0, 0.05, 1.0, 0.03);
+                if (u % 4 == 0) world.playSound(null, diveTo.x, diveTo.y, diveTo.z, SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundCategory.HOSTILE, 2.0f, 0.6f + u * 0.01f);
+            }
+            return;
+        }
+        if (u == under) {
+            // He bursts up out of the ground under you
+            setNoGravity(false);
+            setInvisible(false);
+            untouchable = false;
+            requestTeleport(diveTo.x, diveTo.y, diveTo.z);
+            setVelocity(0, 1.25, 0);
+            velocityModified = true;
+            setPoseState(POSE_SLAM);
+            for (ServerPlayerEntity p : fighters) {
+                double d = p.getPos().distanceTo(diveTo);
+                if (d > 2.8) continue;
+                p.damage(getDamageSources().mobAttack(this), boosted(14f));
+                p.setVelocity(p.getVelocity().x, 1.1, p.getVelocity().z);
+                p.velocityModified = true;
+            }
+            world.spawnParticles(ParticleTypes.SPLASH, diveTo.x, diveTo.y + 0.5, diveTo.z, 150, 0.8, 0.6, 0.8, 0.6);
+            world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, groundState()), diveTo.x, diveTo.y + 0.3, diveTo.z, 80, 1.0, 0.3, 1.0, 0.3);
+            world.playSound(null, diveTo.x, diveTo.y, diveTo.z, SoundEvents.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.HOSTILE, 3.0f, 0.5f);
+            world.playSound(null, diveTo.x, diveTo.y, diveTo.z, SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 2.0f, 1.2f);
+            world.playSound(null, diveTo.x, diveTo.y, diveTo.z, SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 1.5f, 0.9f);
+            return;
+        }
+        // ...and comes down hard where he came up
+        if (u > under + 4 && isOnGround() || u > under + 60) {
+            for (ServerPlayerEntity p : fighters) {
+                Vec3d to = p.getPos().subtract(getPos());
+                if (to.lengthSquared() > 4.5 * 4.5 || Math.abs(to.y) > 2) continue;
+                p.damage(getDamageSources().mobAttack(this), boosted(12f));
+                Vec3d flat = to.multiply(1, 0, 1);
+                if (flat.lengthSquared() > 1e-4) p.takeKnockback(1.2, -flat.x, -flat.z);
+            }
+            splash(world, 9, 6f);
+            world.spawnParticles(ParticleTypes.EXPLOSION, getX(), getY() + 0.5, getZ(), 2, 0.5, 0.1, 0.5, 0);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_WARDEN_ATTACK_IMPACT, SoundCategory.HOSTILE, 2.5f, 0.7f);
+            for (ServerPlayerEntity p : audience(world)) {
+                if (p.squaredDistanceTo(this) < 20 * 20) Cinematics.flash(p, 0.2f, 8);
+            }
+            endAttack();
+        }
+    }
+
+    // ---- Giant Slam: he shakes his head, grows four times his size and brings his staff down on one spot ----
+
+    private static final int GIANT_SHAKE = 22, GIANT_GROW = 20, GIANT_HOLD = 10, GIANT_AFTER = 16;
+    private static final float GIANT_GROWTH = 4f;
+
+    private void tickGiantSlam(ServerWorld world) {
+        int t = actionTicks, grown = GIANT_SHAKE + GIANT_GROW, slam = grown + GIANT_HOLD;
+        if (t == 1) {
+            ServerPlayerEntity target = pick(null);
+            if (target == null) {
+                endAttack();
+                return;
+            }
+            focus = target.getUuid();
+            giantBase = (float) getAttributeInstance(EntityAttributes.GENERIC_SCALE).getBaseValue();
+            setPoseState(POSE_SHAKE);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_WOLF_SHAKE, SoundCategory.HOSTILE, 2.5f, 0.6f);
+        }
+        getNavigation().stop();
+        setVelocity(0, getVelocity().y, 0);
+        ServerPlayerEntity target = fighter(focus);
+        if (t < GIANT_SHAKE) {
+            // Shaking his head, water flying off him
+            if (target != null) faceYaw(yawTo(target.getPos()));
+            Vec3d head = getPos().add(0, getHeight() * 0.9, 0);
+            world.spawnParticles(ParticleTypes.SPLASH, head.x, head.y, head.z, 6, 0.4, 0.2, 0.4, 0.2);
+            if (t == 12) world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_WOLF_SHAKE, SoundCategory.HOSTILE, 2.5f, 0.5f);
+            return;
+        }
+        float reach = giantBase * 3.7f, radius = giantBase * 3f;
+        if (t == GIANT_SHAKE) {
+            // Where the staff will come down: set now, right in front of him
+            if (target != null) faceYaw(yawTo(target.getPos()));
+            Vec3d front = getPos().add(Vec3d.fromPolar(0, getYaw()).multiply(reach));
+            giantSpot = standingSpot(front);
+            if (giantSpot == null) giantSpot = new Vec3d(front.x, getY(), front.z);
+            setPoseState(POSE_SLAM);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 3.0f, 0.5f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundCategory.HOSTILE, 2.0f, 0.5f);
+        }
+        if (t <= slam && giantSpot != null && t % 2 == 0) {
+            // The spot, ringed in water and gold, tightening
+            double r = radius * (1 + 0.35 * (slam - t) / (double) (slam - GIANT_SHAKE));
+            for (int i = 0; i < 28; i++) {
+                double a = i * MathHelper.TAU / 28 + t * 0.1;
+                world.spawnParticles(i % 2 == 0 ? ParticleTypes.SPLASH : GOLD, giantSpot.x + Math.cos(a) * r, giantSpot.y + 0.15, giantSpot.z + Math.sin(a) * r, 1, 0, 0.05, 0, 0);
+            }
+            world.spawnParticles(ParticleTypes.BUBBLE_POP, giantSpot.x, giantSpot.y + 0.2, giantSpot.z, 4, radius * 0.5, 0.05, radius * 0.5, 0.02);
+        }
+        if (t < grown) {
+            // Growing, four times over
+            float u = (t - GIANT_SHAKE + 1) / (float) GIANT_GROW;
+            float eased = u * u * (3 - 2 * u);
+            getAttributeInstance(EntityAttributes.GENERIC_SCALE).setBaseValue(giantBase * (1 + (GIANT_GROWTH - 1) * eased));
+            world.spawnParticles(ParticleTypes.SPLASH, getX(), getY() + getHeight() * 0.5, getZ(), 10, getWidth() * 0.6, getHeight() * 0.4, getWidth() * 0.6, 0.1);
+            if (t % 5 == 0) world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.HOSTILE, 2.0f, 1.0f - u * 0.6f);
+            return;
+        }
+        if (t < slam) return;
+        if (t == slam && giantSpot != null) {
+            setPoseState(POSE_SMASH);
+            swingHand(Hand.MAIN_HAND);
+            Vec3d c = giantSpot;
+            for (ServerPlayerEntity p : fighters) {
+                Vec3d to = p.getPos().subtract(c);
+                double flat = Math.sqrt(to.x * to.x + to.z * to.z);
+                if (flat > radius || Math.abs(to.y) > 3) continue;
+                p.damage(getDamageSources().mobAttack(this), boosted(18f));
+                Vec3d away = flat > 0.1 ? new Vec3d(to.x / flat, 0, to.z / flat) : Vec3d.fromPolar(0, getYaw());
+                p.setVelocity(away.x * 2.4, 0.95, away.z * 2.4);
+                p.velocityModified = true;
+            }
+            rings.add(new Ring(c, radius + 6, 0.8, 0, Ring.WATER, 0));
+            rings.add(new Ring(c, radius + 3, 0.55, 0, Ring.PULSE, 3));
+            world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, c.x, c.y + 0.5, c.z, 1, 0, 0, 0, 0);
+            world.spawnParticles(ParticleTypes.SPLASH, c.x, c.y + 0.4, c.z, 250, radius * 0.6, 0.4, radius * 0.6, 0.6);
+            world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, groundState()), c.x, c.y + 0.3, c.z, 200, radius * 0.6, 0.3, radius * 0.6, 0.3);
+            world.spawnParticles(GOLD, c.x, c.y + 1, c.z, 60, radius * 0.5, 0.6, radius * 0.5, 0);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.HOSTILE, 4.0f, 0.5f);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 3.0f, 0.6f);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_WARDEN_ATTACK_IMPACT, SoundCategory.HOSTILE, 3.0f, 0.5f);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_GENERIC_SPLASH, SoundCategory.HOSTILE, 3.0f, 0.6f);
+            for (ServerPlayerEntity p : audience(world)) {
+                if (p.squaredDistanceTo(c) < 30 * 30) Cinematics.flash(p, 0.35f, 12);
+            }
+        }
+        if (t >= slam + GIANT_AFTER) {
+            // Poof: back down to his size, and on with the fight
+            Vec3d c = getPos().add(0, getHeight() * 0.5, 0);
+            world.spawnParticles(ParticleTypes.POOF, c.x, c.y, c.z, 120, getWidth() * 0.6, getHeight() * 0.4, getWidth() * 0.6, 0.08);
+            world.spawnParticles(ParticleTypes.CLOUD, c.x, c.y, c.z, 60, getWidth() * 0.5, getHeight() * 0.4, getWidth() * 0.5, 0.05);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.HOSTILE, 2.5f, 0.8f);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundCategory.HOSTILE, 2.0f, 0.6f);
+            endAttack();
+        }
+    }
+
+    private void faceYaw(float yaw) {
+        setYaw(yaw);
+        setBodyYaw(yaw);
+        setHeadYaw(yaw);
+    }
+
+    /** Back to the size he was before a Giant Slam, however it ended. */
+    private void shrinkBack() {
+        if (giantBase <= 0) return;
+        getAttributeInstance(EntityAttributes.GENERIC_SCALE).setBaseValue(giantBase);
+        giantBase = 0;
+        giantSpot = null;
     }
 
     // ---- Beams ----

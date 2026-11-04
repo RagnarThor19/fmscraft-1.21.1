@@ -1,0 +1,55 @@
+{
+  "music.menu": {
+    "replace": true,
+    "sounds": [
+      {
+        "name": "fmscraft:music/menu/allt_sem_eg_er",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/back_home",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/dont_be_dumb",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/egdeu1",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/ekki_nog",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/fallbyssa",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/fashion_killa",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/flex",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/im_god",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/molly",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/passionfruit",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/somuleidis",
+        "stream": true
+      }
+    ]
+  }
+}

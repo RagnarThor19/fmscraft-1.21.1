@@ -26,6 +26,13 @@ public class ModBlocks {
             .sounds(BlockSoundGroup.GLASS)
             .pistonBehavior(PistonBehavior.BLOCK)));
 
+    /** MUGEN's void spikes, shown by block displays only: never placed, no item. */
+    public static final Block VOID_SPIKE = register("void_spike", new VoidSpikeBlock(AbstractBlock.Settings.create()
+            .noCollision()
+            .nonOpaque()
+            .dropsNothing()
+            .sounds(BlockSoundGroup.POINTED_DRIPSTONE)));
+
     private static Block register(String name, Block block) {
         return Registry.register(Registries.BLOCK, Identifier.of(FmsCraft.MOD_ID, name), block);
     }

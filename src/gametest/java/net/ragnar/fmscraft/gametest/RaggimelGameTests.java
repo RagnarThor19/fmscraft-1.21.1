@@ -269,4 +269,114 @@ public class RaggimelGameTests implements FabricGameTest {
             ctx.complete();
         });
     }
+
+    private static void startAttack(RaggimelEntity boss, String name) {
+        try {
+            Class<?> action = Class.forName(RaggimelEntity.class.getName() + "$Action");
+            java.lang.reflect.Method start = RaggimelEntity.class.getDeclaredMethod("startAttack", action);
+            start.setAccessible(true);
+            start.invoke(boss, Enum.valueOf(action.asSubclass(Enum.class), name));
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** Water Sprout: on top of it you're shot high, near it not so high, further off nothing, and nobody is hurt. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 100, batchId = "raggimel_sprout")
+    public void waterSproutShootsYouUpAndHurtsNobody(TestContext ctx) {
+        floor(ctx);
+        RaggimelEntity boss = spawn(ctx, new BlockPos(1, 1, 1));
+        Vec3d spot = Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(5, 1, 5)));
+        ServerPlayerEntity on = survivalPlayer(ctx.getWorld(), spot);
+        ServerPlayerEntity near = survivalPlayer(ctx.getWorld(), spot.add(2.3, 0, 0));
+        ServerPlayerEntity far = survivalPlayer(ctx.getWorld(), Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(5, 1, 0))));
+        // Just the one sprout, right under the first player (the attack's own ten land at random)
+        ctx.runAtTick(5, () -> boss.sproutAt(spot));
+        ctx.runAtTick(5 + 12, () -> {
+            ctx.assertTrue(on.getVelocity().y > 1.5, "on top: shot high, " + on.getVelocity().y);
+            ctx.assertTrue(near.getVelocity().y > 0.5 && near.getVelocity().y < on.getVelocity().y, "near it: not so high, " + near.getVelocity().y);
+            ctx.assertTrue(far.getVelocity().y < 0.1, "further off: nothing, " + far.getVelocity().y);
+            for (ServerPlayerEntity p : new ServerPlayerEntity[]{on, near, far}) {
+                ctx.assertEquals(p.getHealth(), p.getMaxHealth(), "the water hurts nobody");
+            }
+            boss.discard();
+            for (ServerPlayerEntity p : new ServerPlayerEntity[]{on, near, far}) ctx.getWorld().getServer().getPlayerManager().remove(p);
+            ctx.complete();
+        });
+    }
+
+    /** Dive: he goes into the ground (unseen, untouchable) and bursts out under you, then lands hard. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 220, batchId = "raggimel_dive")
+    public void diveComesUpUnderYou(TestContext ctx) {
+        floor(ctx);
+        RaggimelEntity boss = spawn(ctx, new BlockPos(1, 1, 1));
+        Vec3d stand = Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(6, 1, 6)));
+        ServerPlayerEntity player = survivalPlayer(ctx.getWorld(), stand);
+        player.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.RESISTANCE, 400, 3));
+        // New players can't be hurt for their first 3 seconds, and a test player's never run out: this one can be
+        try {
+            java.lang.reflect.Field join = ServerPlayerEntity.class.getDeclaredField("joinInvulnerabilityTicks");
+            join.setAccessible(true);
+            join.setInt(player, 0);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+        ctx.runAtTick(5, () -> startAttack(boss, "DIVE"));
+        ctx.runAtTick(5 + 20, () -> {
+            ctx.assertTrue(boss.isInvisible(), "under the ground");
+            ctx.assertTrue(boss.isUntouchable(), "and can't be hit there");
+            ctx.assertEquals(player.getHealth(), player.getMaxHealth(), "not up yet");
+        });
+        ctx.runAtTick(5 + 12 + 34 + 2, () -> {
+            ctx.assertFalse(boss.isInvisible(), "he's out");
+            ctx.assertTrue(Math.hypot(boss.getX() - stand.x, boss.getZ() - stand.z) < 1.5, "right under the player, at " + boss.getPos());
+            ctx.assertTrue(player.getHealth() < player.getMaxHealth(), "and it hurts");
+        });
+        ctx.runAtTick(5 + 12 + 34 + 70, () -> {
+            ctx.assertFalse(boss.currentAction().equals("DIVE"), "landed, the dive over");
+            ctx.assertFalse(boss.isInvisible(), "and in plain sight");
+            boss.discard();
+            ctx.getWorld().getServer().getPlayerManager().remove(player);
+            ctx.complete();
+        });
+    }
+
+    /** Giant Slam: he shakes his head, grows four times his size, slams the spot in front of him, then poofs back down. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 160, batchId = "raggimel_giant")
+    public void giantSlamGrowsHimHitsTheSpotAndShrinksBack(TestContext ctx) {
+        floor(ctx);
+        RaggimelEntity boss = spawn(ctx, new BlockPos(1, 1, 3));
+        ServerPlayerEntity player = survivalPlayer(ctx.getWorld(), Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(5, 1, 3))));
+        player.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.RESISTANCE, 400, 3));
+        try {
+            java.lang.reflect.Field join = ServerPlayerEntity.class.getDeclaredField("joinInvulnerabilityTicks");
+            join.setAccessible(true);
+            join.setInt(player, 0);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+        double[] size = new double[1];
+        ctx.runAtTick(5, () -> {
+            size[0] = boss.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_SCALE);
+            startAttack(boss, "GIANT_SLAM");
+        });
+        ctx.runAtTick(5 + 15, () -> ctx.assertEquals(boss.poseState(), RaggimelEntity.POSE_SHAKE, "shaking his head first"));
+        ctx.runAtTick(5 + 22 + 20 + 4, () -> {
+            double now = boss.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_SCALE);
+            ctx.assertTrue(Math.abs(now - size[0] * 4) < 0.01, "four times his size, " + now);
+            ctx.assertEquals(player.getHealth(), player.getMaxHealth(), "not down yet");
+        });
+        ctx.runAtTick(5 + 22 + 20 + 10 + 1, () -> {
+            ctx.assertTrue(player.getHealth() < player.getMaxHealth(), "the staff comes down on the spot");
+            ctx.assertTrue(player.getVelocity().horizontalLength() > 2, "and throws them hard, " + player.getVelocity());
+        });
+        ctx.runAtTick(5 + 22 + 20 + 10 + 16 + 2, () -> {
+            double now = boss.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_SCALE);
+            ctx.assertTrue(Math.abs(now - size[0]) < 0.01, "poofed back to his size, " + now);
+            ctx.assertFalse(boss.currentAction().equals("GIANT_SLAM"), "and on with the fight");
+            boss.discard();
+            ctx.getWorld().getServer().getPlayerManager().remove(player);
+            ctx.complete();
+        });
+    }
 }

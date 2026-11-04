@@ -15,6 +15,9 @@ import net.ragnar.fmscraft.boss.gluttony.LalliEntity;
 import net.ragnar.fmscraft.boss.greed.GreedBubbleEntity;
 import net.ragnar.fmscraft.boss.greed.GreedIntro;
 import net.ragnar.fmscraft.boss.greed.RaggimelEntity;
+import net.ragnar.fmscraft.boss.lust.LustIntro;
+import net.ragnar.fmscraft.boss.lust.MugenCloneEntity;
+import net.ragnar.fmscraft.boss.lust.MugenEntity;
 import net.ragnar.fmscraft.boss.wrath.OrnamixEntity;
 import net.ragnar.fmscraft.boss.wrath.OrnamixFireballEntity;
 import net.ragnar.fmscraft.boss.wrath.WrathIntro;
@@ -111,6 +114,30 @@ public class ModBossEntities {
                     .disableSaving()
                     .build("lalli"));
 
+    /** Lust. Player-sized, the fastest of them: a ninja. */
+    public static final EntityType<MugenEntity> MUGEN = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "mugen"),
+            EntityType.Builder.create(MugenEntity::new, SpawnGroup.MONSTER)
+                    .dimensions(0.6f, 1.8f)
+                    .eyeHeight(1.62f)
+                    .makeFireImmune()
+                    .maxTrackingRange(14)
+                    .trackingTickInterval(1)
+                    .disableSaving()
+                    .build("mugen"));
+
+    /** MUGEN's shadow clones (and the echoes his Taunt leaves): just like him, but they go up in smoke at a touch. */
+    public static final EntityType<MugenCloneEntity> MUGEN_CLONE = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "mugen_clone"),
+            EntityType.Builder.create(MugenCloneEntity::new, SpawnGroup.MISC)
+                    .dimensions(0.6f, 1.8f)
+                    .eyeHeight(1.62f)
+                    .makeFireImmune()
+                    .maxTrackingRange(10)
+                    .trackingTickInterval(1)
+                    .disableSaving()
+                    .build("mugen_clone"));
+
     /** Which boss each sin's fight spawns. Swap in the real boss here once it's built. */
     public static EntityType<? extends SinBossEntity> forSin(Sin sin) {
         return switch (sin) {
@@ -118,7 +145,8 @@ public class ModBossEntities {
             case WRATH -> ORNAMIX;
             case ENVY -> GUMMSS;
             case GLUTTONY -> LALLI;
-            case PRIDE, LUST, SLOTH -> TEST_BOSS;
+            case LUST -> MUGEN;
+            case PRIDE, SLOTH -> TEST_BOSS;
         };
     }
 
@@ -129,6 +157,7 @@ public class ModBossEntities {
             case WRATH -> WrathIntro.INSTANCE;
             case ENVY -> EnvyIntro.INSTANCE;
             case GLUTTONY -> GluttonyIntro.INSTANCE;
+            case LUST -> LustIntro.INSTANCE;
             default -> null;
         };
     }
@@ -140,5 +169,7 @@ public class ModBossEntities {
         FabricDefaultAttributeRegistry.register(GUMMSS, GummssEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(GUMMSS_ILLUSION, GummssIllusionEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(LALLI, LalliEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(MUGEN, MugenEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(MUGEN_CLONE, MugenCloneEntity.createAttributes());
     }
 }

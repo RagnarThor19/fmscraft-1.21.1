@@ -95,5 +95,21 @@
         "stream": true
       }
     ]
+  },
+  "music.lust.phase_one": {
+    "sounds": [
+      {
+        "name": "fmscraft:music/lust_phase_one",
+        "stream": true
+      }
+    ]
+  },
+  "music.lust.phase_two": {
+    "sounds": [
+      {
+        "name": "fmscraft:music/lust_phase_two",
+        "stream": true
+      }
+    ]
   }
 }

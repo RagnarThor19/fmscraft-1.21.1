@@ -89,7 +89,7 @@ public final class WrathDens {
         final ServerWorld world;
         final WrathDenPiece piece;
         final Stirring stirring = new Stirring();
-        final ServerBossBar bar = new ServerBossBar(Text.translatable("entity.fmscraft.mother_warden"), BossBar.Color.RED, BossBar.Style.NOTCHED_10);
+        final ServerBossBar bar = new ServerBossBar(Text.translatable("bossbar.fmscraft.mother_warden"), BossBar.Color.RED, BossBar.Style.NOTCHED_10);
         UUID mother;
         /** When she last had someone to hunt (or woke), and when she set off home; -1 when she isn't going. */
         long lastHunted, homeward = -1;

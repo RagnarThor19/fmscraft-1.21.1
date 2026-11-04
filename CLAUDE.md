@@ -23,6 +23,8 @@ Bosses should read like the Wither, Ender Dragon or Warden: telegraphed attacks 
 - `gradlew runGametest`: Fabric game tests in a real server with all three mods loaded (`src/gametest`).
   Add a game test for every new gameplay mechanic.
 - Item textures come from `tools/textures/sin_textures.py` (needs Pillow); edit there and re-run instead of editing PNGs.
+- The title screen's "FMS EDITION" (`assets/minecraft/textures/gui/title/edition.png`) comes from
+  `tools/textures/edition_texture.py`, which fits `tools/textures/source/fms_edition_logo.png` into vanilla's slot.
 - `structure/greed_vault.nbt` is built by `tools/structures/greed_vault.py` from the two halves saved in the Builds
   world; re-run it instead of editing the template.
 - `structure/arena/greed.nbt` (RAGGIMEL's island) is built by `tools/structures/greed_arena.py` from
@@ -36,3 +38,7 @@ Bosses should read like the Wither, Ender Dragon or Warden: telegraphed attacks 
   `tools/structures/gluttony_arena.py` from `gluttony_earth_source.nbt` / `gluttony_castle_source.nbt`; the snowfield
   is built in code (`GluttonyArena`). His sky, snowfall and the nodding statue are drawn client-side by `GluttonySky`
   from the song's clock. His glowing eyes come from `tools/textures/lalli_textures.py`.
+- MUGEN's arena (Lust): `structure/arena/lust.nbt` (the cherry compound) is built by `tools/structures/lust_arena.py`
+  from `lust_arena_source.nbt`. Positions in `LustArena`. His eyes, the kunai/shuriken/orb/blaze item textures, the
+  void spike block and the eclipse come from `tools/textures/mugen_textures.py` (his skin is `tools/textures/source/mugen_skin.png`). His sky
+  is drawn client-side by `LustSky`.

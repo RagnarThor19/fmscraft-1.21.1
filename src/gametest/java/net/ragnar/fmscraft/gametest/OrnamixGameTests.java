@@ -368,7 +368,8 @@ public class OrnamixGameTests implements FabricGameTest {
         });
     }
 
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
+    // Its own batch: he puts skeletons next to any player near him, and other tests' players would draw them off
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200, batchId = "ornamix_skeletons")
     public void witherSkeletonsComeArmoredAndGoWithHim(TestContext ctx) {
         floor(ctx, 16);
         ServerWorld world = ctx.getWorld();

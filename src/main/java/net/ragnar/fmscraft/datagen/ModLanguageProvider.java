@@ -31,7 +31,7 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         }
 
         builder.add("item.fmscraft.sin_key.tooltip", "Opens a Structure of %s");
-        builder.add("bossbar.fmscraft.wrath", "Wrath  %s/%s  %s");
+        builder.add("bossbar.fmscraft.wrath", "WRATH  %s/%s  %s");
         builder.add("message.fmscraft.wrath_failed", "The Wrath fades...");
         builder.add("message.fmscraft.lust_progress", "Lust: bred %s (%s/%s)");
 
@@ -49,9 +49,22 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add(ModBossEntities.GUMMSS_ILLUSION, "GUMMSS");
         builder.add("message.fmscraft.gummss_stare", "Don't look at him...");
         builder.add("message.fmscraft.gummss_caught", "GUMMSS drags you back. You leave when he says so.");
-        builder.add(ModBossEntities.LALLI, "LalliLarge");
-        builder.add("message.fmscraft.lalli_caught", "The cold wind carries you back to LalliLarge.");
-        builder.add("bossbar.fmscraft.fight_starts", "The fight begins in %s");
+        builder.add(ModBossEntities.LALLI, "LALLILARGE");
+        builder.add("message.fmscraft.lalli_caught", "The cold wind carries you back to LALLILARGE.");
+        builder.add(ModBossEntities.MUGEN, "MUGEN");
+        builder.add(ModBossEntities.MUGEN_CLONE, "MUGEN");
+        builder.add(ModItems.KUNAI, "Kunai");
+        builder.add(ModBlocks.VOID_SPIKE, "Void Spike");
+        builder.add("message.fmscraft.mugen_bound", "The shadow holds you fast!");
+        builder.add("message.fmscraft.mugen_strings", "MUGEN has your strings...");
+        builder.add("message.fmscraft.mugen_black_hole", "The dark is gathering... RUN!");
+        builder.add(ModItems.SHURIKEN, "Shuriken");
+        builder.add(ModItems.SHADOW_ORB, "Black Orb");
+        builder.add(ModItems.SHADOW_CHARGE, "Black Blaze");
+        builder.add("message.fmscraft.mugen_caught", "The shadows drag you back to MUGEN.");
+        builder.add("message.fmscraft.mugen_get_over_here", "GET OVER HERE!");
+        builder.add("message.fmscraft.mugen_grappled", "MUGEN has you on his chain!");
+        builder.add("bossbar.fmscraft.fight_starts", "THE FIGHT BEGINS IN %s");
         builder.add("message.fmscraft.boss_defeated", "%s, the Sin of %s, has been defeated!");
         builder.add("message.fmscraft.fight_failed", "%s has fallen. The Sin of %s endures.");
         builder.add("message.fmscraft.fight_ended", "The fight against the Sin of %s has ended.");
@@ -71,7 +84,10 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add("message.fmscraft.frame_open", "The portal is already open.");
         builder.add("message.fmscraft.frame_awaits", "Only the %s Key fits this lock...");
 
-        builder.add("bossbar.fmscraft.drowsiness", "Drowsiness");
+        builder.add("bossbar.fmscraft.drowsiness", "DROWSINESS");
+        // Boss bars are always in capitals
+        builder.add("bossbar.fmscraft.gorged_brute", "GORGED BRUTE");
+        builder.add("bossbar.fmscraft.mother_warden", "MOTHER WARDEN");
         builder.add("message.fmscraft.sloth_asleep", "You nodded off...");
         builder.add("message.fmscraft.sloth_bells", "Bells ringing: %s/%s");
         builder.add("message.fmscraft.sloth_seal_open", "The Sphere stirs. Its heart lies open.");

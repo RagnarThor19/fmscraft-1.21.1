@@ -12,6 +12,7 @@ import net.minecraft.util.math.RotationAxis;
 import net.ragnar.fmscraft.client.EnvySky;
 import net.ragnar.fmscraft.client.GluttonySky;
 import net.ragnar.fmscraft.client.GreedSky;
+import net.ragnar.fmscraft.client.LustSky;
 import net.ragnar.fmscraft.client.WrathSky;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,7 +25,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * RAGGIMEL's night: no sun and no daylit dome, only vanilla's stars, turning slowly, over the dark blue the fog
  * clears the screen to (BackgroundRendererMixin). ORNAMIX's Ragemode: no sky at all, just the black red the fog clears
  * the screen to. GUMMSS's void: no sky either, only the deep green fog over the black. LalliLarge's space: the stars and
- * the sun on black, turning on Apple Pie's strums; his snowfield: a grey overcast and no clouds (GluttonySky).
+ * the sun on black, turning on Apple Pie's strums; his snowfield: a grey overcast and no clouds (GluttonySky). MUGEN's
+ * compound: stars and the full moon over a violet night, or the red eclipse, and black in his Blackout (LustSky).
  */
 @Mixin(WorldRenderer.class)
 public abstract class WorldRendererMixin {
@@ -34,6 +36,12 @@ public abstract class WorldRendererMixin {
     @Inject(method = "renderSky", at = @At("HEAD"), cancellable = true)
     private void fmscraft$greedNight(Matrix4f matrix4f, Matrix4f projectionMatrix, float tickDelta, Camera camera,
                                      boolean thickFog, Runnable fogCallback, CallbackInfo ci) {
+        if (LustSky.active()) {
+            ci.cancel();
+            fogCallback.run();
+            LustSky.render(matrix4f, projectionMatrix, tickDelta, starsBuffer, fogCallback);
+            return;
+        }
         if (GluttonySky.space()) {
             ci.cancel();
             fogCallback.run();
@@ -74,6 +82,6 @@ public abstract class WorldRendererMixin {
     @Inject(method = "renderClouds", at = @At("HEAD"), cancellable = true)
     private void fmscraft$noClouds(MatrixStack matrices, Matrix4f matrix4f, Matrix4f matrix4f2, float tickDelta, double cameraX, double cameraY,
                                    double cameraZ, CallbackInfo ci) {
-        if (GluttonySky.space() || GluttonySky.snow()) ci.cancel();
+        if (GluttonySky.space() || GluttonySky.snow() || LustSky.active()) ci.cancel();
     }
 }

@@ -36,6 +36,11 @@ import net.ragnar.fmscraft.client.EnvySky;
 import net.ragnar.fmscraft.client.GummssRenderer;
 import net.ragnar.fmscraft.client.GluttonySky;
 import net.ragnar.fmscraft.client.LalliRenderer;
+import net.ragnar.fmscraft.client.LustSky;
+import net.ragnar.fmscraft.client.MugenControl;
+import net.ragnar.fmscraft.network.MugenControlPayload;
+import net.ragnar.fmscraft.client.MugenRenderer;
+import net.ragnar.fmscraft.network.LustSkyPayload;
 import net.ragnar.fmscraft.client.WrathSky;
 import net.ragnar.fmscraft.network.WrathSkyPayload;
 import net.minecraft.client.render.entity.FlyingItemEntityRenderer;
@@ -71,6 +76,8 @@ public class FmsCraftClient implements ClientModInitializer {
                 ModBlocks.SIN_PORTAL);
         // The key standing in the frame is cut out of its item texture
         BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.SIN_PORTAL_FRAME, RenderLayer.getCutout());
+        // MUGEN's void spikes are cut out of their textures, like pointed dripstone
+        BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.VOID_SPIKE, RenderLayer.getCutout());
         // Picks the frame item's model override for its sin: 0 without one, (ordinal + 1) / 10 with
         ModelPredicateProviderRegistry.register(ModItems.SIN_PORTAL_FRAME, SinPortalFrameItem.SIN_PREDICATE, (stack, world, entity, seed) -> {
             Sin sin = SinPortalFrameItem.sinOf(stack);
@@ -97,6 +104,9 @@ public class FmsCraftClient implements ClientModInitializer {
         // His Mirror Images cast no shadow: the tell
         EntityRendererRegistry.register(ModBossEntities.GUMMSS_ILLUSION, ctx -> new GummssRenderer<>(ctx, 0f));
         EntityRendererRegistry.register(ModBossEntities.LALLI, LalliRenderer::new);
+        EntityRendererRegistry.register(ModBossEntities.MUGEN, ctx -> new MugenRenderer<>(ctx, 0.5f));
+        // His shadow clones cast no shadow: the tell
+        EntityRendererRegistry.register(ModBossEntities.MUGEN_CLONE, ctx -> new MugenRenderer<>(ctx, 0f));
 
         EntityModelLayerRegistry.registerModelLayer(EnvyStatueModel.LAYER, EnvyStatueModel::getTexturedModelData);
         EntityRendererRegistry.register(ModEntities.ENVY_STATUE, EnvyStatueRenderer::new);
@@ -107,6 +117,9 @@ public class FmsCraftClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModEntities.LUST_STATUE, LustStatueRenderer::new);
         EntityRendererRegistry.register(ModEntities.MOTHER_WARDEN, MotherWardenRenderer::new);
         EntityRendererRegistry.register(ModEntities.GORGED_BRUTE, GorgedBruteRenderer::new);
+        // Temporary: friends' skins posed for the title screen panoramas, and /panorama to photograph them
+        EntityRendererRegistry.register(ModEntities.SKIN_MODEL, net.ragnar.fmscraft.client.SkinModelRenderer::new);
+        net.ragnar.fmscraft.client.TitlePanorama.registerCommand();
         WorldRenderEvents.AFTER_ENTITIES.register(SleepZs::render);
         WorldRenderEvents.AFTER_ENTITIES.register(EnvySky::renderEyes);
         WorldRenderEvents.AFTER_ENTITIES.register(GluttonySky::renderStatue);
@@ -119,6 +132,10 @@ public class FmsCraftClient implements ClientModInitializer {
                 (payload, context) -> context.client().execute(() -> GreedSky.set(payload.phase())));
         ClientPlayNetworking.registerGlobalReceiver(WrathSkyPayload.ID,
                 (payload, context) -> context.client().execute(() -> WrathSky.set(payload.phase())));
+        ClientPlayNetworking.registerGlobalReceiver(LustSkyPayload.ID,
+                (payload, context) -> context.client().execute(() -> LustSky.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(MugenControlPayload.ID,
+                (payload, context) -> context.client().execute(() -> MugenControl.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(TomeWheelPayload.ID,
                 (payload, context) -> context.client().execute(() -> TomeWheelHud.start(payload)));
         ClientPlayNetworking.registerGlobalReceiver(VaultFogPayload.ID,
@@ -127,6 +144,7 @@ public class FmsCraftClient implements ClientModInitializer {
                 (payload, context) -> context.client().execute(() -> GardenFog.set(payload.inside())));
         HudRenderCallback.EVENT.register(WrathSky::render);
         HudRenderCallback.EVENT.register(EnvySky::render);
+        HudRenderCallback.EVENT.register(MugenControl::render);
         HudRenderCallback.EVENT.register(TomeWheelHud::render);
         HudRenderCallback.EVENT.register(BossScreen::render);
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -139,6 +157,8 @@ public class FmsCraftClient implements ClientModInitializer {
             WrathSky.tick(client);
             EnvySky.tick(client);
             GluttonySky.tick(client);
+            LustSky.tick(client);
+            MugenControl.tick(client);
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
@@ -152,6 +172,8 @@ public class FmsCraftClient implements ClientModInitializer {
             WrathSky.clear();
             EnvySky.clear();
             GluttonySky.clear();
+            LustSky.clear();
+            MugenControl.clear();
         }));
     }
 

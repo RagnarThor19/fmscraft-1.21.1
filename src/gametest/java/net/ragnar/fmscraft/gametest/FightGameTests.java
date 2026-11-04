@@ -104,18 +104,19 @@ public class FightGameTests implements FabricGameTest {
         });
     }
 
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 300)
+    /** Sloth still fights the stand-in test boss, which can be beaten in one hit; its own batch, so no other Sloth fight is open. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 300, batchId = "fight_win")
     public void killingTheBossWinsTheFight(TestContext ctx) {
         ServerWorld world = ctx.getWorld();
         MinecraftServer server = world.getServer();
         BlockPos base = ctx.getAbsolutePos(new BlockPos(2, 1, 2));
-        BossFights.open(Sin.LUST, world, base, Direction.Axis.X, JOIN);
+        BossFights.open(Sin.SLOTH, world, base, Direction.Axis.X, JOIN);
         ServerPlayerEntity player = ctx.createMockCreativeServerPlayerInWorld();
-        BossFights.enter(player, Sin.LUST);
+        BossFights.enter(player, Sin.SLOTH);
 
         ctx.runAtTick(JOIN + 10, () -> {
-            ServerWorld arena = Arenas.world(server, Sin.LUST);
-            FightSession session = BossFights.session(Sin.LUST);
+            ServerWorld arena = Arenas.world(server, Sin.SLOTH);
+            FightSession session = BossFights.session(Sin.SLOTH);
             ctx.assertTrue(session != null && session.stage() == FightSession.Stage.ACTIVE, "fight should be running");
             ctx.assertTrue(player.getServerWorld() == arena, "player should be in the arena");
             ctx.assertTrue(world.getBlockState(base).isAir(), "entry portal should be closed");
@@ -124,10 +125,10 @@ public class FightGameTests implements FabricGameTest {
             ctx.assertTrue(boss instanceof SinBossEntity, "boss should be spawned, got " + boss);
             ((LivingEntity) boss).damage(arena.getDamageSources().playerAttack(player), Float.MAX_VALUE);
 
-            ctx.assertTrue(FmsWorldState.get(server).isDefeated(Sin.LUST), "Lust should be marked defeated");
+            ctx.assertTrue(FmsWorldState.get(server).isDefeated(Sin.SLOTH), "Sloth should be marked defeated");
             ctx.assertTrue(session.stage() == FightSession.Stage.WON, "fight should be won");
             ctx.assertTrue(!arena.getEntitiesByClass(ItemEntity.class, new Box(boss.getBlockPos()).expand(3),
-                    e -> e.getStack().isOf(ModItems.SOULS.get(Sin.LUST))).isEmpty(), "Soul of Lust should drop");
+                    e -> e.getStack().isOf(ModItems.SOULS.get(Sin.SLOTH))).isEmpty(), "Soul of Sloth should drop");
             ctx.assertTrue(arena.getBlockState(Arenas.EXIT_PORTAL).isOf(ModBlocks.SIN_PORTAL), "exit portal should open");
         });
 
@@ -139,8 +140,41 @@ public class FightGameTests implements FabricGameTest {
                 for (WheelTier tier : WheelTier.values()) if (MagicTomes.of(tier).contains(stack.getItem())) tomes++;
             }
             ctx.assertEquals(tomes, 1, "tomes won from the wheel");
-            BossFights.forceEnd(server, Sin.LUST);
-            FmsWorldState.get(server).clearDefeated(Sin.LUST);
+            BossFights.forceEnd(server, Sin.SLOTH);
+            FmsWorldState.get(server).clearDefeated(Sin.SLOTH);
+            ctx.complete();
+        });
+    }
+
+    /** Dead in a boss's arena with no fight on (after a win, or never came through the portal): never left lying there. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 100, batchId = "fight_stray_death")
+    public void aDeathInAnArenaOutsideAFightStillChestsTheLoot(TestContext ctx) {
+        ServerWorld world = ctx.getWorld();
+        MinecraftServer server = world.getServer();
+        BlockPos base = ctx.getAbsolutePos(new BlockPos(3, 1, 3));
+        ServerWorld arena = Arenas.world(server, Sin.PRIDE);
+        ctx.assertTrue(BossFights.session(Sin.PRIDE) == null, "no Pride fight on");
+        ServerPlayerEntity player = ctx.createMockCreativeServerPlayerInWorld();
+        FmsWorldState.get(server).setReturn(player.getUuid(), net.minecraft.util.math.GlobalPos.create(world.getRegistryKey(), base));
+        arena.setChunkForced(0, 0, true);
+        player.teleport(arena, 0.5, 120, 0.5, 0, 0);
+        player.onTeleportationDone();
+        player.getInventory().insertStack(new ItemStack(Items.DIAMOND_SWORD));
+        player.damage(player.getDamageSources().outOfWorld(), Float.MAX_VALUE);
+        ctx.runAtTick(2, () -> {
+            boolean lying = !arena.getEntitiesByClass(net.minecraft.entity.ItemEntity.class, new Box(0, 0, 0, 1, 256, 1).expand(20),
+                    e -> e.getStack().isOf(Items.DIAMOND_SWORD)).isEmpty();
+            boolean swordInChest = false;
+            for (BlockPos pos : BlockPos.iterate(base.add(-7, -3, -7), base.add(7, 3, 7))) {
+                if (world.getBlockEntity(pos) instanceof ChestBlockEntity chest) {
+                    for (int i = 0; i < chest.size(); i++) swordInChest |= chest.getStack(i).isOf(Items.DIAMOND_SWORD);
+                }
+            }
+            arena.setChunkForced(0, 0, false);
+            FmsWorldState.get(server).clearReturn(player.getUuid());
+            server.getPlayerManager().remove(player);
+            ctx.assertFalse(lying, "nothing left lying in the arena");
+            ctx.assertTrue(swordInChest, "the sword is in a chest by the portal they came in through");
             ctx.complete();
         });
     }

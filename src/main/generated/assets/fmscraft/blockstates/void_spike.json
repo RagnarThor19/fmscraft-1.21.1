@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "thickness=base": {
+      "model": "fmscraft:block/void_spike_base"
+    },
+    "thickness=frustum": {
+      "model": "fmscraft:block/void_spike_frustum"
+    },
+    "thickness=middle": {
+      "model": "fmscraft:block/void_spike_middle"
+    },
+    "thickness=tip": {
+      "model": "fmscraft:block/void_spike_tip"
+    },
+    "thickness=tip_merge": {
+      "model": "fmscraft:block/void_spike_tip"
+    }
+  }
+}

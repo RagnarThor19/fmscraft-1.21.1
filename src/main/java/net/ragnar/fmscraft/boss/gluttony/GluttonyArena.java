@@ -162,6 +162,11 @@ public final class GluttonyArena {
         place(world, "arena/gluttony", EARTH_CORNER, whole ? null : pole);
         snowfield(world, flags);
         place(world, "arena/gluttony_castle", CASTLE_CORNER, null);
+        // The castle's old glowstone corner markers (since dropped from the template) may still stand in older worlds
+        for (BlockPos marker : new BlockPos[]{CASTLE_CORNER.add(0, 52, 69), CASTLE_CORNER.add(73, 0, 0)}) {
+            if (world.getBlockState(marker).isOf(Blocks.GLOWSTONE)) world.setBlockState(marker, Blocks.AIR.getDefaultState(), flags);
+            if (world.getBlockState(marker.up()).isOf(Blocks.SNOW)) world.setBlockState(marker.up(), Blocks.AIR.getDefaultState(), flags);
+        }
         exitFrame(world, flags);
     }
 

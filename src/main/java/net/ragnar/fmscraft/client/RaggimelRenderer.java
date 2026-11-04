@@ -41,6 +41,8 @@ public class RaggimelRenderer extends BipedEntityRenderer<RaggimelEntity, Raggim
 
     @Override
     public void render(RaggimelEntity boss, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider buffers, int light) {
+        // Under the ground (Dive): nothing of him, not even his staff
+        if (boss.isInvisible()) return;
         super.render(boss, yaw, tickDelta, matrices, buffers, light);
         float age = boss.age + tickDelta;
         if (boss.isBubbled()) {

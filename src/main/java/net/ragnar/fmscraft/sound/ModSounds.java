@@ -35,6 +35,13 @@ public class ModSounds {
     public static final SoundEvent GLUTTONY_PHASE_ONE = register("music.gluttony.phase_one");
     public static final SoundEvent GLUTTONY_PHASE_TWO = register("music.gluttony.phase_two");
 
+    /**
+     * MUGEN's themes: YEAT - COMË N GO with its reversed intro (his whole entrance is those 35 seconds), then Playboi
+     * Carti ft. Skepta - Toxic with its reversed intro, which drops at 15.6 s as he lands in the eclipse.
+     */
+    public static final SoundEvent LUST_PHASE_ONE = register("music.lust.phase_one");
+    public static final SoundEvent LUST_PHASE_TWO = register("music.lust.phase_two");
+
     private static SoundEvent register(String name) {
         Identifier id = Identifier.of(FmsCraft.MOD_ID, name);
         return Registry.register(Registries.SOUND_EVENT, id, SoundEvent.of(id));

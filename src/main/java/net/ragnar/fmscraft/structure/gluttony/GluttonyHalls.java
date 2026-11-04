@@ -97,7 +97,7 @@ public final class GluttonyHalls {
     public static final class Hall {
         final ServerWorld world;
         final GluttonyHallPiece piece;
-        final ServerBossBar bar = new ServerBossBar(Text.translatable("entity.fmscraft.gorged_brute"), BossBar.Color.YELLOW, BossBar.Style.NOTCHED_10);
+        final ServerBossBar bar = new ServerBossBar(Text.translatable("bossbar.fmscraft.gorged_brute"), BossBar.Color.YELLOW, BossBar.Style.NOTCHED_10);
         UUID brute;
         /** What he's eaten this visit, kept in case he has to be put back. */
         int eaten;

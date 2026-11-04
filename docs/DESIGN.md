@@ -58,6 +58,10 @@ Open questions:
 - **If any participant dies or disconnects**: the attempt ends for everyone, the boss is removed, the others are
   sent back to the portal, and the fallen player's items go into chests next to the portal.
   (A totem of undying still saves you. A server shutdown doesn't count as a loss.)
+- **Nothing is ever left lying in an arena**: anyone who dies in one outside a running fight (after the win on the way
+  out, or never having come through the portal) gets their things put in chests too: by that sin's portal if a fight
+  for it is open, else by the portal they came in through, else at the world spawn. Plants the arena's build leaves
+  without support pop off as it's placed; those items are cleared away too.
 - **5 seconds before the portal closes**: a bell tolls at the portal ("The portal is closing!" for anyone nearby),
   then rising chimes on 3, 2, 1, and it closes with a beacon-off sound and a puff of particles. Players waiting
   inside hear the bell and chimes too.
@@ -86,9 +90,10 @@ off still hear them), loop, and pause vanilla music. The test boss uses Pigstep,
 ## Boss template
 
 Every boss extends `boss/SinBossEntity` and is swapped in for its sin in `boss/ModBossEntities.forSin`
-(Greed is RAGGIMEL, Wrath is ORNAMIX, Envy is GUMMSS, Gluttony is LalliLarge; the other sins still use the stand-in
-`TestBossEntity`):
-- Boss bar named after the friend (`bossBarName` to call it something else).
+(Greed is RAGGIMEL, Wrath is ORNAMIX, Envy is GUMMSS, Gluttony is LalliLarge, Lust is MUGEN; the other sins still use
+the stand-in `TestBossEntity`):
+- Boss bar named after the friend (`bossBarName` to call it something else), always in capitals. Every other boss bar
+  in the mod is in capitals too (the fight countdown, Drowsiness, the Wrath timer, the Gorged Brute, the Mother Warden).
 - **Phase 2 at half health** (`onPhaseTwo`; `phaseTwoHealth` to move it) — switch songs and behaviour here. A boss with
   a transition returns false from `startsPhaseTwoSongAtOnce` and calls `playSong(song, fadeTicks)` when it's ready.
 - **Beat clock**: each phase has a `BossSong(soundId, bpm, firstBeatTick)`; `onBeat(phase, beat)` fires on each beat so attacks can land on the music.
@@ -145,7 +150,14 @@ Health / armor: 1000 HP, 10 armor, 6 toughness; takes x0.75 damage in phase 1, x
   the way round him: jump it), *Bubble Prison* (one bubble per player, lifting 7.5 blocks for 5.5 s: pop each other
   out), *Greed's Due* (a gold circle under every player, coins crash into it 1.6 s later), *Blink Strike* (portal
   particles show where he'll appear behind three players in turn), *Tidal Slam* (three soul-fire rings to jump),
-  *Dart Fan* (seven darts) and a double *Dash Punch*. Below 30% he goes into a frenzy: a roar and a flash, two
+  *Dart Fan* (seven darts), a double *Dash Punch*, *Water Sprout* (drives his staff into the ground; ten spots round him
+  bubble for half a second, then water bursts up out of them: whoever is on one is shot high into the air, whoever is
+  near it not so high; it hurts nobody, not even the fall back down) and *Dive* (crouches, dives into the ground with a
+  splash and is gone, unseen and untouchable, a wake running under the ground after one of you; the ground churns
+  where he'll come up, set a moment before, then he bursts up out of it, hitting hard, and comes down hard again, a
+  ring of water rolling out) and *Giant Slam* (shakes his head like a wet dog, then grows to four times his size while the spot in
+  front of him is ringed in water and gold, and brings his staff down on it: whoever is in the ring takes a heavy hit
+  and is thrown far; then he poofs back down to his size and carries on). Below 30% he goes into a frenzy: a roar and a flash, two
   lasers at once, a second wave of coins, four blink strikes, shorter rests, more lightning.
 - **The night:** snowflakes, glow specks and souls drifting around everyone, sparks off him, the shrine pulsing a
   ring of light every 8 beats, cosmetic lightning striking the island and the void (with a flash on screen).
@@ -329,7 +341,7 @@ Damage: every hit he deals is x1.2, rounded up (DAMAGE_DEALT): his staff (10), e
 ## LalliLarge (Gluttony) (built: `boss/gluttony/`)
 
 ```
-Boss: Larus Armann - Sin of Gluttony. Boss bar: LalliLarge (blue). His own skin (slim arms) on a player model, 3 blocks
+Boss: Larus Armann - Sin of Gluttony. Boss bar: LALLILARGE (blue). His own skin (slim arms) on a player model, 3 blocks
        tall (scale attribute), empty-handed. All ice. Slow, and the toughest of them. In phase 2 his eyes burn a glacier
        blue (lalli_eyes.png, tools/textures/lalli_textures.py) in a strong freezing aura.
 Song (phase 1): Travis Scott - Apple Pie (slowed + reverb), 3:29, measured 124.1 BPM, kick first at 3.69 s
@@ -417,6 +429,128 @@ Health / armor: 1400 HP for 5-7 players (healthScale: 60% alone ... 124% for 10,
   landing, the phase 1 clamp, the cold wind, the transition to the snowfield on the switch-up, winning, nothing left
   behind; the punch freezing and letting go; nobody left frozen when he goes; Large Push; Tome of Freezing; his ice
   never placing a block; the Ice Blade cutting, thrown, and him empty-handed after; the Ice Cannon), `LalliTimelineTest`.
+
+## MUGEN (Lust) (built: `boss/lust/`)
+
+```
+Boss: Karl Phillip - Sin of Lust. Boss bar: MUGEN (purple). His own skin (wide arms) on a player model, all in black, a
+       netherite blade in each hand, the two tails of a headband streaming out behind his head (black wool, red in
+       phase 2). His eyes glow violet (mugen_eyes.png), red in phase 2 (mugen_eyes_red.png), from
+       tools/textures/mugen_textures.py. A ninja: the fastest of them and not the toughest.
+Song (phase 1): YEAT - COMË N GO [reversed intro] (slowed, 852Hz, reverb), 5:23 (music.lust.phase_one). Its first
+       34.9 s are its intro played backwards, ending on a hit at 34.91 s; then 109.4 BPM, the grid on 35.0 s.
+Song (phase 2): Playboi Carti ft. Skepta - Toxic [reversed intro] (slowed, reverb, bass boosted), 2:57
+       (music.lust.phase_two). The reversed intro cuts to silence at 14.68 s and the beat slams in at 15.60 s; measured
+       61.4 BPM, a half-time feel, so the grid is 122.8 BPM from the drop. (Both measured from the audio.)
+Arena: the walled Japanese compound under the cherry trees (structure/arena/lust.nbt, tools/structures/lust_arena.py
+       from lust_arena_source.nbt, "Japanese Cherry Base"), 118 x 120: the great hall on the west side, a garden of
+       cherry trees, ponds and bridges on the east round an open stone courtyard. The fight starts in the courtyard but
+       the whole compound inside its walls is his: the garden, the bridges, the roofs. Players arrive at the
+       courtyard's east end; the exit frame (polished blackstone bricks, crying obsidian corners) stands on its north
+       edge. Own dimension type (lust_arena): skylight, a sky drawn by LustSky. Positions: LustArena.
+Health / armor: 900 HP for 5-7 players (healthScale: 60% alone ... 124% for 10, at most double; past the 1024 cap he
+       takes proportionally less damage instead), 6 armor, 2 toughness; takes x0.85 damage in phase 1, x0.95 in
+       phase 2, at most 28 per hit; phase 1 can't be skipped by one big hit. Phase 2 hits x1.15. Walks at 0.36
+       (0.41 in phase 2). He's hard to hit instead: a hit on him while he's free is Phased out of 20% of the time
+       (30% in phase 2), or swapped for a log (12%, then not again for 15 s, 10 s in phase 2).
+```
+
+- **Intro (the 30 s the portal is open):** frozen behind the Seven Deadly Sins wheel, zooming in on Lust, in silence
+  but for wind in the cherry trees and a bell far off. When the portal closes COMË N GO starts, and its whole reversed
+  intro is his entrance (timings in `MugenTimeline`): the wheel fades on the courtyard at night, everyone standing
+  frozen in an arc to the east of its middle. At 3 s the shadow of the Tome of Unseen Hands spreads out over the
+  stones, a heartbeat quickening under it (the magic mod draws it: the boss sends its packets; particles without it).
+  At 6 s the hands burst up out of it, and they've got him: they drag him up out of the ground, slowly, arms crossed,
+  head bowed, as the shadow wells up again and again (three pools), until he's standing on it at 24 s. At 25 s he
+  lifts his head and his eyes light violet (the enderman's stare); at 27 s he draws his blades over his shoulders, one
+  then the other; at 30 s he flickers round everyone, appearing in front of each of them in turn in a puff of smoke,
+  afterimages streaming after him; at 33 s he's back in the middle in a low stance, the dark drawn in to him, and on
+  the hit at 34.9 s a blast of shadow throws everyone back (it hurts nobody) and he's loose.
+- **How he fights:** runs whoever he's picked down and cuts with both blades; if he can't get there, or they're far,
+  he Poofs there. Slips hits (above). On the beat he picks one of: *Phase* (a few blocks aside in a blur of
+  afterimages), *Poof* (gone in a puff of smoke, out of another beside or behind you, cutting), *Kunai* (eight thrown
+  one after another, very fast, four hearts each, each a little off), *Shuriken* (a fan of five, whirling), *Spin
+  Kick* (crouches, then spins with his leg out: whoever's close is thrown a long way), *Get Over Here!* (a chain with a
+  kunai on its end; it hooks the first one it reaches, drags them in and he stabs them for 20: get behind something),
+  *Blade Spin* (both blades held out, spinning like a top, coming at you), *Sneak Attack* (gone in smoke, a mark
+  following you round, then he's over your head and drops on you blade first), *Shadow Clones* (three more of him,
+  like GUMMSS's, cutting and flicking kunai; they go up in smoke at a touch, and only the real one casts a shadow; he
+  takes one of their places, so which one is he?), *Black Orb* (slow, but it bursts for 16 and blinds you), *Sword
+  Rain* (like GUMMSS's, but netherite swords out of the night, glowing violet), *Blade Throw* (one blade thrown,
+  tumbling; it vanishes in smoke and is back in his hand), *Double Jump* (off the air itself the second time, in a
+  burst of wind: he goes up on the roofs after anyone hiding there), the *Tome of Swapping* (the tome's glint along a
+  line to whoever's furthest, then he's there and they're here, and he goes straight into whoever's near), *Wind
+  Charges* (real ones), and a *Smoke Bomb* (a cloud you can't see in; he comes out of it behind you).
+- **In both phases:** *Void Spikes* (the ground goes black under about seven spots round him, nine in phase 2 and
+  one under each of two of you, then spikes of the void burst up out of them, 4 blocks tall, 22 and thrown up to
+  whoever's on one: get off the black. They're `VoidSpikeBlock`, pointed dripstone's shape in void black and violet
+  with specks of starlight, shown by block displays and never placed), *Iaido* (blades sheathed, perfectly still, a
+  hand on the hilt: hit him and his blade gets you first, 18, each of you once; leave him be and a red line shows on
+  the ground, then he's at the end of it and the cut falls along it, 16) and *Shadow Bind* (palm to the ground, then
+  a band of shadow 3 blocks wide sweeps 22 blocks across the ground at you; whoever's standing in it as it passes is
+  held fast for 3 s. Jump it or step out of its way).
+- **Ideas of mine added:** *Shuriken*, the *Smoke Bomb*, *Shadow Step*, the Blackout's hunt, the Tome of Logs as a
+  dodge, his flickers in the entrance, the headband tails and the afterimages.
+- **Half health:** his health stops exactly at half and everything goes black, everyone held still, the music cut.
+  Eerie sounds in the dark for 4.5 s: a slow heartbeat, the cave, the wither, the soul sand valley, the compound's bell,
+  the enderman's stare, the warden close by. Under the black the sky turns to the eclipse. Then Toxic starts under the
+  black; 2.5 s in the black lifts and he's hanging in the sky over the courtyard, arms spread, blades out, eyes burning
+  red, his headband red, a black aura pouring off him in rings, rising slowly; everyone can move, nothing touches him.
+  In Toxic's silence at 14.7 s he turns over and dives, and he hits the courtyard on the drop at 15.6 s: a crater, a
+  blast that throws everyone back (it hurts nobody), the beat, and the fight goes on.
+- **Phase 2 (50-0%), the eclipse:** a blood-red sky, the moon gone black in a ragged ring of red fire, few stars, a
+  red haze closing in, ash and red spores on the air. A black aura round him all the time, radiating out in rings.
+  Faster, harder, rests less, slips more hits, more kunai, two fans of shuriken, two orbs, a second wave of swords,
+  five clones, both blades thrown. New: the *Tome of Unseen Hands* (as the tome does it: the shadow spreads under
+  where most of you stand for 3 s, then the hands hold whoever's in it, five squeezes of 5 through any armour, and he
+  throws a kunai at each of them while they're held; a second shadow for a big group), *Grapple Slam* (leaps high on a
+  burst of wind, hangs there and throws his chain; if it hooks you he comes down it onto you: 26 to you, 10 to anyone
+  near), *Slide Tackle* (a streak along the ground shows the way, then he slides in feet first and sweeps you up into
+  the air), *Black Blaze* (three volleys of black blaze balls, like a blaze, at up to three of you: they set you
+  burning), *Shadow Step* (through up to three of you in turn, too fast to see; the cuts he leaves hang in the air a
+  moment, then fall: step out of them), the *Blackout* (rarely: the world goes black round everyone for 7 s, four
+  blocks of sight, and he hunts you in it, a whisper and a shimmer at your feet a moment before he strikes) and the
+  *Taunt* (very rarely: everywhere at once round you, staring, a copy of him left standing wherever he was, then back
+  in the middle laughing, your sight darkening. It hurts nobody), and:
+  - *Shadow Sneak*: he sinks slowly into the ground; a patch of black slides across it after one of you, faster than
+    you can run. Under you it trembles a moment, then he bursts up out of it spinning, 14, everyone close thrown
+    into the air, and he goes up with them.
+  - *Black Hole* (rare): both hands up while a block of pure black forms over his head, spinning faster and faster
+    in a whirl of purple light, the dark drawn into it from all round, growing to 2x2 over 5 s. He can't be hurt
+    meanwhile, a violet ring on the ground shows how far it'll reach, the heartbeat quickens, a roar, the wither's
+    cry, "The dark is gathering... RUN!", and in its last 2.5 s it starts to tug at you. Then he throws it at one of
+    you: it drifts across the ground for 3 s, tumbling, tugging everyone within 10 blocks every few ticks (harder
+    close in; a sprint gets you away from all but the last few blocks). Its heart hits whoever it reaches once, 24,
+    then it bursts, 6 to anyone near. Shadow: armour doesn't help, Protection does. Full Protection IV netherite on
+    20 health ends on about 5 hearts from its heart in phase 2, 3.5 if the burst catches you too (tested).
+  - *Controller* (very rare): puppet strings reach from his hands to one of you, and for 5 s your movement keys don't
+    do what they should (backwards, swapped, turned, the jump key upside down, a new way every 1.25 s; violet
+    throbs at the edges of your screen; `MugenControl`, on your client). Everyone else sees the strings.
+- **The sky** (`LustSky`, from `LustSkyPayload`): phase 1 a deep violet night, stars and a great full moon 38 degrees
+  up over the hall to the west (the way everyone faces as they arrive), a violet halo round it; cherry petals drifting down
+  round everyone. Phase 2 the eclipse, at once under the black; it lifts back to the moonlit night when he's beaten.
+- **The edge:** anyone over the compound's walls for half a second, or fallen through it, is dragged back into the
+  courtyard by the shadows (4 damage).
+- **Any number of players:** health scales, one more clone past seven, Sword Rain one each (up to 10), a second Unseen
+  Hands shadow from six, Shadow Step through up to three, the entrance arc two rows deep past seven.
+- **Magic mod:** he can't be put to sleep or carried off in a bubble, and status effects don't stick to him. His
+  Tome of Unseen Hands (and his entrance) is the mod's own visuals; his Tome of Logs and Tome of Swapping look and
+  sound like the tomes. All of it works without the mod too. None of it breaks or places a block.
+- **Damage:** his blades and the stab count as attacks, kunai, shuriken, the thrown blade and black blaze as
+  projectiles (a shield stops all of those); the shadow, the orb, the swords and the slams can't be blocked.
+- Tuning knobs: `MugenEntity` (health, damage taken and dealt, `MAX_HIT`, `DODGE`, `LOG_CHANCE` and cooldowns,
+  speeds, rests, attack weights and gaps in `chooseAttack`, each move's numbers in its `tick...` method),
+  `MugenHazards` (the things he throws and leaves: `BlackHole` pull and damage, `VoidSpike` timings, the bind's
+  `Band`), `MugenTimeline` (song timings, the entrance, the transition, the
+  Blackout, `healthScale`, clones), `LustArena` (positions, bounds), `LustSky` (colours, fog, the moon).
+- Tests: `MugenGameTests` (the whole fight in the real compound: the build, the entrance under the ground and up out
+  of it, the blades drawn, the boom hurting nobody, the phase 1 clamp, the shadows dragging strays back, the black,
+  Toxic, hanging in the eclipse, the landing on the drop, winning, nothing left behind; kunai; the log and Phase;
+  the chain dragging you in; the Unseen Hands holding and crushing; clones; the Blackout; the thrown blade coming
+  back; Sword Rain and the Taunt breaking nothing; Void Spikes hitting hard, breaking nothing and sinking away; Iaido
+  countering a hit and cutting its line; Shadow Bind holding for 3 s; Shadow Sneak bursting up under you; the Black
+  Hole crushing what it reaches and leaving nothing; the Controller letting go, and nobody left on his strings when
+  he goes), `MugenTimelineTest`.
 
 ## Structures
 

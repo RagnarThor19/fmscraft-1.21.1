@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 
 import net.fabricmc.fabric.api.datagen.v1.FabricDataOutput;
 import net.fabricmc.fabric.api.datagen.v1.provider.FabricModelProvider;
+import net.minecraft.block.enums.Thickness;
 import net.minecraft.data.client.BlockStateModelGenerator;
 import net.minecraft.data.client.ItemModelGenerator;
 import net.minecraft.data.client.BlockStateVariant;
@@ -19,6 +20,7 @@ import net.minecraft.util.Identifier;
 import net.ragnar.fmscraft.FmsCraft;
 import net.ragnar.fmscraft.block.ModBlocks;
 import net.ragnar.fmscraft.block.SinPortalFrameBlock;
+import net.ragnar.fmscraft.block.VoidSpikeBlock;
 import net.ragnar.fmscraft.item.ModItems;
 import net.ragnar.fmscraft.item.SinPortalFrameItem;
 import net.ragnar.fmscraft.sin.Sin;
@@ -84,6 +86,17 @@ public class ModModelProvider extends FabricModelProvider {
             model.add("overrides", overrides);
             return model;
         });
+
+        // MUGEN's void spike: pointed dripstone's model with our own textures, one per section (tools/textures/mugen_textures.py)
+        Map<Thickness, Identifier> spike = new EnumMap<>(Thickness.class);
+        for (Thickness thickness : new Thickness[]{Thickness.BASE, Thickness.MIDDLE, Thickness.FRUSTUM, Thickness.TIP}) {
+            String name = "block/void_spike_" + thickness.asString();
+            spike.put(thickness, Models.POINTED_DRIPSTONE.upload(Identifier.of(FmsCraft.MOD_ID, name),
+                    TextureMap.cross(Identifier.of(FmsCraft.MOD_ID, name)), generator.modelCollector));
+        }
+        spike.put(Thickness.TIP_MERGE, spike.get(Thickness.TIP));
+        generator.blockStateCollector.accept(VariantsBlockStateSupplier.create(ModBlocks.VOID_SPIKE).coordinate(
+                BlockStateVariantMap.create(VoidSpikeBlock.THICKNESS).register(t -> BlockStateVariant.create().put(VariantSettings.MODEL, spike.get(t)))));
     }
 
     @Override
@@ -94,5 +107,10 @@ public class ModModelProvider extends FabricModelProvider {
             generator.register(ModItems.KEYS.get(sin), Models.GENERATED);
             generator.register(ModItems.SOULS.get(sin), Models.GENERATED);
         }
+        // MUGEN's throwing things (tools/textures/mugen_textures.py); kunai are drawn like a sword, tip to the top right
+        generator.register(ModItems.KUNAI, Models.HANDHELD);
+        generator.register(ModItems.SHURIKEN, Models.GENERATED);
+        generator.register(ModItems.SHADOW_ORB, Models.GENERATED);
+        generator.register(ModItems.SHADOW_CHARGE, Models.GENERATED);
     }
 }

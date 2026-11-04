@@ -43,9 +43,9 @@ public abstract class SinBossEntity extends HostileEntity {
         bossBar.setName(bossBarName());
     }
 
-    /** What the boss bar says. The friend's name unless the boss goes by something else. */
+    /** What the boss bar says, always in capitals. The friend's name unless the boss goes by something else. */
     protected Text bossBarName() {
-        return Text.literal(sin.bossName());
+        return Text.literal(sin.bossName().toUpperCase(java.util.Locale.ROOT));
     }
 
     protected ServerBossBar bossBar() {

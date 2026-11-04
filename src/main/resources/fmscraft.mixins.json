@@ -18,9 +18,13 @@
 	"client": [
 		"client.BackgroundRendererMixin",
 		"client.ClientWorldMixin",
+		"client.KeyboardInputMixin",
 		"client.LightmapTextureManagerMixin",
 		"client.MouseMixin",
 		"client.MusicTrackerMixin",
+		"client.CubeMapRendererAccessor",
+		"client.ScreenMixin",
+		"client.TitleScreenMixin",
 		"client.WorldMixin",
 		"client.WorldRendererMixin"
 	],

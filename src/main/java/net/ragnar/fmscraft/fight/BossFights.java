@@ -359,12 +359,37 @@ public final class BossFights {
     }
 
     private static void onPlayerDeath(ServerPlayerEntity player) {
+        if (holdsTotem(player)) return;
         FightSession session = liveSessionOf(player);
-        if (session == null || holdsTotem(player)) return;
+        if (session == null) {
+            // Not in a fight, but dead in a boss's arena anyway (after the win on the way out, or never came through
+            // the portal): nothing may be left lying where nobody can get back to it
+            stashOutsideArena(player);
+            return;
+        }
 
         stashInventory(player, session);
         FmsWorldState.get(player.getServer()).clearReturn(player.getUuid()); // they respawn at their own spawn point
         fail(player.getServer(), session, player);
+    }
+
+    /**
+     * Someone dies in an arena outside a running fight: their things go in chests by that sin's portal if a fight for it
+     * is open, else by the portal they came in through, else at the world spawn. Never left in the arena.
+     */
+    private static void stashOutsideArena(ServerPlayerEntity player) {
+        Sin sin = Arenas.sinOf(player.getWorld());
+        if (sin == null || player.getServerWorld().getGameRules().getBoolean(GameRules.KEEP_INVENTORY)) return;
+        MinecraftServer server = player.getServer();
+        FightSession session = SESSIONS.get(sin);
+        GlobalPos at = session != null ? session.portal : FmsWorldState.get(server).getReturn(player.getUuid()).orElse(null);
+        ServerWorld world = at != null ? server.getWorld(at.dimension()) : null;
+        if (world == null || Arenas.sinOf(world) != null) {
+            world = server.getOverworld();
+            at = GlobalPos.create(world.getRegistryKey(), world.getSpawnPos());
+        }
+        List<ItemStack> items = DeathChests.takeInventory(player);
+        if (!items.isEmpty()) DeathChests.store(world, at.pos(), items);
     }
 
     private static void onDisconnect(ServerPlayerEntity player) {

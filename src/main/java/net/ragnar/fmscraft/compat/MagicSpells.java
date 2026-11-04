@@ -29,6 +29,8 @@ import java.util.Optional;
  *   <li>LalliLarge's Jump Slam shakes the ground with the Tome of Earthquake's own visuals: the boss sends the two
  *       packets its client half draws from, so the fissures, the heaving blocks and the flung earth are exactly the
  *       tome's.</li>
+ *   <li>MUGEN's shadow (his entrance, and his Tome of Unseen Hands) is the Tome of Unseen Hands' own: the boss sends
+ *       the two packets its client half draws the pool and the hands from.</li>
  * </ul>
  */
 public final class MagicSpells {
@@ -45,8 +47,12 @@ public final class MagicSpells {
     /** How far off people see the quake (the mod's own range). */
     private static final double QUAKE_VIEW = 112;
 
-    private static boolean looked, lookedFlip, lookedQuake;
-    private static Constructor<?> quakeCharge, quakeShock;
+    private static final String HANDS_CLASS = "net.ragnar.ragnarsmagicmod.shadowhands.ShadowHands";
+    /** How far off people see the shadow (the mod's own range). */
+    private static final double HANDS_VIEW = 128;
+
+    private static boolean looked, lookedFlip, lookedQuake, lookedHands;
+    private static Constructor<?> quakeCharge, quakeShock, handsStart, handsGrab;
     private static Method isSleepy, wake, isFlipped, setFlipped;
 
     private MagicSpells() {
@@ -156,9 +162,48 @@ public final class MagicSpells {
         return quakeCharge != null && quakeShock != null;
     }
 
+    /**
+     * Starts the Tome of Unseen Hands' pool creeping out from {@code center} to {@code radius}, keyed by {@code id}
+     * (keep ours clear of the mod's own small numbers). False (nothing sent) without the mod or its hands.
+     */
+    public static boolean shadowPool(ServerWorld world, int id, Vec3d center, float radius) {
+        lookUpHands();
+        if (handsStart == null) return false;
+        try {
+            sendNear(world, center, (CustomPayload) handsStart.newInstance(id, center.toVector3f(), radius), HANDS_VIEW);
+            return true;
+        } catch (ReflectiveOperationException | ClassCastException e) {
+            handsStart = null;
+            return false;
+        }
+    }
+
+    /** The hands of pool {@code id} burst up and close on these entities (by network id). False without the mod. */
+    public static boolean shadowGrab(ServerWorld world, int id, Vec3d center, java.util.List<Integer> victims) {
+        lookUpHands();
+        if (handsGrab == null) return false;
+        try {
+            sendNear(world, center, (CustomPayload) handsGrab.newInstance(id, victims), HANDS_VIEW);
+            return true;
+        } catch (ReflectiveOperationException | ClassCastException e) {
+            handsGrab = null;
+            return false;
+        }
+    }
+
+    /** Whether the Tome of Unseen Hands' visuals are there to use. */
+    public static boolean hasShadowHands() {
+        lookUpHands();
+        return handsStart != null && handsGrab != null;
+    }
+
     private static void sendNear(ServerWorld world, Vec3d at, CustomPayload payload) {
+        sendNear(world, at, payload, QUAKE_VIEW);
+    }
+
+    private static void sendNear(ServerWorld world, Vec3d at, CustomPayload payload, double range) {
         for (ServerPlayerEntity p : world.getPlayers()) {
-            if (p.getPos().squaredDistanceTo(at) < QUAKE_VIEW * QUAKE_VIEW && ServerPlayNetworking.canSend(p, payload.getId())) {
+            if (p.getPos().squaredDistanceTo(at) < range * range && ServerPlayNetworking.canSend(p, payload.getId())) {
                 ServerPlayNetworking.send(p, payload);
             }
         }
@@ -175,6 +220,20 @@ public final class MagicSpells {
             quakeShock = shock.getConstructor(int.class, int.class);
         } catch (ReflectiveOperationException e) {
             FmsCraft.LOGGER.warn("Couldn't find Ragnars Magic Mod's Tome of Earthquake ({}); LalliLarge's quake uses particles", e.toString());
+        }
+    }
+
+    private static synchronized void lookUpHands() {
+        if (lookedHands) return;
+        lookedHands = true;
+        if (!FabricLoader.getInstance().isModLoaded(MagicTomes.MOD_ID)) return;
+        try {
+            Class<?> start = Class.forName(HANDS_CLASS + "$StartPayload", true, MagicSpells.class.getClassLoader());
+            Class<?> grab = Class.forName(HANDS_CLASS + "$GrabPayload", true, MagicSpells.class.getClassLoader());
+            handsStart = start.getConstructor(int.class, org.joml.Vector3f.class, float.class);
+            handsGrab = grab.getConstructor(int.class, java.util.List.class);
+        } catch (ReflectiveOperationException e) {
+            FmsCraft.LOGGER.warn("Couldn't find Ragnars Magic Mod's Tome of Unseen Hands ({}); MUGEN's shadow uses particles", e.toString());
         }
     }
 

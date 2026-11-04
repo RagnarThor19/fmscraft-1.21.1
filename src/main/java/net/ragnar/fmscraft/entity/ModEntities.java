@@ -7,6 +7,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 import net.ragnar.fmscraft.FmsCraft;
+import net.ragnar.fmscraft.photo.SkinModelEntity;
 
 public class ModEntities {
     public static final EntityType<EnvyStatueEntity> ENVY_STATUE = Registry.register(Registries.ENTITY_TYPE,
@@ -57,7 +58,17 @@ public class ModEntities {
                     .maxTrackingRange(10)
                     .build("gorged_brute"));
 
+    /** Temporary: a friend's skin posed for the title screen panoramas (/gummss_skin pose3 NoGravity). */
+    public static final EntityType<SkinModelEntity> SKIN_MODEL = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "skin_model"),
+            EntityType.Builder.<SkinModelEntity>create(SkinModelEntity::new, SpawnGroup.MISC)
+                    .dimensions(0.6f, 1.8f)
+                    .makeFireImmune()
+                    .maxTrackingRange(16)
+                    .build("skin_model"));
+
     public static void initialize() {
+        FabricDefaultAttributeRegistry.register(SKIN_MODEL, SkinModelEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(GREED_STATUE, GreedStatueEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(LUST_STATUE, LustStatueEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(MOTHER_WARDEN, MotherWardenEntity.createAttributes());

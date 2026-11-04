@@ -21,6 +21,7 @@ public final class BossScreen {
     /** The middle of each sin's circle on the wheel, as a fraction of its width and height, and how far the zoom goes. */
     private static final float GREED_X = 0.665f, GREED_Y = 0.272f, WRATH_X = 0.291f, WRATH_Y = 0.567f, ZOOM = 3.4f;
     private static final float ENVY_X = 0.595f, ENVY_Y = 0.805f, GLUTTONY_X = 0.400f, GLUTTONY_Y = 0.797f;
+    private static final float LUST_X = 0.709f, LUST_Y = 0.569f;
     private static final int WHITE_COLOR = 0xF2F8FF;
     private static final int FLASH_COLOR = 0xE6F4FF, FIRE_COLOR = 0xFF6A1E;
 
@@ -45,12 +46,14 @@ public final class BossScreen {
                 case "wrath" -> WRATH_X;
                 case "envy" -> ENVY_X;
                 case "gluttony" -> GLUTTONY_X;
+                case "lust" -> LUST_X;
                 default -> GREED_X;
             };
             focusY = switch (sin) {
                 case "wrath" -> WRATH_Y;
                 case "envy" -> ENVY_Y;
                 case "gluttony" -> GLUTTONY_Y;
+                case "lust" -> LUST_Y;
                 default -> GREED_Y;
             };
             screen = BossScreenPayload.INTRO;

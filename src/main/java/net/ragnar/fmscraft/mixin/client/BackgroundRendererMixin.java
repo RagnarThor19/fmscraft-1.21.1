@@ -13,6 +13,7 @@ import net.ragnar.fmscraft.client.EnvySky;
 import net.ragnar.fmscraft.client.GardenFog;
 import net.ragnar.fmscraft.client.GluttonySky;
 import net.ragnar.fmscraft.client.GreedSky;
+import net.ragnar.fmscraft.client.LustSky;
 import net.ragnar.fmscraft.client.VaultFog;
 import net.ragnar.fmscraft.client.WrathSky;
 import org.spongepowered.asm.mixin.Mixin;
@@ -28,6 +29,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * red that closes right in round the pit (WrathSky). Round GUMMSS's floating eye it's a deep green over the black void,
  * thinning out far enough to see across the arena, and closing in, brighter, during his Evil Eye (EnvySky). Round
  * LalliLarge's Earth it's the black of space; over his snowfield a grey haze that lets you see out to the castle (GluttonySky).
+ * Over MUGEN's compound it's violet under the moon, a red haze closing in under the eclipse, and black, four blocks out,
+ * in his Blackout (LustSky).
  */
 @Mixin(BackgroundRenderer.class)
 public abstract class BackgroundRendererMixin {
@@ -39,6 +42,14 @@ public abstract class BackgroundRendererMixin {
     private static void fmscraft$vaultFogColor(Camera camera, float tickDelta, ClientWorld world, int viewDistance, float skyDarkness, CallbackInfo ci) {
         if (GreedSky.active()) {
             Vec3d fog = GreedSky.mix(GreedSky.DAY_FOG, GreedSky.NIGHT_FOG, tickDelta);
+            red = (float) fog.x;
+            green = (float) fog.y;
+            blue = (float) fog.z;
+            RenderSystem.clearColor(red, green, blue, 0.0f);
+            return;
+        }
+        if (LustSky.active()) {
+            Vec3d fog = LustSky.fogColor(tickDelta);
             red = (float) fog.x;
             green = (float) fog.y;
             blue = (float) fog.z;
@@ -92,6 +103,11 @@ public abstract class BackgroundRendererMixin {
             float start = RenderSystem.getShaderFogStart(), end = RenderSystem.getShaderFogEnd();
             RenderSystem.setShaderFogStart(Math.min(start, MathHelper.lerp(night, start, 24f)));
             RenderSystem.setShaderFogEnd(Math.min(end, MathHelper.lerp(night, end, 120f)));
+        }
+        if (LustSky.active() && fogType == BackgroundRenderer.FogType.FOG_TERRAIN) {
+            RenderSystem.setShaderFogStart(LustSky.fogStart(RenderSystem.getShaderFogStart(), tickDelta));
+            RenderSystem.setShaderFogEnd(LustSky.fogEnd(RenderSystem.getShaderFogEnd(), tickDelta));
+            return;
         }
         if (EnvySky.active() && fogType == BackgroundRenderer.FogType.FOG_TERRAIN) {
             // The Nether's thick fog would hide the far side of the arena: set our own, unless something else (Blindness,
