@@ -66,6 +66,23 @@ public record SkinModelPose(String name, float[] head, float[] body, float[] rig
             limbs("diving head first (NoGravity)", r(-30, 0, 0), r(-180, 0, -10), r(-180, 0, 10), r(5, 0, 0), r(5, 0, 0)).whole(0, 160, 0, 0.9f),
             limbs("cheering jump (NoGravity)", r(-25, 0, 0), r(0, 0, 160), r(0, 0, -160), r(40, 0, 10), r(40, 0, -10)).whole(0.3f, 0, 0, 0),
             limbs("sprinting, leaning forward hard", r(-25, 0, 0), r(-85, 0, 5), r(75, 0, -5), r(60, 0, 0), r(-70, 0, 0)).whole(0.1f, 28, 0, 0),
+            // pose41+: photo poses. Negative head yaw looks to the model's left. On an arm raised above the shoulder
+            // the roll flips: positive right-arm roll then swings it in over the head.
+            limbs("hand over the shoulder, head tilted", r(5, -12, -10), r(-195, 0, 12), r(-10, 0, -26), r(0, 0, 3), r(-6, -8, -7)),
+            limbs("pointing one way, looking back at a friend", r(-5, -45, 0), r(-90, 40, 0), r(-30, 15, -18), r(0, 0, 4), r(-10, 0, -6)),
+            limbs("scared, arms up to shield your face", r(20, 15, 0), r(-120, -28, 0), r(-110, 28, 0), r(-20, 0, 6), r(18, 0, -6)).whole(-0.05f, -10, 0, 0),
+            limbs("OH NO, hands on your head", r(-20, 0, 0), r(-172, 0, 18), r(-172, 0, -18), r(15, 0, 4), r(-25, 0, -4)).whole(0, -8, 0, 0),
+            limbs("falling backwards, windmilling (NoGravity)", r(25, 0, 0), r(-160, 0, 30), r(-60, 0, -70), r(-60, 0, 10), r(-20, 0, -10)).whole(0.3f, -50, 0, 0.9f),
+            limbs("slipping, feet out from under you (NoGravity)", r(20, 10, 0), r(-30, 0, 80), r(-60, 0, -120), r(-75, 0, 6), r(5, 0, -4)).whole(0.35f, -25, 0, 0),
+            limbs("shifting your weight", r(0, 8, -6), r(4, 0, 5), r(-6, 0, -10), r(0, 0, 2), r(-10, -12, -10)),
+            limbs("shifting your weight, glancing down", r(28, 15, 4), r(6, 0, 4), r(-4, 0, -9), r(-10, 12, 10), r(0, 0, -2)),
+            limbs("leaning back on a wall, arms crossed", r(8, -18, 0), r(-75, -45, 0), r(-75, 45, 0), r(-14, 0, -10), r(-6, 0, -3)).whole(0, -9, 0, 0),
+            limbs("peace sign", r(0, 10, 10), r(-168, 0, -14), r(-10, 0, -28), r(0, 0, 4), r(-8, -10, -6)),
+            limbs("taking a selfie", r(-15, -25, -8), r(-165, 0, -12), r(-120, -30, 0), r(0, 0, 4), r(0, 0, -4)),
+            limbs("looking back over your shoulder", r(0, 65, 0), r(5, 0, 5), r(0, 0, -5), r(0, 0, 3), r(-6, 0, -3)),
+            limbs("laughing, doubled over", r(-30, 0, 8), r(-35, -25, 0), r(-35, 25, 0), r(-10, 0, 4), r(-10, 0, -4)).whole(0, 30, 0, 0.75f),
+            limbs("hands behind your back", r(-6, 10, 0), r(22, 25, 0), r(22, -25, 0), r(0, 0, 3), r(0, 0, -3)),
+            limbs("reaching out to grab a friend's hand", r(-10, 0, 0), r(-80, 8, 0), r(15, 0, -8), r(-30, 0, 0), r(30, 0, 0)).whole(-0.05f, 14, 0, 0),
     };
 
     public static SkinModelPose get(int index) {
