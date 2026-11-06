@@ -37,6 +37,19 @@ public class GummssRenderer<T extends HostileEntity & GummssLook> extends BipedE
         super.render(boss, yaw, tickDelta, matrices, buffers, light);
     }
 
+    @Override
+    protected void setupTransforms(T boss, MatrixStack matrices, float animationProgress, float bodyYaw, float tickDelta, float scale) {
+        super.setupTransforms(boss, matrices, animationProgress, bodyYaw, tickDelta, scale);
+        float roll = boss.flipRoll(tickDelta);
+        if (roll != 0f) {
+            // Rolled over about his middle, like anyone the Tome of Upside Down takes
+            float middle = boss.getHeight() / 2f / scale;
+            matrices.translate(0, middle, 0);
+            matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Z.rotationDegrees(roll));
+            matrices.translate(0, -middle, 0);
+        }
+    }
+
     private static boolean casting(int pose) {
         return pose == GummssLook.POSE_CAST || pose == GummssLook.POSE_SKY || pose == GummssLook.POSE_STARE
                 || pose == GummssLook.POSE_FALL || pose == GummssLook.POSE_LIFT || pose == GummssLook.POSE_LAND;

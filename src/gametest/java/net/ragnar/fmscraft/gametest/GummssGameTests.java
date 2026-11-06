@@ -546,4 +546,119 @@ public class GummssGameTests implements FabricGameTest {
             ctx.complete();
         });
     }
+
+    // ---- Rubble Barrage, and his fall from the sky at half health ----
+
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 300, batchId = "gummss_rubble")
+    public void rubbleBarrageTearsUpTheFloorHurlsItAndMendsIt(TestContext ctx) {
+        floor(ctx);
+        GummssEntity boss = spawn(ctx, new BlockPos(4, 1, 4));
+        ServerPlayerEntity a = player(ctx, new BlockPos(0, 1, 0), 0);
+        ServerPlayerEntity b = player(ctx, new BlockPos(7, 1, 7), 0);
+        for (ServerPlayerEntity p : new ServerPlayerEntity[]{a, b}) p.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 600, 3));
+        whenReady(ctx, boss, () -> {
+            start(boss, "RUBBLE");
+            Map<BlockPos, net.minecraft.block.BlockState> torn = new java.util.LinkedHashMap<>();
+            ctx.waitAndRun(20, () -> {
+                int count = boss.rubbleCount();
+                ctx.assertTrue(count >= 6 && count <= 12, "6 to 12 blocks torn up, got " + count);
+                torn.putAll(boss.rubbleHoles());
+                ctx.assertFalse(torn.isEmpty(), "holes torn in the floor");
+                for (BlockPos pos : torn.keySet()) ctx.assertTrue(ctx.getWorld().getBlockState(pos).isAir(), "a hole at " + pos);
+                long blocks = ctx.getWorld().getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
+                        boss.getBoundingBox().expand(8), e -> true).size();
+                ctx.assertTrue(blocks >= count, "the blocks hang in the air round him, " + blocks + " of " + count);
+                ctx.assertEquals(a.getHealth(), a.getMaxHealth(), "nothing thrown yet");
+            });
+            ctx.waitAndRun(200, () -> {
+                ctx.assertTrue(a.getHealth() < a.getMaxHealth() || b.getHealth() < b.getMaxHealth(),
+                        "the barrage hurt someone, " + a.getHealth() + " and " + b.getHealth());
+                ctx.assertTrue(boss.currentAction().equals("MOVE"), "done, got " + boss.currentAction());
+                for (var hole : torn.entrySet()) {
+                    ctx.assertTrue(ctx.getWorld().getBlockState(hole.getKey()) == hole.getValue(), "the floor at " + hole.getKey() + " is mended");
+                }
+                long left = ctx.getWorld().getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
+                        boss.getBoundingBox().expand(30), e -> true).size();
+                ctx.assertEquals((int) left, 0, "no blocks left hanging");
+                boss.discard();
+                done(ctx, a, b);
+            });
+        });
+    }
+
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 300, batchId = "gummss_ascend")
+    public void atHalfHealthHeFallsUpThenQuakesWhereHeLands(TestContext ctx) {
+        floor(ctx);
+        GummssEntity boss = spawn(ctx, new BlockPos(4, 1, 4));
+        ServerPlayerEntity a = player(ctx, new BlockPos(1, 1, 1), 0);
+        ServerPlayerEntity b = player(ctx, new BlockPos(2, 1, 1), 0);
+        for (ServerPlayerEntity p : new ServerPlayerEntity[]{a, b}) p.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 600, 2));
+        whenReady(ctx, boss, () -> {
+            double floorY = boss.getY();
+            start(boss, "ASCEND");
+            ctx.waitAndRun(10, () -> ctx.assertFalse(boss.isFlipped(), "not before his cast is done"));
+            ctx.waitAndRun(40, () -> {
+                ctx.assertTrue(boss.isFlipped(), "upside down, falling up");
+                ctx.assertTrue(boss.getY() > floorY + 3, "up off the floor, at " + boss.getY());
+            });
+            // Cast 24, up 32, hang 14 (righted halfway), down 14
+            ctx.waitAndRun(80, () -> {
+                ctx.assertFalse(boss.isFlipped(), "the right way up again for the drop");
+                ctx.assertEquals(a.getHealth(), a.getMaxHealth(), "nothing yet");
+            });
+            ctx.waitAndRun(90, () -> {
+                ctx.assertTrue(Math.abs(boss.getY() - floorY) < 0.6, "down on the floor, at " + boss.getY());
+                ctx.assertTrue(a.getHealth() < a.getMaxHealth() - 6 && b.getHealth() < b.getMaxHealth() - 6,
+                        "heavy where he lands, " + a.getHealth() + " and " + b.getHealth());
+                ctx.assertTrue(boss.hasAscended(), "he's come down");
+                ctx.assertEquals(boss.getPhase(), 1, "no second phase");
+                ctx.assertTrue(BossFights.session(Sin.ENVY) == null || BossFights.session(Sin.ENVY).song() == GummssEntity.SONG, "same song");
+            });
+            ctx.waitAndRun(120, () -> {
+                long green = ctx.getWorld().getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
+                        boss.getBoundingBox().expand(4), e -> e.getBlockState().isOf(Blocks.EMERALD_BLOCK) || e.getBlockState().isOf(Blocks.VERDANT_FROGLIGHT)).size();
+                ctx.assertTrue(green >= 4, "green blocks drift round him from now on, found " + green);
+                boss.discard();
+            });
+            ctx.waitAndRun(122, () -> {
+                long left = ctx.getWorld().getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
+                        new net.minecraft.util.math.Box(ctx.getAbsolutePos(BlockPos.ORIGIN)).expand(20), e -> true).size();
+                ctx.assertEquals((int) left, 0, "and go with him");
+                done(ctx, a, b);
+            });
+        });
+    }
+
+    /** Below half health he goes up by himself, on the next beat, whatever his rest. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200, batchId = "gummss_ascend_auto")
+    public void halfHealthSendsHimUpByHimself(TestContext ctx) {
+        floor(ctx);
+        GummssEntity boss = spawn(ctx, new BlockPos(4, 1, 4));
+        ServerPlayerEntity a = player(ctx, new BlockPos(1, 1, 1), 0);
+        a.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 400, 4));
+        whenReady(ctx, boss, () -> {
+            setHeldStill(boss, false);
+            boss.setHealth(boss.getMaxHealth() * 0.45f);
+            waitForAction(ctx, boss, "ASCEND", 40, () -> {
+                boss.discard();
+                done(ctx, a);
+            });
+        });
+    }
+
+    private static void waitForAction(TestContext ctx, GummssEntity boss, String action, int ticksLeft, Runnable then) {
+        if (boss.currentAction().equals(action)) then.run();
+        else if (ticksLeft <= 0) ctx.throwGameTestException("he should have started " + action + ", is doing " + boss.currentAction());
+        else ctx.waitAndRun(1, () -> waitForAction(ctx, boss, action, ticksLeft - 1, then));
+    }
+
+    private static void setHeldStill(GummssEntity boss, boolean still) {
+        try {
+            Field field = GummssEntity.class.getDeclaredField("heldStill");
+            field.setAccessible(true);
+            field.setBoolean(boss, still);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

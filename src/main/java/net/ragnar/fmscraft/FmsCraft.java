@@ -70,6 +70,7 @@ public class FmsCraft implements ModInitializer {
 		FragmentTriggers.register();
 		BossFights.register();
 		Cinematics.register();
+		net.ragnar.fmscraft.fight.FightBots.register();
 		TomeWheel.register();
 		FlameRoot.register();
 		net.ragnar.fmscraft.boss.gluttony.GluttonyArena.register();

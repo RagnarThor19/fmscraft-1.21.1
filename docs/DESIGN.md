@@ -77,6 +77,13 @@ Open questions:
   fight's boss removes itself (so one left over from a crash can't become a second boss).
 - Players left in an arena after a restart are sent back to their portal when they log in.
 - Test without structures: `/fmscraft fight <sin>`, `/fmscraft end <sin>`, `/fmscraft status`, `/fmscraft undefeat <sin>`.
+- Test a group fight alone: `/fmscraft fight <sin> AI|NoAI <count 0-6> <canDie>`. Up to six bot players (`FmsBot1`..)
+  join beside you, wearing Protection IV netherite with a sword and 32 golden apples, and walk through the portal one
+  after another. They're real server players, so bosses scale to them and target them, and a bot dying fails the fight
+  and chests its kit by the portal, exactly as a friend would. AI bots wander very slowly, keep 4 blocks from real
+  players, look at the boss and eat a golden apple at 5 hearts; NoAI bots stand still. With canDie false they're left
+  on half a heart instead of dying (and put back on the arena if they fall off). After a win they follow the last real
+  player out; once a fight is over they log off after 10 seconds.
 - `/gurt` (operators): a boss-testing kit. Full netherite with Protection IV (worn if the slot is free), a Sharpness V
   netherite sword, a Power V bow, 128 arrows, 32 golden apples, 32 steaks, and the magic mod's netherite staff with
   Quickcast III and Attunement (`command/GurtCommand`).
@@ -263,7 +270,7 @@ Arena: built in code (EnvyArena), not a template: a round floor 101 blocks acros
 Health / armor: 950 HP for 5-7 players (60% alone, 70% for two..., and 8% more for each player past 7: 124% for 10,
        at most double; GummssTimeline.healthScale). Minecraft caps health at 1024, so past that he keeps 1024 and takes
        proportionally less damage instead (effectiveMaxHealth). 8 armor, 4 toughness; takes x0.8 damage, x0.35 during
-       Arrow Rain, x1.5 while reeling, at most 30 per hit. No phase 2.
+       Arrow Rain, x1.5 while reeling, at most 30 per hit. No phase 2 (only his fall from the sky at half health, below).
 Damage: every hit he deals is x1.2, rounded up (DAMAGE_DEALT): his staff (10), everything he throws, his slams, and
        his arrows and darts. Poison and other effects are unchanged.
 ```
@@ -304,7 +311,13 @@ Damage: every hit he deals is x1.2, rounded up (DAMAGE_DEALT): his staff (10), e
   goes straight into a Force Push or darts; a pillar between you breaks it), *Psychic Slash* (three crescents of mind
   cut loose across the arena, waist high so jumping won't clear them: step aside), *Poison Slash* (rushes in, three
   poisoned cuts, leaves a poison cloud and flips away out of it), *Tome of Judgement* (a giant iron sword forms over
-  each player, marked by a beam of light, and drops; more of them once he's desperate).
+  each player, marked by a beam of light, and drops; more of them once he's desperate),
+  *Rubble Barrage* (his floor rumbles and 6-12 blocks are torn out of it 2.5-5 blocks round him, never from under
+  anyone, rising one after another to hang round him; then he hurls them, one every 3 ticks, at each of you in turn,
+  tumbling and trailing dust. They're thrown wide (up to 3.2 blocks off), so keep moving and most miss: a direct hit is
+  16 (x1.2, a shield stops it), and each shatters where it lands with a blast of 7 down to 2 within 2.8 blocks. The
+  holes mend half a second after the last lands, and at once if he dies or the fight ends; only plain full blocks with
+  a full block under them are torn out, so no hole opens onto the void; one of his commoner attacks, at most every 16 s).
 - **Ideas of mine added:** *Mirror Images* (three more of him in a ring, keeping their distance and flicking darts;
   they break at a touch; the real one is the only one with a shadow), *Evil Eye* (every eye in the void turns green
   and widens, the fog closes in and the screen's edges throb; a great eye opens over him as he turns slowly; anyone
@@ -318,6 +331,16 @@ Damage: every hit he deals is x1.2, rounded up (DAMAGE_DEALT): his staff (10), e
   *Tome of Upside Down* (motes fall upward off everyone, then the magic mod's own Tome of Upside Down flips everyone's
   gravity for 1 s, so they fall up into the dark with their view rolled over, then flips it back and they fall to the
   floor; without the mod he throws them up himself). Nobody is ever left flipped, even if the fight ends mid-spell.
+- **His fall from the sky (half health, once):** not a second phase (same song, same attacks), but something changes.
+  On the next beat after he drops below half, whatever his rest, he turns the Tome of Upside Down on himself: motes
+  fall upward off him, then he rolls over and falls up into the dark, 26 blocks, faster and faster, while the Tome of
+  Earthquake's fissures crack out over the floor where most of you stand, ringed in green (6 blocks) and shadow (25).
+  He hangs there, drifts over that spot, rights himself and comes straight down on it: 30 in the middle down to 14 at
+  6 blocks (x1.2, no shield helps), thrown out and up; then the quake rolls out through the floor to 25 blocks (8 down
+  to 3, jump it) and two light aftershocks. With the magic mod the quake is the mod's own (fissures, heaving ground,
+  flung earth); without it, particles. From then on seven small green blocks (verdant froglight, emerald, green glass,
+  moss) drift and tumble round him for the rest of the fight. His Mirror Images get them too, so they don't give the
+  real one away, and while he's unseen they vanish with him.
 - **Any number of players (1 to 10 and more):** the ring in the intro widens past 10 so nobody's crowded
   (`GummssTimeline.ringRadius`), his health scales as above, Tome of Judgement rains a sword on every player (a dozen
   at most, faster one after another past six), Venom Flasks throws one for every two players (3-6), and with six or
@@ -332,6 +355,7 @@ Damage: every hit he deals is x1.2, rounded up (DAMAGE_DEALT): his staff (10), e
   are built to look like the mod's (Swords, Judgement, the Moon, Reckoning, the Quiver, Swapping); without the mod they
   still work, with an enchanted book in place of the tome.
 - Tuning knobs: `GummssEntity` (health, damage taken, `MAX_HIT`, `CATCH_CHANCE`, `LIFT_BREAK`, `DESPERATE_AT`, rests,
+  the fall from the sky's `ASCEND_*` timing and `LANDING_*`/`QUAKE_*` damage,
   distances, attack weights and gaps in `chooseAttack`, each attack's numbers in its `tick...` method),
   `EnvyHazards` (the tomes' numbers), `GummssTimeline` (song timing, the fall, `healthScale`), `EnvyArena` (shape,
   positions, the eyes).
@@ -339,7 +363,9 @@ Damage: every hit he deals is x1.2, rounded up (DAMAGE_DEALT): his staff (10), e
   the edge, no phase 2, winning; arrows caught and sent back; Reckoning catching only who's on the ground; the Evil
   Eye punishing only who looks; Mirror Images breaking and leaving with him; Swapping; Poison Slash; Levitation;
   the full Judgement crushing only the crowd it falls on; Upside Down flipping everyone and back, and never leaving
-  anyone flipped; ten players falling in the ring and all landing unhurt), `GummssTimelineTest`.
+  anyone flipped; ten players falling in the ring and all landing unhurt; Rubble Barrage tearing up 6-12 blocks,
+  hurting, and mending the floor; the fall from the sky flipping him, landing heavy, leaving the green blocks and no
+  phase 2, and starting by itself at half health), `GummssTimelineTest`.
 
 ## LalliLarge (Gluttony) (built: `boss/gluttony/`)
 

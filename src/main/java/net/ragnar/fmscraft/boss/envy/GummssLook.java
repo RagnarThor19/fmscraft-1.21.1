@@ -7,4 +7,9 @@ public interface GummssLook {
             POSE_STARE = 13, POSE_CATCH = 14, POSE_STUNNED = 15;
 
     int poseState();
+
+    /** How far over he's rolled, in degrees (180: upside down, after the Tome of Upside Down). */
+    default float flipRoll(float tickDelta) {
+        return 0f;
+    }
 }

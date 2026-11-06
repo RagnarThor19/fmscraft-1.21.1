@@ -102,7 +102,12 @@ import java.util.UUID;
  *   <li><b>Mirror Images</b>: three more of him. They break at a touch; the real one is the only one with a shadow.</li>
  *   <li><b>Evil Eye</b>: every eye in the void turns green. Don't be looking at him when it ends.</li>
  *   <li><b>Venom Flasks</b>: lingering poison thrown where you're heading.</li>
+ *   <li><b>Rubble Barrage</b>: 6-12 blocks torn out of the floor round him, hung in the air, then hurled one
+ *       after another. A direct hit is heavy, and each shatters with a blast, but they're thrown wide.</li>
  * </ul>
+ * At half health, once, he turns the Tome of Upside Down on himself: falls up into the dark, rights himself and comes
+ * down on the crowd with the Tome of Earthquake. From then on green blocks drift round him (and his Mirror Images).
+ * It's no second phase: same song, same attacks.
  */
 public class GummssEntity extends SinBossEntity implements GummssLook {
     public static final BossSong SONG = new BossSong("fmscraft:music.envy.theme", GummssTimeline.BPM, GummssTimeline.FIRST_BEAT_TICK);
@@ -126,14 +131,22 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
     /** How far he likes to keep from whoever he's fighting. */
     private static final double TOO_CLOSE = 7, TOO_FAR = 16;
     private static final double SPEED = 0.3;
+    /** His fall from the sky at half health: the cast, falling up, hanging there, the drop, and how high. */
+    private static final int ASCEND_CAST = 24, ASCEND_RISE = 32, ASCEND_HANG = 14, ASCEND_DROP = 14;
+    private static final double ASCEND_HEIGHT = 26;
+    /** Where he lands: heavy in the middle, less to the edge of this; then the quake rolls out from it. */
+    public static final double LANDING_RADIUS = 6;
+    public static final float LANDING_CENTER = 30f, LANDING_EDGE = 14f, QUAKE_CENTER = 8f, QUAKE_EDGE = 3f;
 
     private static final TrackedData<Integer> POSE = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.INTEGER);
     private static final TrackedData<Boolean> STARING = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+    private static final TrackedData<Boolean> FLIPPED = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
 
     enum Action {
         ENTRANCE, MOVE, EXPOSED,
         FORCE_PUSH, FORCE_PULL, TK_SLAM, RECKONING, PEARL, VANISH, MOON, ARROW_RAIN, QUIVER, POISON_DARTS, SWORDS, SWAP,
-        PSYCHIC_SLASH, POISON_SLASH, SWORD_RAIN, ILLUSIONS, EVIL_EYE, VENOM_FLASKS, LEVITATION, JUDGEMENT, UPSIDE_DOWN
+        PSYCHIC_SLASH, POISON_SLASH, SWORD_RAIN, ILLUSIONS, EVIL_EYE, VENOM_FLASKS, LEVITATION, JUDGEMENT, UPSIDE_DOWN,
+        RUBBLE, ASCEND
     }
 
     private Action action = Action.ENTRANCE;
@@ -167,6 +180,13 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
     private List<UUID> pulled = List.of();
     private Vec3d spot;
     private boolean ambush, pearlDone, keepFocus;
+    private EnvyHazards.Rubble rubble;
+
+    // His fall from the sky at half health (once), and the green blocks round him after it
+    private boolean ascended, quakeCharging;
+    private Vec3d ascendFrom;
+    /** Client side: how far over he's rolled (0 upright, 180 upside down), this tick and last. */
+    private float flipRoll, lastFlipRoll;
 
     public GummssEntity(EntityType<? extends HostileEntity> type, World world) {
         super(type, world);
@@ -202,6 +222,7 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         super.initDataTracker(builder);
         builder.add(POSE, POSE_IDLE);
         builder.add(STARING, false);
+        builder.add(FLIPPED, false);
     }
 
     @Override
@@ -239,6 +260,30 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
 
     public boolean isUntouchable() {
         return untouchable;
+    }
+
+    /** Whether he's turned the Tome of Upside Down on himself and come down again (the green blocks round him). */
+    public boolean hasAscended() {
+        return ascended;
+    }
+
+    /** For tests: how many blocks the Rubble Barrage under way tore up (0 if none), and the floor it tore them from. */
+    public int rubbleCount() {
+        return rubble == null ? 0 : rubble.count();
+    }
+
+    public Map<BlockPos, BlockState> rubbleHoles() {
+        return rubble == null ? Map.of() : new LinkedHashMap<>(rubble.holes);
+    }
+
+    /** Whether he's upside down right now, falling up. */
+    public boolean isFlipped() {
+        return dataTracker.get(FLIPPED);
+    }
+
+    @Override
+    public float flipRoll(float tickDelta) {
+        return MathHelper.lerp(tickDelta, lastFlipRoll, flipRoll);
     }
 
     /** How much damage it takes to beat him from full: his max health, and more past the 1024 cap for a big group. */
@@ -296,6 +341,18 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
 
     boolean strike(ServerPlayerEntity player, float damage, Entity from) {
         return player.damage(getDamageSources().mobProjectile(from, this), dealt(damage));
+    }
+
+    /** Caught in the blast of something of his shattering: a shield held towards it helps, like with any blast. */
+    void shatter(ServerPlayerEntity player, float damage, Entity from) {
+        player.damage(getDamageSources().explosion(from, this), dealt(damage));
+    }
+
+    /** Rubble Barrage: a block hurled at {@code at}, from one hand or the other. */
+    void hurl(Vec3d at, boolean left) {
+        faceTowards(at);
+        setPoseState(POSE_PUSH);
+        swingHand(left ? Hand.OFF_HAND : Hand.MAIN_HAND);
     }
 
     /** Being dashed against the floor by his mind: no shield helps. */
@@ -472,6 +529,12 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
     public void tick() {
         super.tick();
         if (getWorld() instanceof ServerWorld world && age % 5 == 0) shrugOffSpells(world);
+        if (getWorld().isClient) {
+            // Rolling over as his gravity flips, and back
+            lastFlipRoll = flipRoll;
+            float to = isFlipped() ? 180f : 0f;
+            flipRoll += MathHelper.clamp(to - flipRoll, -22f, 22f);
+        }
     }
 
     /** Ragnars Magic Mod can't put him to sleep or carry him off in a bubble. */
@@ -521,6 +584,8 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
             case LEVITATION -> tickLevitation(world);
             case JUDGEMENT -> tickJudgement(world);
             case UPSIDE_DOWN -> tickUpsideDown(world);
+            case RUBBLE -> tickRubble(world);
+            case ASCEND -> tickAscend(world);
         }
         tickHazards(world);
         illusions.removeIf(id -> !(world.getEntity(id) instanceof GummssIllusionEntity i) || !i.isAlive());
@@ -544,7 +609,9 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
     @Override
     protected void onBeat(int phase, int beat) {
         if (!(getWorld() instanceof ServerWorld world)) return;
-        if (action == Action.MOVE && rest <= 0 && !fighters.isEmpty() && !heldStill) startAttack(chooseAttack());
+        // Half health: once, whatever his rest, he turns the Tome of Upside Down on himself
+        if (action == Action.MOVE && !ascended && desperate() && !fighters.isEmpty() && !heldStill) startAttack(Action.ASCEND);
+        else if (action == Action.MOVE && rest <= 0 && !fighters.isEmpty() && !heldStill) startAttack(chooseAttack());
         // The eye in the floor pulses with the bass
         if (action != Action.ENTRANCE && beat % 4 == 0 && Arenas.sinOf(world) == Sin.ENVY) {
             hazards.add(new EnvyHazards.Shockwave(EnvyArena.CENTER, 0.5, beat % 16 == 0 ? 9 : 6, 0, 0));
@@ -586,6 +653,7 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         offer(options, weights, Action.LEVITATION, 1, 760);
         offer(options, weights, Action.JUDGEMENT, 1, 900);
         offer(options, weights, Action.UPSIDE_DOWN, 1, 820);
+        offer(options, weights, Action.RUBBLE, new int[]{3, 4, 4}[band], 320);
         if (options.isEmpty()) return Action.PSYCHIC_SLASH;
         int total = weights.stream().mapToInt(Integer::intValue).sum(), roll = random.nextInt(total);
         for (int i = 0; i < options.size(); i++) {
@@ -721,7 +789,7 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
             untouchable = false;
             // His great spells aren't ready from the start
             for (Action big : new Action[]{Action.MOON, Action.ARROW_RAIN, Action.SWORD_RAIN, Action.ILLUSIONS, Action.EVIL_EYE, Action.RECKONING,
-                    Action.LEVITATION, Action.JUDGEMENT, Action.UPSIDE_DOWN}) {
+                    Action.LEVITATION, Action.JUDGEMENT, Action.UPSIDE_DOWN, Action.RUBBLE}) {
                 lastUsed.put(big, age - 300);
             }
             endAttack(12);
@@ -1617,6 +1685,8 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
                     image.addCommandTag(ILLUSION_TAG);
                     world.spawnEntity(image);
                     illusions.add(image.getUuid());
+                    // The green blocks round him would give the real one away: they have them too
+                    if (ascended) hazards.add(new EnvyHazards.Orbit(world, image));
                 }
                 Vec3d mine = spots.get(real);
                 refreshPositionAndAngles(mine.x, mine.y, mine.z, random.nextFloat() * 360, 0);
@@ -1797,6 +1867,173 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         if (t >= windup + flipped + 10) endAttack();
     }
 
+    /**
+     * Rubble Barrage: 6-12 blocks torn out of the floor round him, lifted into the air, then hurled one after
+     * another at all of them in turn. A direct hit is heavy; each shatters with a blast where it lands; but they're
+     * thrown wide, so keep moving and most miss. The holes mend once it's over.
+     */
+    private void tickRubble(ServerWorld world) {
+        int t = actionTicks;
+        if (t == 1) {
+            int count = MathHelper.clamp(6 + random.nextInt(4) + fighters.size() / 2 + (desperate() ? 2 : 0), 6, 12);
+            rubble = new EnvyHazards.Rubble(world, this, count);
+            if (rubble.count() == 0) {
+                rubble = null;
+                endAttack();
+                return;
+            }
+            hazards.add(rubble);
+            setPoseState(POSE_LIFT);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_EVOKER_PREPARE_ATTACK, SoundCategory.HOSTILE, 2.0f, 0.6f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_WARDEN_DIG, SoundCategory.HOSTILE, 2.0f, 0.8f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundCategory.HOSTILE, 1.5f, 0.5f);
+        }
+        stand();
+        if (t < EnvyHazards.Rubble.RISE) {
+            // The floor round him trembling as he tears into it
+            EnvyHazards.ring(world, EnvyHazards.PSYCHIC, getPos(), 2 + t * 0.2, 24, t * 0.25);
+            if (t % 4 == 0) world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, groundState()), getX(), getY() + 0.1, getZ(), 12, 3, 0.05, 3, 0.1);
+        }
+        if (rubble == null || rubble.spent() || t > 240) {
+            rubble = null;
+            endAttack();
+        }
+    }
+
+    /**
+     * Half health, once: he turns the Tome of Upside Down on himself and falls up into the dark, rolled over, while
+     * the Tome of Earthquake's fissures crack out across the floor where most of them stand. He rights himself, hangs
+     * there, and comes down on that spot: heavy where he lands, and the quake rolls out from it (jump it). From then
+     * on green blocks drift round him. Not a second phase: same song, same attacks.
+     */
+    private void tickAscend(ServerWorld world) {
+        int t = actionTicks;
+        int rise = ASCEND_CAST + ASCEND_RISE, hang = rise + ASCEND_HANG, land = hang + ASCEND_DROP;
+        if (t == 1) {
+            dataTracker.set(STARING, false);
+            setInvisible(false);
+            setPoseState(POSE_CAST);
+            hazards.add(new EnvyHazards.Tome(world, this, MagicSpells.itemOr("tome_of_upside_down", Items.ENCHANTED_BOOK), ASCEND_CAST + 4));
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_ILLUSIONER_PREPARE_BLINDNESS, SoundCategory.HOSTILE, 2.5f, 0.4f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_RESPAWN_ANCHOR_DEPLETE.value(), SoundCategory.HOSTILE, 2.5f, 0.5f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_ELDER_GUARDIAN_CURSE, SoundCategory.HOSTILE, 1.5f, 0.6f);
+        }
+        if (t < ASCEND_CAST) {
+            stand();
+            // The ground lets go of him: motes falling upward off him
+            world.spawnParticles(ParticleTypes.REVERSE_PORTAL, getX(), getY() + 0.2, getZ(), 6, 0.4, 0.1, 0.4, 0.06);
+            if (t % 3 == 0) EnvyHazards.ring(world, EnvyHazards.PSYCHIC, getPos(), 1.0 + t * 0.03, 14, t * 0.3);
+            return;
+        }
+        if (t == ASCEND_CAST) {
+            Vec3d crowd = clusterSpot();
+            spot = crowd != null ? crowd : getPos();
+            ascendFrom = getPos();
+            getNavigation().stop();
+            setNoGravity(true);
+            dataTracker.set(FLIPPED, true);
+            setPoseState(POSE_FALL);
+            // The quake's fissures crack out where he's coming down, and keep cracking until he does
+            quakeCharging = MagicSpells.earthquakeCharge(world, getId(), spot, random.nextLong());
+            hazards.add(new EnvyHazards.Circle(spot, LANDING_RADIUS, land - t, EnvyHazards.PSYCHIC));
+            hazards.add(new EnvyHazards.Circle(spot, EnvyHazards.Quake.RADIUS, land - t, EnvyHazards.SHADOW));
+            emit(world, ParticleTypes.REVERSE_PORTAL, getPos().add(0, 1, 0), 60, 0.4, 0.8, 0.4, 0.1);
+            emit(world, EnvyHazards.PSYCHIC, getPos().add(0, 0.2, 0), 40, 0.6, 0.1, 0.6, 0);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_EVOKER_CAST_SPELL, SoundCategory.HOSTILE, 2.5f, 0.5f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_PHANTOM_SWOOP, SoundCategory.HOSTILE, 2.0f, 0.5f);
+        }
+        setVelocity(Vec3d.ZERO);
+        fallDistance = 0;
+        if (t <= rise) {
+            // Falling up: faster and faster
+            double u = (t - ASCEND_CAST) / (double) ASCEND_RISE;
+            setPosition(ascendFrom.x, ascendFrom.y + ASCEND_HEIGHT * u * u, ascendFrom.z);
+            faceYaw(getYaw() + 4f);
+            emit(world, ParticleTypes.REVERSE_PORTAL, getPos().add(0, 1, 0), 3, 0.3, 0.6, 0.3, 0.02);
+            emit(world, EnvyHazards.DEEP_GREEN, getPos().add(0, 1, 0), 3, 0.4, 0.7, 0.4, 0);
+            return;
+        }
+        Vec3d top = new Vec3d(spot.x, ascendFrom.y + ASCEND_HEIGHT, spot.z);
+        if (t <= hang) {
+            // Hanging in the dark, drifting over the crowd; halfway, he flips himself back
+            double u = (t - rise) / (double) ASCEND_HANG;
+            Vec3d at = new Vec3d(ascendFrom.x, top.y, ascendFrom.z).lerp(top, u * u * (3 - 2 * u));
+            setPosition(at.x, at.y + Math.sin(u * Math.PI) * 0.6, at.z);
+            faceTowards(spot);
+            if (t == rise + ASCEND_HANG / 2) {
+                dataTracker.set(FLIPPED, false);
+                setPoseState(POSE_SKY);
+                world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.HOSTILE, 3.0f, 0.5f);
+                world.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_MACE_SMASH_AIR, SoundCategory.HOSTILE, 3.0f, 0.5f);
+                emit(world, EnvyHazards.PSYCHIC, getPos().add(0, 1, 0), 40, 0.6, 0.8, 0.6, 0);
+            }
+            emit(world, EnvyHazards.DEEP_GREEN, getPos().add(0, 1, 0), 3, 0.4, 0.7, 0.4, 0);
+            return;
+        }
+        if (t < land) {
+            // Down on them, staff first
+            double u = (t - hang) / (double) ASCEND_DROP;
+            setPosition(spot.x, MathHelper.lerp(u * u, top.y, spot.y), spot.z);
+            setPoseState(POSE_SLAM);
+            for (ServerPlayerEntity v : audience(world)) {
+                world.spawnParticles(v, ParticleTypes.END_ROD, true, getX(), getY() + 2, getZ(), 3, 0.3, 1.5, 0.3, 0.02);
+            }
+            emit(world, ParticleTypes.CLOUD, getPos().add(0, 2, 0), 3, 0.4, 1.0, 0.4, 0.01);
+            if (t == hang + 1) world.playSound(null, spot.x, spot.y, spot.z, SoundEvents.ITEM_TRIDENT_RIPTIDE_3.value(), SoundCategory.HOSTILE, 3.0f, 0.5f);
+            return;
+        }
+        if (t == land) landQuake(world);
+        if (t >= land + 24) endAttack();
+    }
+
+    /** He lands: heavy where he comes down, the quake rolls out, and from now on the green blocks are round him. */
+    private void landQuake(ServerWorld world) {
+        setPosition(spot.x, spot.y, spot.z);
+        setNoGravity(false);
+        setVelocity(Vec3d.ZERO);
+        setPoseState(POSE_LAND);
+        Vec3d c = getPos();
+        java.util.Set<UUID> struck = new java.util.HashSet<>();
+        for (ServerPlayerEntity p : fighters) {
+            double d = EnvyHazards.flatDistance(p.getPos(), c);
+            if (d > LANDING_RADIUS + 0.3 || Math.abs(p.getY() - c.y) > 4) continue;
+            struck.add(p.getUuid());
+            float falloff = (float) MathHelper.clamp(d / LANDING_RADIUS, 0, 1);
+            p.timeUntilRegen = 0;
+            crush(p, MathHelper.lerp(falloff, LANDING_CENTER, LANDING_EDGE));
+            launch(p, p.getPos().subtract(c), 1.2 * (1.1 - falloff * 0.5), 0.9);
+            flash(p, 0.5f, 14);
+        }
+        hazards.add(new EnvyHazards.Quake(c, groundState(), QUAKE_CENTER, QUAKE_EDGE, struck, getId(), quakeCharging));
+        quakeCharging = false;
+        for (ServerPlayerEntity p : audience(world)) if (p.squaredDistanceTo(c) < 50 * 50) flash(p, 0.3f, 12);
+        emit(world, ParticleTypes.FLASH, c.add(0, 1, 0), 1, 0, 0, 0, 0);
+        emit(world, ParticleTypes.EXPLOSION_EMITTER, c.add(0, 0.5, 0), 1, 0, 0, 0, 0);
+        emit(world, ParticleTypes.GUST_EMITTER_LARGE, c.add(0, 0.5, 0), 1, 0, 0, 0, 0);
+        emit(world, EnvyHazards.DEEP_GREEN, c.add(0, 0.6, 0), 200, 2.5, 0.4, 2.5, 0);
+        emit(world, EnvyHazards.PSYCHIC, c.add(0, 1, 0), 120, 2, 1, 2, 0);
+        world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, groundState()), c.x, c.y + 0.2, c.z, 200, 3, 0.3, 3, 0.3);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.HOSTILE, 5.0f, 0.5f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.HOSTILE, 3.0f, 0.6f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 4.0f, 0.5f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.HOSTILE, 3.0f, 0.5f);
+        // The green blocks: torn up in the landing, and they stay with him
+        ascended = true;
+        hazards.add(new EnvyHazards.Orbit(world, this));
+        for (UUID id : illusions) {
+            if (world.getEntity(id) instanceof GummssIllusionEntity image) hazards.add(new EnvyHazards.Orbit(world, image));
+        }
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.HOSTILE, 2.0f, 0.5f);
+    }
+
+    /** Cut short (he died, the fight ended): the right way up, back on gravity, and the quake called off. */
+    private void endAscend(ServerWorld world) {
+        if (quakeCharging) MagicSpells.earthquakeShock(world, getId(), spot != null ? spot : getPos(), -1);
+        quakeCharging = false;
+        dataTracker.set(FLIPPED, false);
+        setNoGravity(false);
+    }
+
     /** A lingering poison flask, thrown to land where {@code target} is heading. Its cloud is short-lived. */
     private void throwFlask(ServerWorld world, ServerPlayerEntity target) {
         Vec3d from = handPos(false);
@@ -1930,9 +2167,11 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
     }
 
     private void clearAttacks(ServerWorld world) {
+        endAscend(world);
         for (EnvyHazards.Hazard h : hazards) h.remove();
         hazards.clear();
         lift = null;
+        rubble = null;
         for (UUID id : illusions) {
             Entity image = world.getEntity(id);
             if (image instanceof GummssIllusionEntity i) i.shatter(false);

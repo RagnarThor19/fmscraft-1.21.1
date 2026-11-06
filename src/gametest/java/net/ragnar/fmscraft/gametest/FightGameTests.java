@@ -29,6 +29,8 @@ import net.ragnar.fmscraft.compat.MagicTomes;
 import net.ragnar.fmscraft.fight.Arenas;
 import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fight.DeathChests;
+import net.ragnar.fmscraft.fight.FightBot;
+import net.ragnar.fmscraft.fight.FightBots;
 import net.ragnar.fmscraft.fight.FightSession;
 import net.ragnar.fmscraft.item.ModItems;
 import net.ragnar.fmscraft.reward.TomeWheel;
@@ -277,6 +279,102 @@ public class FightGameTests implements FabricGameTest {
                 }
                 ctx.assertTrue(swordInChest, "the fallen player's sword should be in a chest by the portal");
                 ctx.complete();
+            });
+        });
+    }
+
+    // ---- /fmscraft fight <sin> AI|NoAI <count> <canDie> ----
+
+    private static int count(ServerPlayerEntity player, Item item) {
+        int n = 0;
+        for (int i = 0; i < player.getInventory().size(); i++) {
+            ItemStack stack = player.getInventory().getStack(i);
+            if (stack.isOf(item)) n += stack.getCount();
+        }
+        return n;
+    }
+
+    private static boolean chestNear(ServerWorld world, BlockPos base, Item item) {
+        for (BlockPos pos : BlockPos.iterate(base.add(-7, -3, -7), base.add(7, 3, 7))) {
+            if (world.getBlockEntity(pos) instanceof ChestBlockEntity chest) {
+                for (int i = 0; i < chest.size(); i++) if (chest.getStack(i).isOf(item)) return true;
+            }
+        }
+        return false;
+    }
+
+    /** Bots join like players, walk in, and one dying ends it for everyone with its kit chested by the portal. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 2000, batchId = "fight_bots")
+    public void botsFightAndFallLikeFriends(TestContext ctx) {
+        withSloth(ctx, 1, () -> {
+            ServerWorld world = ctx.getWorld();
+            MinecraftServer server = world.getServer();
+            BlockPos base = ctx.getAbsolutePos(new BlockPos(3, 1, 3));
+            int join = 60;
+            ctx.assertTrue(BossFights.open(Sin.SLOTH, world, base, Direction.Axis.X, join), "portal should open");
+            List<FightBot> bots = FightBots.start(world, ctx.getAbsolute(new net.minecraft.util.math.Vec3d(1.5, 1, 1.5)), 0f, Sin.SLOTH, 2, true, true);
+            ctx.assertEquals(bots.size(), 2, "bots joined");
+            FightBot survivor = bots.get(0), fallen = bots.get(1);
+            for (FightBot bot : bots) {
+                ctx.assertTrue(server.getPlayerManager().getPlayer(bot.getUuid()) == bot, "bot is on the player list");
+                ctx.assertTrue(bot.getEquippedStack(net.minecraft.entity.EquipmentSlot.CHEST).isOf(Items.NETHERITE_CHESTPLATE), "netherite on");
+                ctx.assertEquals(count(bot, Items.GOLDEN_APPLE), 32, "golden apples");
+            }
+
+            ctx.waitAndRun(join + 10, () -> {
+                FightSession session = BossFights.session(Sin.SLOTH);
+                ctx.assertTrue(session != null && session.stage() == FightSession.Stage.ACTIVE, "fight should be running");
+                ServerWorld arena = Arenas.world(server, Sin.SLOTH);
+                for (FightBot bot : bots) {
+                    ctx.assertTrue(session.participants.contains(bot.getUuid()), bot.getName().getString() + " should be in the fight");
+                    ctx.assertTrue(bot.getServerWorld() == arena, bot.getName().getString() + " should have walked in");
+                }
+
+                fallen.damage(fallen.getDamageSources().outOfWorld(), Float.MAX_VALUE);
+                ctx.assertTrue(BossFights.session(Sin.SLOTH) == null, "a bot dying ends the fight");
+                ctx.assertTrue(chestNear(world, base, Items.NETHERITE_CHESTPLATE), "the fallen bot's kit is chested by the portal");
+
+                ctx.waitAndRun(3, () -> {
+                    ctx.assertTrue(survivor.getServerWorld() == world && survivor.getBlockPos().getManhattanDistance(base) <= 3,
+                            "the other bot is sent back to the portal, at " + survivor.getBlockPos() + " in " + survivor.getWorld().getRegistryKey().getValue());
+                    ctx.waitAndRun(FightBots.LEAVE_AFTER + 5, () -> {
+                        ctx.assertTrue(server.getPlayerManager().getPlayer(survivor.getUuid()) == null, "survivor logged off");
+                        ctx.assertTrue(server.getPlayerManager().getPlayer(fallen.getUuid()) == null, "fallen bot logged off");
+                        ctx.complete();
+                    });
+                });
+            });
+        });
+    }
+
+    /** With canDie off a bot is left on half a heart, the fight goes on, and it eats a golden apple. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 2000, batchId = "fight_bots_undying")
+    public void undyingBotSurvivesAndEats(TestContext ctx) {
+        withSloth(ctx, 1, () -> {
+            ServerWorld world = ctx.getWorld();
+            MinecraftServer server = world.getServer();
+            BlockPos base = ctx.getAbsolutePos(new BlockPos(3, 1, 3));
+            int join = 40;
+            BossFights.open(Sin.SLOTH, world, base, Direction.Axis.X, join);
+            FightBot bot = FightBots.start(world, ctx.getAbsolute(new net.minecraft.util.math.Vec3d(1.5, 1, 1.5)), 0f, Sin.SLOTH, 1, true, false).get(0);
+
+            // Past the 3 seconds of protection every player gets on joining
+            ctx.waitAndRun(join + 40, () -> {
+                // (just after a hit from the boss, damage() reports false but still deals the difference)
+                bot.damage(bot.getDamageSources().generic(), 1000f);
+                ctx.assertTrue(bot.isAlive() && bot.getHealth() == 1f, "bot that can't die should be left on half a heart, health " + bot.getHealth()
+                        + " (mode " + bot.interactionManager.getGameMode() + ", teleporting " + bot.isInTeleportationState() + ", age " + bot.age + ")");
+                FightSession session = BossFights.session(Sin.SLOTH);
+                ctx.assertTrue(session != null && session.stage() == FightSession.Stage.ACTIVE, "fight goes on");
+
+                ctx.waitAndRun(60, () -> {
+                    int apples = count(bot, Items.GOLDEN_APPLE);
+                    boolean ate = apples < 32;
+                    BossFights.forceEnd(server, Sin.SLOTH);
+                    FightBots.leave(bot);
+                    ctx.assertTrue(ate, "bot should have eaten a golden apple when low, has " + apples + " left, health " + bot.getHealth());
+                    ctx.complete();
+                });
             });
         });
     }

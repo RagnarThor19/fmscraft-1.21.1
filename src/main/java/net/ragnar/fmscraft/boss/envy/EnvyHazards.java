@@ -31,15 +31,18 @@ import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 /**
  * What GUMMSS conjures: things that outlive the attack that made them and tick on their own until they're spent.
- * They only ever hurt the players fighting him, and never break a block. Several are Ragnars Magic Mod's tomes cast by
+ * They only ever hurt the players fighting him, and never break a block for good (the holes Rubble Barrage tears in
+ * the floor mend a moment later, and at once if he dies or the fight ends). Several are Ragnars Magic Mod's tomes cast by
  * him (Swords, Judgement, the Moon, Reckoning, the Quiver), built to look and sound like the tomes do.
  */
 final class EnvyHazards {
@@ -1121,6 +1124,436 @@ final class EnvyHazards {
         @Override
         void remove() {
             if (display != null) display.discard();
+        }
+    }
+
+    // ---- Rubble Barrage: blocks torn out of the floor round him, hung in the air, then hurled one after another ----
+
+    static final class Rubble extends Hazard {
+        /** Ticks for the blocks to rise (they pop out one a tick), to hang there, and between throws. */
+        static final int RISE = 16, HOLD = 10, GAP = 3, FLIGHT = 45, MEND = 30;
+        static final double SPEED = 1.3, GRAVITY = 0.02;
+        /** How far off a throw may land from who it was thrown at (so most miss), and the blast round where it lands. */
+        static final double SPREAD = 3.2, BLAST = 2.8;
+        static final float DIRECT = 16f, SPLASH = 7f, SPLASH_EDGE = 2f, SIZE = 0.85f;
+
+        static final class Rock {
+            final BlockState state;
+            final Vec3d from;
+            final double slotAngle, slotRadius, slotHeight;
+            final Vector3f axis;
+            final int popAt;
+            DisplayEntity.BlockDisplayEntity display;
+            Vec3d pos, vel;
+            float spin;
+            int thrownAt = -1;
+            boolean done;
+
+            Rock(BlockState state, Vec3d from, double slotAngle, double slotRadius, double slotHeight, Vector3f axis, int popAt) {
+                this.state = state;
+                this.from = from;
+                this.pos = from;
+                this.slotAngle = slotAngle;
+                this.slotRadius = slotRadius;
+                this.slotHeight = slotHeight;
+                this.axis = axis;
+                this.popAt = popAt;
+            }
+        }
+
+        final List<Rock> rocks = new ArrayList<>();
+        /** The floor blocks torn out, to put back. */
+        final Map<BlockPos, BlockState> holes = new LinkedHashMap<>();
+        final ServerWorld world;
+        int nextThrow, thrown, finishedAt = -1;
+
+        /** {@code count} blocks from the floor 2.5-5 blocks round {@code boss}, never from under anyone's feet. */
+        Rubble(ServerWorld world, GummssEntity boss, int count) {
+            this.world = world;
+            var r = world.random;
+            Set<BlockPos> taken = new HashSet<>();
+            double start = r.nextDouble() * MathHelper.TAU;
+            for (int i = 0; i < count; i++) {
+                for (int tries = 0; tries < 6; tries++) {
+                    double a = start + i * MathHelper.TAU / count + (r.nextDouble() - 0.5) * 0.5;
+                    double d = 2.5 + r.nextDouble() * 2.5;
+                    BlockPos floor = floorAt(world, BlockPos.ofFloored(boss.getX() + Math.cos(a) * d, boss.getY() - 0.5, boss.getZ() + Math.sin(a) * d));
+                    if (floor == null || !taken.add(floor) || underSomeone(boss, floor)) continue;
+                    BlockState state = world.getBlockState(floor);
+                    if (canTearOut(world, floor, state)) holes.put(floor, state);
+                    Vector3f axis = new Vector3f(r.nextFloat() - 0.5f, r.nextFloat() - 0.5f, r.nextFloat() - 0.5f);
+                    if (axis.lengthSquared() < 1e-3f) axis.set(0, 1, 0);
+                    // Hung in a ring round him, some higher, some lower
+                    rocks.add(new Rock(state, Vec3d.ofCenter(floor), a, 1.8 + r.nextDouble() * 1.6, 2.2 + r.nextDouble() * 2.2,
+                            axis.normalize(), 1 + rocks.size()));
+                    break;
+                }
+            }
+            nextThrow = RISE + HOLD + rocks.size();
+        }
+
+        /** The top solid block of the floor in this column, near {@code at}. */
+        private static BlockPos floorAt(ServerWorld world, BlockPos at) {
+            for (int dy = 1; dy >= -2; dy--) {
+                BlockPos pos = at.up(dy);
+                if (world.getBlockState(pos.up()).getCollisionShape(world, pos.up()).isEmpty()
+                        && !world.getBlockState(pos).getCollisionShape(world, pos).isEmpty()) return pos;
+            }
+            return null;
+        }
+
+        private static boolean underSomeone(GummssEntity boss, BlockPos floor) {
+            Vec3d top = Vec3d.ofCenter(floor).add(0, 0.5, 0);
+            for (ServerPlayerEntity p : boss.fighters()) if (flatDistance(p.getPos(), top) < 1.3 && Math.abs(p.getY() - top.y) < 2) return true;
+            return flatDistance(boss.getPos(), top) < 1.3;
+        }
+
+        /** Only plain full blocks with a full block under them, so a hole is never a way into the void. */
+        private static boolean canTearOut(ServerWorld world, BlockPos pos, BlockState state) {
+            return state.isFullCube(world, pos) && !state.hasBlockEntity() && state.getHardness(world, pos) >= 0
+                    && !state.isOf(Blocks.BARRIER) && world.getBlockState(pos.down()).isFullCube(world, pos.down());
+        }
+
+        /** How many blocks he tore up. */
+        int count() {
+            return rocks.size();
+        }
+
+        /** Every block has been thrown and has landed. */
+        boolean spent() {
+            for (Rock rock : rocks) if (!rock.done) return false;
+            return true;
+        }
+
+        Vec3d slot(GummssEntity boss, Rock rock) {
+            double a = rock.slotAngle + age * 0.02;
+            return boss.getPos().add(Math.cos(a) * rock.slotRadius, rock.slotHeight + Math.sin(age * 0.15 + rock.slotAngle * 3) * 0.12,
+                    Math.sin(a) * rock.slotRadius);
+        }
+
+        @Override
+        boolean tick(ServerWorld world, GummssEntity boss) {
+            age++;
+            for (Rock rock : rocks) {
+                if (rock.done || age < rock.popAt) continue;
+                if (age == rock.popAt) pop(world, rock);
+                if (rock.display == null) {
+                    rock.done = true;
+                    continue;
+                }
+                rock.spin += rock.thrownAt >= 0 ? 0.35f : 0.06f;
+                if (rock.thrownAt >= 0) {
+                    fly(world, boss, rock);
+                    continue;
+                }
+                // Rising out of the floor, easing to a stop in the air round him, and hanging there
+                double u = Math.min(1, (age - rock.popAt) / (double) RISE);
+                double ease = 1 - (1 - u) * (1 - u);
+                rock.pos = rock.from.lerp(slot(boss, rock), ease);
+                show(rock, SIZE * (float) (0.7 + 0.3 * ease));
+                if (age % 3 == 0) world.spawnParticles(PSYCHIC, rock.pos.x, rock.pos.y, rock.pos.z, 1, 0.2, 0.2, 0.2, 0);
+                if (u < 1 && age % 2 == 0) {
+                    world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.FALLING_DUST, rock.state), rock.pos.x, rock.pos.y - 0.4, rock.pos.z, 2, 0.25, 0.1, 0.25, 0);
+                }
+            }
+            // Hurled one after another, each at one of them in turn, none of it too well aimed
+            List<ServerPlayerEntity> targets = boss.fighters();
+            if (age >= nextThrow && !targets.isEmpty()) {
+                for (Rock rock : rocks) {
+                    if (rock.done || rock.thrownAt >= 0 || rock.display == null) continue;
+                    throwAt(world, boss, rock, targets.get(thrown++ % targets.size()));
+                    nextThrow = age + GAP;
+                    break;
+                }
+            }
+            if (finishedAt < 0 && age > RISE && spent()) finishedAt = age;
+            if (finishedAt >= 0 && age >= finishedAt + MEND) {
+                mend(true);
+                return false;
+            }
+            return true;
+        }
+
+        private void pop(ServerWorld world, Rock rock) {
+            BlockPos at = BlockPos.ofFloored(rock.from);
+            if (holes.containsKey(at)) world.setBlockState(at, Blocks.AIR.getDefaultState());
+            rock.display = EntityType.BLOCK_DISPLAY.create(world);
+            if (rock.display == null) return;
+            rock.display.setBlockState(rock.state);
+            rock.display.setTeleportDuration(1);
+            rock.display.setViewRange(4f);
+            // Lit by his mind, so they can be seen coming across the dark arena
+            rock.display.setBrightness(new Brightness(12, 12));
+            rock.display.refreshPositionAndAngles(rock.from.x, rock.from.y, rock.from.z, 0, 0);
+            world.spawnEntity(rock.display);
+            show(rock, SIZE * 0.7f);
+            BlockStateParticleEffect debris = new BlockStateParticleEffect(ParticleTypes.BLOCK, rock.state);
+            world.spawnParticles(debris, rock.from.x, rock.from.y + 0.5, rock.from.z, 24, 0.4, 0.2, 0.4, 0.15);
+            world.spawnParticles(PSYCHIC, rock.from.x, rock.from.y + 0.6, rock.from.z, 6, 0.4, 0.2, 0.4, 0);
+            world.playSound(null, rock.from.x, rock.from.y, rock.from.z, rock.state.getSoundGroup().getBreakSound(), SoundCategory.HOSTILE, 1.4f, 0.6f);
+            world.playSound(null, rock.from.x, rock.from.y, rock.from.z, SoundEvents.BLOCK_ROOTED_DIRT_BREAK, SoundCategory.HOSTILE, 1.0f, 0.5f);
+        }
+
+        /** The block, {@code size} big, tumbling about its own middle. */
+        private static void show(Rock rock, float size) {
+            Quaternionf rot = new Quaternionf().rotationAxis(rock.spin, rock.axis);
+            Vector3f half = new Vector3f(-0.5f, -0.5f, -0.5f).mul(size).rotate(rot);
+            place(rock.display, rock.pos, new AffineTransformation(half, rot, new Vector3f(size, size, size), new Quaternionf()), 1);
+        }
+
+        private void throwAt(ServerWorld world, GummssEntity boss, Rock rock, ServerPlayerEntity target) {
+            var r = world.random;
+            double a = r.nextDouble() * MathHelper.TAU, off = Math.sqrt(r.nextDouble()) * SPREAD;
+            Vec3d aim = target.getPos().add(Math.cos(a) * off, 0.6 + r.nextDouble() * 0.8, Math.sin(a) * off);
+            Vec3d to = aim.subtract(rock.pos);
+            double ticks = Math.max(1, to.length() / SPEED);
+            // Lobbed just enough that it drops onto the aim point
+            rock.vel = to.multiply(1 / ticks).add(0, GRAVITY * ticks / 2, 0);
+            rock.thrownAt = age;
+            boss.hurl(target.getPos(), thrown % 2 == 0);
+            world.playSound(null, rock.pos.x, rock.pos.y, rock.pos.z, SoundEvents.ENTITY_BREEZE_SHOOT, SoundCategory.HOSTILE, 1.6f, 0.6f);
+            world.playSound(null, rock.pos.x, rock.pos.y, rock.pos.z, SoundEvents.ITEM_TRIDENT_THROW.value(), SoundCategory.HOSTILE, 1.0f, 0.5f);
+            world.spawnParticles(ParticleTypes.ENCHANTED_HIT, rock.pos.x, rock.pos.y, rock.pos.z, 6, 0.2, 0.2, 0.2, 0.2);
+        }
+
+        private void fly(ServerWorld world, GummssEntity boss, Rock rock) {
+            Vec3d from = rock.pos;
+            rock.vel = rock.vel.add(0, -GRAVITY, 0);
+            Vec3d to = from.add(rock.vel);
+            ServerPlayerEntity hitPlayer = null;
+            double hitDist = Double.MAX_VALUE;
+            for (ServerPlayerEntity p : boss.fighters()) {
+                var clip = p.getBoundingBox().expand(SIZE * 0.45).raycast(from, to);
+                if (clip.isEmpty()) continue;
+                double d = from.squaredDistanceTo(clip.get());
+                if (d < hitDist) {
+                    hitDist = d;
+                    hitPlayer = p;
+                }
+            }
+            BlockHitResult wall = world.raycast(new RaycastContext(from, to, RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, ShapeContext.absent()));
+            if (wall.getType() == HitResult.Type.BLOCK && (hitPlayer == null || from.squaredDistanceTo(wall.getPos()) < hitDist)) {
+                shatter(world, boss, rock, wall.getPos(), null);
+                return;
+            }
+            if (hitPlayer != null) {
+                // A direct hit: heavy, and it knocks you off your feet
+                boss.strike(hitPlayer, DIRECT, rock.display);
+                Vec3d push = rock.vel.multiply(1, 0, 1);
+                if (push.lengthSquared() > 1e-4) push = push.normalize();
+                hitPlayer.addVelocity(push.x * 0.8, 0.35, push.z * 0.8);
+                hitPlayer.velocityModified = true;
+                shatter(world, boss, rock, hitPlayer.getBoundingBox().getCenter(), hitPlayer);
+                return;
+            }
+            rock.pos = to;
+            show(rock, SIZE);
+            world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.FALLING_DUST, rock.state), from.x, from.y, from.z, 2, 0.15, 0.15, 0.15, 0);
+            if (age % 2 == 0) world.spawnParticles(PSYCHIC, from.x, from.y, from.z, 1, 0.05, 0.05, 0.05, 0);
+            if (age - rock.thrownAt > FLIGHT) shatter(world, boss, rock, rock.pos, null);
+        }
+
+        /** It breaks where it lands: the block in pieces, and a blast that catches anyone close. */
+        private void shatter(ServerWorld world, GummssEntity boss, Rock rock, Vec3d at, ServerPlayerEntity struck) {
+            rock.done = true;
+            net.minecraft.entity.Entity from = rock.display != null ? rock.display : boss;
+            BlockStateParticleEffect debris = new BlockStateParticleEffect(ParticleTypes.BLOCK, rock.state);
+            world.spawnParticles(debris, at.x, at.y + 0.3, at.z, 50, 0.5, 0.4, 0.5, 0.3);
+            world.spawnParticles(ParticleTypes.EXPLOSION, at.x, at.y + 0.3, at.z, 1, 0, 0, 0, 0);
+            world.spawnParticles(PSYCHIC, at.x, at.y + 0.3, at.z, 14, 0.8, 0.3, 0.8, 0);
+            world.spawnParticles(ParticleTypes.POOF, at.x, at.y + 0.3, at.z, 8, 0.4, 0.2, 0.4, 0.05);
+            world.playSound(null, at.x, at.y, at.z, rock.state.getSoundGroup().getBreakSound(), SoundCategory.HOSTILE, 2.0f, 0.7f);
+            world.playSound(null, at.x, at.y, at.z, SoundEvents.ITEM_MACE_SMASH_GROUND, SoundCategory.HOSTILE, 1.2f, 0.8f);
+            world.playSound(null, at.x, at.y, at.z, SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 0.7f, 1.4f);
+            for (ServerPlayerEntity p : boss.fighters()) {
+                if (p == struck) continue;
+                double d = p.getBoundingBox().getCenter().distanceTo(at);
+                if (d > BLAST) continue;
+                boss.shatter(p, MathHelper.lerp((float) (d / BLAST), SPLASH, SPLASH_EDGE), from);
+                boss.launch(p, p.getPos().subtract(at), 0.45, 0.3);
+            }
+            if (rock.display != null) rock.display.discard();
+            rock.display = null;
+        }
+
+        /** Puts back every block torn out of the floor (unless something else is there now). */
+        void mend(boolean show) {
+            for (var hole : holes.entrySet()) {
+                BlockPos pos = hole.getKey();
+                if (!world.getBlockState(pos).isAir()) continue;
+                world.setBlockState(pos, hole.getValue());
+                if (show) {
+                    world.spawnParticles(PSYCHIC, pos.getX() + 0.5, pos.getY() + 1.05, pos.getZ() + 0.5, 4, 0.3, 0.05, 0.3, 0);
+                    world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, hole.getValue()), pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5, 6, 0.3, 0.05, 0.3, 0.05);
+                }
+            }
+            if (show && !holes.isEmpty()) {
+                world.playSound(null, holes.keySet().iterator().next(), SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.HOSTILE, 1.0f, 0.6f);
+            }
+            holes.clear();
+        }
+
+        /** Taken away early (he died, the fight ended): the floor is mended at once, and nothing is left hanging. */
+        @Override
+        void remove() {
+            mend(false);
+            for (Rock rock : rocks) {
+                if (rock.display != null) rock.display.discard();
+                rock.display = null;
+            }
+        }
+    }
+
+    // ---- His landing after he turned the Tome of Upside Down on himself: the Tome of Earthquake's quake ----
+
+    /**
+     * With Ragnars Magic Mod it looks exactly like the Tome of Earthquake (the boss started its charge as he fell up;
+     * this sends the shock and the aftershocks, and the mod's client draws the fissures, the heaving ground and the
+     * flung earth); without it, particles. Either way the damage is done here: whoever is on the ground as the wave
+     * passes (jump it), and twice more, lightly, in the aftershocks.
+     */
+    static final class Quake extends Hazard {
+        static final double RADIUS = 25, SPEED = 1.25;
+        static final int[] AFTERSHOCKS = {24, 44};
+        final Vec3d center;
+        final float centerDamage, edgeDamage;
+        final Set<UUID> hit = new HashSet<>();
+        final BlockState ground;
+        final int casterId;
+        final boolean tome;
+
+        Quake(Vec3d center, BlockState ground, float centerDamage, float edgeDamage, Set<UUID> alreadyHit, int casterId, boolean tome) {
+            this.center = center;
+            this.ground = ground.isAir() ? Blocks.BLACKSTONE.getDefaultState() : ground;
+            this.centerDamage = centerDamage;
+            this.edgeDamage = edgeDamage;
+            this.hit.addAll(alreadyHit);
+            this.casterId = casterId;
+            this.tome = tome;
+        }
+
+        @Override
+        boolean tick(ServerWorld world, GummssEntity boss) {
+            age++;
+            double r = age * SPEED;
+            BlockStateParticleEffect debris = new BlockStateParticleEffect(ParticleTypes.BLOCK, ground);
+            if (tome && age == 1) net.ragnar.fmscraft.compat.MagicSpells.earthquakeShock(world, casterId, center, 0);
+            if (r <= RADIUS && !tome) {
+                // Without the mod: the heave of earth along the front of the wave, and smoke from the fissures
+                int points = (int) Math.min(120, 16 + r * 4);
+                for (int i = 0; i < points; i++) {
+                    double a = i * MathHelper.TAU / points + r * 0.13;
+                    world.spawnParticles(debris, center.x + Math.cos(a) * r, center.y + 0.2, center.z + Math.sin(a) * r, 1, 0.1, 0.2, 0.1, 0.3);
+                }
+                ring(world, PSYCHIC, center, r, points / 3, 0);
+                for (int k = 0; k < 7; k++) {
+                    double a = k * MathHelper.TAU / 7 + Math.sin(r * 0.3 + k) * 0.08;
+                    Vec3d at = center.add(Math.cos(a) * r, 0.1, Math.sin(a) * r);
+                    world.spawnParticles(ParticleTypes.SMOKE, at.x, at.y, at.z, 2, 0.1, 0.05, 0.1, 0.01);
+                }
+            }
+            if (r <= RADIUS) {
+                for (ServerPlayerEntity p : boss.fighters()) {
+                    if (hit.contains(p.getUuid())) continue;
+                    double d = flatDistance(p.getPos(), center);
+                    if (d > r || Math.abs(p.getY() - center.y) > 6) continue;
+                    hit.add(p.getUuid());
+                    if (d < r - SPEED - 1.5 || !p.isOnGround()) continue; // jumped it
+                    boss.crush(p, (float) MathHelper.lerp(d / RADIUS, centerDamage, edgeDamage));
+                    boss.launch(p, p.getPos().subtract(center), 0.5 + 0.5 * (1 - d / RADIUS), 0.6);
+                }
+                if (age % 4 == 0) world.playSound(null, center.x, center.y, center.z, SoundEvents.BLOCK_DEEPSLATE_BREAK, SoundCategory.HOSTILE, 2.5f, 0.4f);
+            }
+            for (int i = 0; i < AFTERSHOCKS.length; i++) {
+                if (age != AFTERSHOCKS[i]) continue;
+                if (tome) net.ragnar.fmscraft.compat.MagicSpells.earthquakeShock(world, casterId, center, i + 1);
+                world.playSound(null, center.x, center.y, center.z, SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 1.5f, 0.5f);
+                world.playSound(null, center.x, center.y, center.z, SoundEvents.BLOCK_DEEPSLATE_BREAK, SoundCategory.HOSTILE, 2.5f, 0.3f);
+                for (ServerPlayerEntity p : boss.fighters()) {
+                    if (!p.isOnGround() || flatDistance(p.getPos(), center) > RADIUS || Math.abs(p.getY() - center.y) > 6) continue;
+                    boss.crush(p, i == 0 ? 3 : 2);
+                    p.setVelocity(p.getVelocity().add(0, i == 0 ? 0.45 : 0.32, 0));
+                    p.velocityModified = true;
+                }
+                for (int k = 0; k < (tome ? 0 : 40); k++) {
+                    double a = world.random.nextDouble() * MathHelper.TAU, rr = world.random.nextDouble() * RADIUS;
+                    world.spawnParticles(debris, center.x + Math.cos(a) * rr, center.y + 0.2, center.z + Math.sin(a) * rr, 2, 0.2, 0.1, 0.2, 0.2);
+                }
+            }
+            return age < AFTERSHOCKS[AFTERSHOCKS.length - 1] + 2;
+        }
+    }
+
+    // ---- After his fall from the sky: green blocks that drift round him from then on ----
+
+    static final class Orbit extends Hazard {
+        static final BlockState[] BLOCKS = {Blocks.VERDANT_FROGLIGHT.getDefaultState(), Blocks.EMERALD_BLOCK.getDefaultState(),
+                Blocks.GREEN_STAINED_GLASS.getDefaultState(), Blocks.MOSS_BLOCK.getDefaultState(), Blocks.VERDANT_FROGLIGHT.getDefaultState(),
+                Blocks.EMERALD_BLOCK.getDefaultState(), Blocks.GREEN_STAINED_GLASS.getDefaultState()};
+        static final float SIZE = 0.38f;
+        /** Whose they are: him, or one of his Mirror Images (so they don't give the real one away). */
+        final UUID owner;
+        final DisplayEntity.BlockDisplayEntity[] displays = new DisplayEntity.BlockDisplayEntity[BLOCKS.length];
+        final Vector3f[] axes = new Vector3f[BLOCKS.length];
+        final double phase;
+
+        Orbit(ServerWorld world, net.minecraft.entity.Entity around) {
+            this.owner = around.getUuid();
+            this.phase = world.random.nextDouble() * MathHelper.TAU;
+            for (int i = 0; i < BLOCKS.length; i++) {
+                axes[i] = new Vector3f(world.random.nextFloat() - 0.5f, world.random.nextFloat() - 0.5f, world.random.nextFloat() - 0.5f);
+                if (axes[i].lengthSquared() < 1e-3f) axes[i].set(0, 1, 0);
+                axes[i].normalize();
+                DisplayEntity.BlockDisplayEntity d = EntityType.BLOCK_DISPLAY.create(world);
+                if (d == null) continue;
+                d.setBlockState(BLOCKS[i]);
+                d.setTeleportDuration(2);
+                d.setViewRange(3f);
+                d.setBrightness(new Brightness(15, 15));
+                d.setTransformation(new AffineTransformation(null, null, new Vector3f(0.01f, 0.01f, 0.01f), null));
+                Vec3d at = slot(around, i, 0);
+                d.refreshPositionAndAngles(at.x, at.y, at.z, 0, 0);
+                world.spawnEntity(d);
+                displays[i] = d;
+            }
+        }
+
+        Vec3d slot(net.minecraft.entity.Entity around, int i, int age) {
+            double a = phase + i * MathHelper.TAU / BLOCKS.length + age * 0.045;
+            double r = 1.35 + 0.35 * Math.sin(age * 0.03 + i * 1.7);
+            double y = 0.5 + (i % 3) * 0.75 + Math.sin(age * 0.08 + i) * 0.18;
+            return around.getPos().add(Math.cos(a) * r, y, Math.sin(a) * r);
+        }
+
+        @Override
+        boolean tick(ServerWorld world, GummssEntity boss) {
+            age++;
+            net.minecraft.entity.Entity around = world.getEntity(owner);
+            if (around == null || !around.isAlive()) {
+                // The image broke (or he's gone): its blocks crumble with it
+                for (DisplayEntity.BlockDisplayEntity d : displays) {
+                    if (d == null) continue;
+                    world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, d.getBlockState()), d.getX(), d.getY(), d.getZ(), 6, 0.1, 0.1, 0.1, 0.1);
+                }
+                return false;
+            }
+            // Unseen, he takes them with him: nothing gives away where he walks
+            float size = around.isInvisible() ? 0.001f : SIZE * Math.min(1f, age / 20f);
+            for (int i = 0; i < displays.length; i++) {
+                DisplayEntity.BlockDisplayEntity d = displays[i];
+                if (d == null) continue;
+                Quaternionf rot = new Quaternionf().rotationAxis(age * 0.05f + i, axes[i]);
+                Vector3f half = new Vector3f(-0.5f, -0.5f, -0.5f).mul(size).rotate(rot);
+                Vec3d at = slot(around, i, age);
+                place(d, at, new AffineTransformation(half, rot, new Vector3f(size, size, size), new Quaternionf()), 2);
+                if (size > 0.01f && (age + i * 7) % 16 == 0) world.spawnParticles(PSYCHIC, at.x, at.y, at.z, 1, 0.05, 0.05, 0.05, 0);
+            }
+            return true;
+        }
+
+        @Override
+        void remove() {
+            for (DisplayEntity.BlockDisplayEntity d : displays) if (d != null) d.discard();
         }
     }
 }
