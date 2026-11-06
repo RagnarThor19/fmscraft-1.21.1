@@ -31,6 +31,8 @@ import java.util.Optional;
  *       tome's.</li>
  *   <li>MUGEN's shadow (his entrance, and his Tome of Unseen Hands) is the Tome of Unseen Hands' own: the boss sends
  *       the two packets its client half draws the pool and the hands from.</li>
+ *   <li>LEONARD's zaps (and his chain lightning) are the Tome of Zap's own bolts: the boss sends the packet its client
+ *       half draws them from, with himself as the caster, and plays its cast sound.</li>
  * </ul>
  */
 public final class MagicSpells {
@@ -51,7 +53,13 @@ public final class MagicSpells {
     /** How far off people see the shadow (the mod's own range). */
     private static final double HANDS_VIEW = 128;
 
-    private static boolean looked, lookedFlip, lookedQuake, lookedHands;
+    private static final String ZAP_CLASS = "net.ragnar.ragnarsmagicmod.network.ZapPayload";
+    /** How far off people see a zap (the mod's own range). */
+    private static final double ZAP_VIEW = 96;
+    public static final int ZAP_MISS = 0, ZAP_BLOCK = 1, ZAP_ENTITY = 2;
+
+    private static boolean looked, lookedFlip, lookedQuake, lookedHands, lookedZap;
+    private static Constructor<?> zapPayload;
     private static Constructor<?> quakeCharge, quakeShock, handsStart, handsGrab;
     private static Method isSleepy, wake, isFlipped, setFlipped;
 
@@ -195,6 +203,46 @@ public final class MagicSpells {
     public static boolean hasShadowHands() {
         lookUpHands();
         return handsStart != null && handsGrab != null;
+    }
+
+    /**
+     * A Tome of Zap bolt from {@code from} to {@code to}, drawn by the mod: {@code casterId} is the entity it comes out of
+     * (its hand, if the client has it; -1 to start at {@code from}), {@code hit} one of ZAP_MISS/BLOCK/ENTITY and
+     * {@code normal} the face it struck. False (nothing sent) without the mod.
+     */
+    public static boolean zap(ServerWorld world, int casterId, Vec3d from, Vec3d to, int hit, Vec3d normal) {
+        lookUpZap();
+        if (zapPayload == null) return false;
+        try {
+            CustomPayload payload = (CustomPayload) zapPayload.newInstance(casterId, from.toVector3f(), to.toVector3f(), hit, normal.toVector3f());
+            for (ServerPlayerEntity p : world.getPlayers()) {
+                if ((p.getPos().squaredDistanceTo(from) < ZAP_VIEW * ZAP_VIEW || p.getPos().squaredDistanceTo(to) < ZAP_VIEW * ZAP_VIEW)
+                        && ServerPlayNetworking.canSend(p, payload.getId())) {
+                    ServerPlayNetworking.send(p, payload);
+                }
+            }
+            return true;
+        } catch (ReflectiveOperationException | ClassCastException e) {
+            zapPayload = null;
+            return false;
+        }
+    }
+
+    /** The Tome of Zap's cast sound, or null without the mod. */
+    public static net.minecraft.sound.SoundEvent zapSound() {
+        return Registries.SOUND_EVENT.getOrEmpty(Identifier.of(MagicTomes.MOD_ID, "zap_cast")).orElse(null);
+    }
+
+    private static synchronized void lookUpZap() {
+        if (lookedZap) return;
+        lookedZap = true;
+        if (!FabricLoader.getInstance().isModLoaded(MagicTomes.MOD_ID)) return;
+        try {
+            Class<?> zap = Class.forName(ZAP_CLASS, true, MagicSpells.class.getClassLoader());
+            zapPayload = zap.getConstructor(int.class, org.joml.Vector3f.class, org.joml.Vector3f.class, int.class, org.joml.Vector3f.class);
+        } catch (ReflectiveOperationException e) {
+            FmsCraft.LOGGER.warn("Couldn't find Ragnars Magic Mod's Tome of Zap ({}); LEONARD's zaps use particles", e.toString());
+        }
     }
 
     private static void sendNear(ServerWorld world, Vec3d at, CustomPayload payload) {

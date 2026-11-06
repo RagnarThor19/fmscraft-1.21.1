@@ -1,0 +1,97 @@
+{
+  "credit": "FMSCraft: CONEMAN's traffic cone, built of cubes. Bands on item/traffic_cone.png (tools/textures/leonard_textures.py): rows 0-3 orange, 4-5 white, 6-9 orange, 10-11 white, 12-13 orange, 14-15 rubber.",
+  "textures": {
+    "cone": "fmscraft:item/traffic_cone",
+    "particle": "fmscraft:item/traffic_cone"
+  },
+  "elements": [
+    {
+      "name": "base",
+      "from": [1, 0, 1], "to": [15, 1.5, 15],
+      "faces": {
+        "north": {"uv": [1, 14, 15, 15.5], "texture": "#cone"},
+        "south": {"uv": [1, 14, 15, 15.5], "texture": "#cone"},
+        "east": {"uv": [1, 14, 15, 15.5], "texture": "#cone"},
+        "west": {"uv": [1, 14, 15, 15.5], "texture": "#cone"},
+        "up": {"uv": [1, 14, 15, 16], "texture": "#cone"},
+        "down": {"uv": [1, 14, 15, 16], "texture": "#cone"}
+      }
+    },
+    {
+      "name": "skirt",
+      "from": [2.5, 1.5, 2.5], "to": [13.5, 5, 13.5],
+      "faces": {
+        "north": {"uv": [2.5, 12, 13.5, 14], "texture": "#cone"},
+        "south": {"uv": [2.5, 12, 13.5, 14], "texture": "#cone"},
+        "east": {"uv": [2.5, 12, 13.5, 14], "texture": "#cone"},
+        "west": {"uv": [2.5, 12, 13.5, 14], "texture": "#cone"},
+        "up": {"uv": [2.5, 12, 13.5, 14], "texture": "#cone"}
+      }
+    },
+    {
+      "name": "lower band",
+      "from": [3, 5, 3], "to": [13, 8.5, 13],
+      "faces": {
+        "north": {"uv": [3, 10, 13, 12], "texture": "#cone"},
+        "south": {"uv": [3, 10, 13, 12], "texture": "#cone"},
+        "east": {"uv": [3, 10, 13, 12], "texture": "#cone"},
+        "west": {"uv": [3, 10, 13, 12], "texture": "#cone"},
+        "up": {"uv": [3, 6, 13, 10], "texture": "#cone"}
+      }
+    },
+    {
+      "name": "middle",
+      "from": [3.5, 8.5, 3.5], "to": [12.5, 12, 12.5],
+      "faces": {
+        "north": {"uv": [3.5, 6, 12.5, 10], "texture": "#cone"},
+        "south": {"uv": [3.5, 6, 12.5, 10], "texture": "#cone"},
+        "east": {"uv": [3.5, 6, 12.5, 10], "texture": "#cone"},
+        "west": {"uv": [3.5, 6, 12.5, 10], "texture": "#cone"},
+        "up": {"uv": [3.5, 6, 12.5, 10], "texture": "#cone"}
+      }
+    },
+    {
+      "name": "upper band",
+      "from": [4.5, 12, 4.5], "to": [11.5, 14.5, 11.5],
+      "faces": {
+        "north": {"uv": [4.5, 4, 11.5, 6], "texture": "#cone"},
+        "south": {"uv": [4.5, 4, 11.5, 6], "texture": "#cone"},
+        "east": {"uv": [4.5, 4, 11.5, 6], "texture": "#cone"},
+        "west": {"uv": [4.5, 4, 11.5, 6], "texture": "#cone"},
+        "up": {"uv": [4.5, 0, 11.5, 4], "texture": "#cone"}
+      }
+    },
+    {
+      "name": "top",
+      "from": [5.5, 14.5, 5.5], "to": [10.5, 17.5, 10.5],
+      "faces": {
+        "north": {"uv": [5.5, 0, 10.5, 3], "texture": "#cone"},
+        "south": {"uv": [5.5, 0, 10.5, 3], "texture": "#cone"},
+        "east": {"uv": [5.5, 0, 10.5, 3], "texture": "#cone"},
+        "west": {"uv": [5.5, 0, 10.5, 3], "texture": "#cone"},
+        "up": {"uv": [5.5, 0, 10.5, 4], "texture": "#cone"}
+      }
+    },
+    {
+      "name": "tip",
+      "from": [6.5, 17.5, 6.5], "to": [9.5, 19.5, 9.5],
+      "faces": {
+        "north": {"uv": [6.5, 0, 9.5, 2], "texture": "#cone"},
+        "south": {"uv": [6.5, 0, 9.5, 2], "texture": "#cone"},
+        "east": {"uv": [6.5, 0, 9.5, 2], "texture": "#cone"},
+        "west": {"uv": [6.5, 0, 9.5, 2], "texture": "#cone"},
+        "up": {"uv": [6.5, 0, 9.5, 3], "texture": "#cone"}
+      }
+    }
+  ],
+  "display": {
+    "gui": {"rotation": [30, 45, 0], "translation": [0, -1.5, 0], "scale": [0.55, 0.55, 0.55]},
+    "ground": {"translation": [0, 2, 0], "scale": [0.4, 0.4, 0.4]},
+    "fixed": {"translation": [0, -1, 0], "scale": [0.6, 0.6, 0.6]},
+    "head": {"translation": [0, 2.8, 0], "scale": [1.35, 1.35, 1.35]},
+    "thirdperson_righthand": {"rotation": [75, 45, 0], "translation": [0, 2.5, 0], "scale": [0.375, 0.375, 0.375]},
+    "thirdperson_lefthand": {"rotation": [75, 45, 0], "translation": [0, 2.5, 0], "scale": [0.375, 0.375, 0.375]},
+    "firstperson_righthand": {"rotation": [0, 45, 0], "scale": [0.4, 0.4, 0.4]},
+    "firstperson_lefthand": {"rotation": [0, 225, 0], "scale": [0.4, 0.4, 0.4]}
+  }
+}

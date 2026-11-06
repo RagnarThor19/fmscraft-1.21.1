@@ -112,5 +112,8 @@ public class ModModelProvider extends FabricModelProvider {
         generator.register(ModItems.SHURIKEN, Models.GENERATED);
         generator.register(ModItems.SHADOW_ORB, Models.GENERATED);
         generator.register(ModItems.SHADOW_CHARGE, Models.GENERATED);
+        // LEONARD's bolt (tools/textures/leonard_textures.py). The traffic cone's model is built of cubes by hand
+        // (resources/assets/fmscraft/models/item/traffic_cone.json), so it isn't generated here
+        generator.register(ModItems.LIGHTNING_BOLT, Models.HANDHELD);
     }
 }

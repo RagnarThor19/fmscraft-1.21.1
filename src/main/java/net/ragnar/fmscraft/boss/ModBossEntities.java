@@ -18,6 +18,8 @@ import net.ragnar.fmscraft.boss.greed.RaggimelEntity;
 import net.ragnar.fmscraft.boss.lust.LustIntro;
 import net.ragnar.fmscraft.boss.lust.MugenCloneEntity;
 import net.ragnar.fmscraft.boss.lust.MugenEntity;
+import net.ragnar.fmscraft.boss.pride.LeonardEntity;
+import net.ragnar.fmscraft.boss.pride.PrideIntro;
 import net.ragnar.fmscraft.boss.wrath.OrnamixEntity;
 import net.ragnar.fmscraft.boss.wrath.OrnamixFireballEntity;
 import net.ragnar.fmscraft.boss.wrath.WrathIntro;
@@ -138,6 +140,18 @@ public class ModBossEntities {
                     .disableSaving()
                     .build("mugen_clone"));
 
+    /** Pride. Player-sized and fast; his scale attribute makes CONEMAN five blocks tall. */
+    public static final EntityType<LeonardEntity> LEONARD = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "leonard"),
+            EntityType.Builder.create(LeonardEntity::new, SpawnGroup.MONSTER)
+                    .dimensions(0.6f, 1.8f)
+                    .eyeHeight(1.62f)
+                    .makeFireImmune()
+                    .maxTrackingRange(16)
+                    .trackingTickInterval(1)
+                    .disableSaving()
+                    .build("leonard"));
+
     /** Which boss each sin's fight spawns. Swap in the real boss here once it's built. */
     public static EntityType<? extends SinBossEntity> forSin(Sin sin) {
         return switch (sin) {
@@ -146,7 +160,8 @@ public class ModBossEntities {
             case ENVY -> GUMMSS;
             case GLUTTONY -> LALLI;
             case LUST -> MUGEN;
-            case PRIDE, SLOTH -> TEST_BOSS;
+            case PRIDE -> LEONARD;
+            case SLOTH -> TEST_BOSS;
         };
     }
 
@@ -158,6 +173,7 @@ public class ModBossEntities {
             case ENVY -> EnvyIntro.INSTANCE;
             case GLUTTONY -> GluttonyIntro.INSTANCE;
             case LUST -> LustIntro.INSTANCE;
+            case PRIDE -> PrideIntro.INSTANCE;
             default -> null;
         };
     }
@@ -171,5 +187,6 @@ public class ModBossEntities {
         FabricDefaultAttributeRegistry.register(LALLI, LalliEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(MUGEN, MugenEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(MUGEN_CLONE, MugenCloneEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(LEONARD, LeonardEntity.createAttributes());
     }
 }

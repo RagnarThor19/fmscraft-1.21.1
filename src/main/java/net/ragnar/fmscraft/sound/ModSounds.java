@@ -42,6 +42,13 @@ public class ModSounds {
     public static final SoundEvent LUST_PHASE_ONE = register("music.lust.phase_one");
     public static final SoundEvent LUST_PHASE_TWO = register("music.lust.phase_two");
 
+    /**
+     * LEONARD's themes: Wacka Flacka Flame - Grove St. Party (hood trap, slowed), which starts after ten seconds of
+     * silence and drops at 8.37 s as he strikes down; then an epic orchestra and choir, fading in as he becomes CONEMAN.
+     */
+    public static final SoundEvent PRIDE_PHASE_ONE = register("music.pride.phase_one");
+    public static final SoundEvent PRIDE_PHASE_TWO = register("music.pride.phase_two");
+
     private static SoundEvent register(String name) {
         Identifier id = Identifier.of(FmsCraft.MOD_ID, name);
         return Registry.register(Registries.SOUND_EVENT, id, SoundEvent.of(id));

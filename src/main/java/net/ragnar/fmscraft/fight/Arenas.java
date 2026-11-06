@@ -22,6 +22,7 @@ import net.ragnar.fmscraft.boss.envy.EnvyArena;
 import net.ragnar.fmscraft.boss.gluttony.GluttonyArena;
 import net.ragnar.fmscraft.boss.greed.GreedArena;
 import net.ragnar.fmscraft.boss.lust.LustArena;
+import net.ragnar.fmscraft.boss.pride.PrideArena;
 import net.ragnar.fmscraft.boss.wrath.WrathArena;
 import net.ragnar.fmscraft.sin.Sin;
 
@@ -33,7 +34,7 @@ import java.util.Optional;
  *
  * To give a sin its own arena, save it with a structure block as {@code fmscraft:arena/<sin>} (centered on
  * x/z 0, floor at y 63) and put the .nbt in data/fmscraft/structure/arena/. Without one, a plain platform is built.
- * Arenas that don't fit that mold (Greed's floating island, Wrath's colosseum, Envy's eye, Lust's compound) give their own {@link ArenaLayout} in
+ * Arenas that don't fit that mold (Greed's floating island, Wrath's colosseum, Envy's eye, Lust's compound, Pride's plaza) give their own {@link ArenaLayout} in
  * {@link #layout}.
  */
 public final class Arenas {
@@ -67,6 +68,7 @@ public final class Arenas {
             case ENVY -> EnvyArena.LAYOUT;
             case GLUTTONY -> GluttonyArena.LAYOUT;
             case LUST -> LustArena.LAYOUT;
+            case PRIDE -> PrideArena.LAYOUT;
             default -> DEFAULT;
         };
     }

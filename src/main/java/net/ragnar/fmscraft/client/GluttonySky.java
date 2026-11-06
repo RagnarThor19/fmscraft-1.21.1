@@ -172,6 +172,8 @@ public final class GluttonySky {
         float tickDelta = context.tickCounter().getTickDelta(false);
         Vec3d cam = context.camera().getPos();
         MatrixStack matrices = context.matrixStack() != null ? context.matrixStack() : new MatrixStack();
+        // A model starts out as a child's (big head, half the height) until a renderer says otherwise: they're grown
+        statue.child = false;
         statue.head.pitch = (float) (nod(tickDelta) * 0.55);
         statue.hat.copyTransform(statue.head);
         VertexConsumerProvider.Immediate buffers = client.getBufferBuilders().getEntityVertexConsumers();

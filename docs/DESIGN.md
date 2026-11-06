@@ -77,6 +77,9 @@ Open questions:
   fight's boss removes itself (so one left over from a crash can't become a second boss).
 - Players left in an arena after a restart are sent back to their portal when they log in.
 - Test without structures: `/fmscraft fight <sin>`, `/fmscraft end <sin>`, `/fmscraft status`, `/fmscraft undefeat <sin>`.
+- `/gurt` (operators): a boss-testing kit. Full netherite with Protection IV (worn if the slot is free), a Sharpness V
+  netherite sword, a Power V bow, 128 arrows, 32 golden apples, 32 steaks, and the magic mod's netherite staff with
+  Quickcast III and Attunement (`command/GurtCommand`).
 
 **How each structure hooks in (decided per structure, together):** whatever the structure's lock mechanic is,
 it consumes the key and calls `BossFights.open(sin, world, portalBasePos, axis)`.
@@ -90,8 +93,8 @@ off still hear them), loop, and pause vanilla music. The test boss uses Pigstep,
 ## Boss template
 
 Every boss extends `boss/SinBossEntity` and is swapped in for its sin in `boss/ModBossEntities.forSin`
-(Greed is RAGGIMEL, Wrath is ORNAMIX, Envy is GUMMSS, Gluttony is LalliLarge, Lust is MUGEN; the other sins still use
-the stand-in `TestBossEntity`):
+(Greed is RAGGIMEL, Wrath is ORNAMIX, Envy is GUMMSS, Gluttony is LalliLarge, Lust is MUGEN, Pride is LEONARD; Sloth
+still uses the stand-in `TestBossEntity`):
 - Boss bar named after the friend (`bossBarName` to call it something else), always in capitals. Every other boss bar
   in the mod is in capitals too (the fight countdown, Drowsiness, the Wrath timer, the Gorged Brute, the Mother Warden).
 - **Phase 2 at half health** (`onPhaseTwo`; `phaseTwoHealth` to move it) — switch songs and behaviour here. A boss with
@@ -551,6 +554,102 @@ Health / armor: 900 HP for 5-7 players (healthScale: 60% alone ... 124% for 10, 
   countering a hit and cutting its line; Shadow Bind holding for 3 s; Shadow Sneak bursting up under you; the Black
   Hole crushing what it reaches and leaving nothing; the Controller letting go, and nobody left on his strings when
   he goes), `MugenTimelineTest`.
+
+## LEONARD / CONEMAN (Pride) (built: `boss/pride/`)
+
+```
+Boss: Leo Gunnlaugsson - Sin of Pride. Boss bar: LEONARD (yellow), then CONEMAN (red). His own skin (wide arms, a gold
+       crown and shades) on a player model, his lightning bolt in his hand (half as big again as an item; the bolt is
+       redrawn at 16x16 from the pixel art one). Lightning glints on his shades (leonard_eyes.png). As CONEMAN he's five
+       blocks tall (scale attribute) and a traffic cone (its own cube model, models/item/traffic_cone.json) sits over his
+       head, wider and taller than it, so his head isn't drawn at all.
+Song (phase 1): Wacka Flacka Flame - Grove St. Party (hood trap + slowed), 4:28, measured 126.0 BPM on 0.27 s; the drop
+       at 8.37 s is beat 17 (music.pride.phase_one).
+Song (phase 2): Epic Orchestra and Choir, trimmed to 1:26 (its last 5 s are silence, which would gap the loop), 120 BPM
+       on 0.12 s; quiet for 8 s, the whole orchestra in at 8.70 s (music.pride.phase_two). (Both measured from the audio.)
+Arena: a round marble plaza 38 out, floating high over a sea of cloud, the classical temple (ClassicalArchitecture) on
+       its north side, its south steps on the plaza (structure/arena/pride.nbt, tools/structures/pride_arena.py from
+       pride_arena_source.nbt; the temple's signs, roof pressure plates and hidden redstone taken out). Smooth quartz with
+       diorite rings, quartz brick rays, a gold sun in the middle, a chiseled quartz rim set with gold, short marble
+       columns round it (none in the east, where Munch rises), an island of calcite and stone underneath with wool
+       clouds clinging to it. Players arrive west of the middle looking east; the exit frame (quartz bricks, gold
+       corners) is on the south side. Own dimension type (pride_arena): always noon. Positions: PrideArena.
+Health / armor: 800 HP for 5-7 players (healthScale: 60% alone ... 124% for 10, at most double; past the 1024 cap he
+       takes proportionally less damage). LEONARD is the top half of it (x0.85 damage, at most 26 a hit, his bar empties
+       at half; phase 1 can't be skipped by one big hit). CONEMAN gets all of it back, 14 armor and 8 toughness, takes
+       x0.6, at most 22 a hit, and hits x1.1. Every hit either of them deals is x0.81 of the numbers below (cut by 10%
+       twice), rounded (DAMAGE_DEALT): a 10 is an 8, Munch's 32 a 26.
+```
+
+- **Intro (the 30 s the portal is open):** frozen behind the Seven Deadly Sins wheel, zooming in on Pride, in silence.
+  When the portal closes the wheel fades on the plaza in the sky (2 s), everyone in an arc to the west, and they can
+  move. Then **ten seconds of nothing**: no song, no boss, a breath of wind. Grove St. Party starts, and **Munch** rises
+  out of the clouds past the east rim with its first five seconds, a grown giant 40 blocks tall, towering over the
+  plaza from the waist up (the top of his head 22 blocks over it), leaning in, and nods hard on every beat, his head turning to watch you. On the drop at 8.37 s, with no warning,
+  LEONARD **strikes down** in the middle of the plaza in a bolt of lightning: a white flash, thunder, everyone thrown
+  back (it hurts nobody). He's loose a second later. Timings: `LeonardTimeline`.
+- **How he fights (phase 1):** fast, sparks crackling off him. He runs you down and jabs with the bolt; if you're far
+  he's there in a dash. **Phase** (as MUGEN's): a hit while he's free is slipped 22% of the time, a few blocks aside in a
+  blur of yellow afterimages; **every arrow** is slipped (he's gone from in front of it, or it passes through a flicker),
+  so bows are no use on LEONARD. On the beat he picks one of: *Discharge* (stands still, hands raised, three rings of
+  lightning roll out along the floor to 30 blocks: jump each, or 6 and paralysed for 1.5 s. Each ring is a solid band
+  half a block high, yellow glass round an ochre froglight core (40 block displays sliding out smoothly, no particles),
+  so you can see it coming from across the plaza; rings that only throw you back are sparks, so a band always means
+  jump), *Zap* (eighteen Tome of
+  Zap bolts flung every which way, very fast, half of them near one of you: 9 each), *Lightning Strike* (fifteen bolts
+  from the sky 0.2 s apart, each marked 0.7 s before where you were: keep moving), *Almighty Pull* (rises off the ground
+  arms spread, light drawn in from a closing ring for 1.5 s, then drags everyone in from 34 blocks for 2 s, arcs to each
+  of you, hands together, and a blast throws everyone far away, 8 to anyone close), *Lightning Throw* (draws back and
+  throws the bolt, big; whatever it hits takes 14 and the sky answers where it lands; it's back in his hand after),
+  *Zoom* (fifteen dashes across the plaza, too fast to see, each line flickering on the floor a quarter second first,
+  an electric trail behind; get in the way: 12 and thrown aside hard), *Boomerang* (the bolt whirls out in an oval
+  loop and comes back to his hand, 10 each way).
+- **Ideas of mine added:** *Chain Lightning* (an arc to one of you that jumps on to whoever's within 9 of them, four
+  times: keep apart), the *Thunder Clap* (up close: arms wide, then a clap that throws whoever's near), the dash to you
+  when you're far, and the cone dropping as a trophy.
+- **Munch's beam** (phase 1, every 21-31 s, never during Zoom): he stops nodding, his head turns on one of you and
+  stays there, his eyes burning brighter and brighter, light drawn in to them; a great ring (6 out) burns on the plaza
+  under them for 4 s. Then the beam out of his face, five blocks thick: 32 to whoever's still in the ring (devastating, but the warning
+  is long). Under 60% of LEONARD's bar, two in a row. He nods again when it's over.
+- **Half health:** the music cuts, everyone is held still to watch, and Munch topples back into the clouds. LEONARD
+  rises over the plaza, lightning striking round him, and the orchestra fades in (7.5 s). He hangs there, 9 up, and
+  grows to five blocks, crackling. A traffic cone appears high over him and falls, faster and faster, and **lands on his
+  head on the orchestra's hit** (8.70 s): a great boom, he's down on the plaza, everyone's thrown back (it hurts nobody),
+  the bar says CONEMAN and fills up like the Wither's, and the sky turns to storm. The orchestra loops from there.
+- **Phase 2, CONEMAN:** slow (0.22), heavy fists (14 + knockback), no more Zoom and no more slipping hits (arrows land
+  again). A storm round him: dark motes circling, smoke, arcs to the floor, and a jolt (3) to anyone within his aura
+  every 1.5 s. The sky a dark slate, the clouds grey, thunder far off, lightning out over the clouds. Everything he kept
+  grows (five Discharge rings of 8, 26 zaps, 24 strikes, three bolts thrown in a fan, two boomerangs, chain lightning seven
+  jumps), and new: *Cone Slam* (crouches, then leaps on to where most of you stand: 16 under him, and two rings to jump, 10 each),
+  *Storm Grid* (the plaza becomes a chessboard of 6-block squares: one colour's edges glow for 1.7 s, then lightning
+  falls on all of them, 14 to anyone inside; then the other colour: move to the dark squares each time), *Tesla Rods*
+  (three huge lightning rods driven into the plaza round you; after a moment lightning arcs between them, chest high,
+  for 7.5 s: 9 and thrown back to cross; then they burst), *Ball Lightning* (three to six balls of crackling light drift
+  after one of you each, slower than a sprint: 12 and paralysed if one reaches you), *Cone Beam* (crouches, his cone
+  glowing, a ring marking 22 blocks, then a beam along the floor sweeps all the way round him: jump it; two beams
+  opposite each other once he's under half), *Stomp* (up close).
+- **The sky** (`PrideSky`, from `PrideSkyPayload`): a light blue noon sky and sun, the game's own clouds drawn as a sea
+  16 blocks under the plaza, and banks of blocky cloud all round the horizon (drawn by us, so they're there even with
+  clouds off). The storm comes on over 3 s at the crowning and lifts when he's beaten. Munch is drawn there too (he's not
+  an entity), timed by the song on each client.
+- **The edge:** off the rim or falling into the clouds, the lightning carries you back onto the plaza (4 damage).
+- **Any number of players:** health scales, three more strikes per player past seven, a ball each up to six, the arc
+  in the intro widens.
+- **Magic mod:** he can't be put to sleep or carried off in a bubble, and status effects don't stick to him. His Zap and
+  Chain Lightning are the Tome of Zap's own bolts and sound (the boss sends its packet, `MagicSpells.zap`); without the
+  mod they're particle arcs. None of his lightning breaks, places or burns a block (the bolts are cosmetic).
+- **The traffic cone:** CONEMAN drops it when he's beaten. Worn on the head like a carved pumpkin.
+- **Damage:** his lightning can't be blocked; the thrown bolt, the boomerang and his fists can.
+- Tuning knobs: `LeonardEntity` (health, damage taken and dealt, `MAX_HIT`, `DODGE`, speeds, rests, Munch's beam
+  `BEAM_*`, `AURA_RADIUS`, `DAMAGE_DEALT`, attack weights and gaps in `chooseAttack`, each move's numbers in its `tick...` method),
+  `LeonardHazards` (rings, strikes, bolts, rods, balls, the beam), `LeonardTimeline` (song timings, the silence, Munch's
+  rise and nod, the transition, `healthScale`), `PrideArena` (positions, Munch), `PrideSky` (colours, the banks).
+- Tests: `LeonardGameTests` (the whole fight in the real arena: the build, the wheel, the silence, the song and Munch,
+  the strike on the drop hurting nobody, the phase 1 clamp, the lightning carrying strays back, the music cutting,
+  Munch falling, the soar and the growing, the cone falling and landing on the hit, CONEMAN tougher, winning with the
+  soul and the cone, nothing left behind; Discharge paralysing only who doesn't jump and letting go; arrows never
+  landing; the thrown bolt and the boomerang coming back; strikes burning nothing; Munch's beam hitting only who stays;
+  the Almighty Pull; the rods and balls leaving nothing; the Stomp; the Zoom), `LeonardTimelineTest`.
 
 ## Structures
 

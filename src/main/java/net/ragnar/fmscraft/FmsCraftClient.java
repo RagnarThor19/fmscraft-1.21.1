@@ -107,6 +107,7 @@ public class FmsCraftClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModBossEntities.MUGEN, ctx -> new MugenRenderer<>(ctx, 0.5f));
         // His shadow clones cast no shadow: the tell
         EntityRendererRegistry.register(ModBossEntities.MUGEN_CLONE, ctx -> new MugenRenderer<>(ctx, 0f));
+        EntityRendererRegistry.register(ModBossEntities.LEONARD, net.ragnar.fmscraft.client.LeonardRenderer::new);
 
         EntityModelLayerRegistry.registerModelLayer(EnvyStatueModel.LAYER, EnvyStatueModel::getTexturedModelData);
         EntityRendererRegistry.register(ModEntities.ENVY_STATUE, EnvyStatueRenderer::new);
@@ -123,6 +124,7 @@ public class FmsCraftClient implements ClientModInitializer {
         WorldRenderEvents.AFTER_ENTITIES.register(SleepZs::render);
         WorldRenderEvents.AFTER_ENTITIES.register(EnvySky::renderEyes);
         WorldRenderEvents.AFTER_ENTITIES.register(GluttonySky::renderStatue);
+        WorldRenderEvents.AFTER_ENTITIES.register(net.ragnar.fmscraft.client.PrideSky::render);
 
         ClientPlayNetworking.registerGlobalReceiver(BossMusicPayload.ID,
                 (payload, context) -> context.client().execute(() -> ClientBossMusic.play(payload.sound(), payload.fadeTicks())));
@@ -134,6 +136,8 @@ public class FmsCraftClient implements ClientModInitializer {
                 (payload, context) -> context.client().execute(() -> WrathSky.set(payload.phase())));
         ClientPlayNetworking.registerGlobalReceiver(LustSkyPayload.ID,
                 (payload, context) -> context.client().execute(() -> LustSky.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(net.ragnar.fmscraft.network.PrideSkyPayload.ID,
+                (payload, context) -> context.client().execute(() -> net.ragnar.fmscraft.client.PrideSky.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(MugenControlPayload.ID,
                 (payload, context) -> context.client().execute(() -> MugenControl.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(TomeWheelPayload.ID,
@@ -158,6 +162,7 @@ public class FmsCraftClient implements ClientModInitializer {
             EnvySky.tick(client);
             GluttonySky.tick(client);
             LustSky.tick(client);
+            net.ragnar.fmscraft.client.PrideSky.tick(client);
             MugenControl.tick(client);
         });
 
@@ -173,6 +178,7 @@ public class FmsCraftClient implements ClientModInitializer {
             EnvySky.clear();
             GluttonySky.clear();
             LustSky.clear();
+            net.ragnar.fmscraft.client.PrideSky.clear();
             MugenControl.clear();
         }));
     }

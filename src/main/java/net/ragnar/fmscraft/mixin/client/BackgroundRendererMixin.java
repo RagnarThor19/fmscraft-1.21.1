@@ -14,6 +14,7 @@ import net.ragnar.fmscraft.client.GardenFog;
 import net.ragnar.fmscraft.client.GluttonySky;
 import net.ragnar.fmscraft.client.GreedSky;
 import net.ragnar.fmscraft.client.LustSky;
+import net.ragnar.fmscraft.client.PrideSky;
 import net.ragnar.fmscraft.client.VaultFog;
 import net.ragnar.fmscraft.client.WrathSky;
 import org.spongepowered.asm.mixin.Mixin;
@@ -42,6 +43,14 @@ public abstract class BackgroundRendererMixin {
     private static void fmscraft$vaultFogColor(Camera camera, float tickDelta, ClientWorld world, int viewDistance, float skyDarkness, CallbackInfo ci) {
         if (GreedSky.active()) {
             Vec3d fog = GreedSky.mix(GreedSky.DAY_FOG, GreedSky.NIGHT_FOG, tickDelta);
+            red = (float) fog.x;
+            green = (float) fog.y;
+            blue = (float) fog.z;
+            RenderSystem.clearColor(red, green, blue, 0.0f);
+            return;
+        }
+        if (PrideSky.active()) {
+            Vec3d fog = PrideSky.mix(PrideSky.DAY_FOG, PrideSky.STORM_FOG, tickDelta);
             red = (float) fog.x;
             green = (float) fog.y;
             blue = (float) fog.z;

@@ -7,6 +7,7 @@ import net.ragnar.fmscraft.client.EnvySky;
 import net.ragnar.fmscraft.client.GluttonySky;
 import net.ragnar.fmscraft.client.GreedSky;
 import net.ragnar.fmscraft.client.LustSky;
+import net.ragnar.fmscraft.client.PrideSky;
 import net.ragnar.fmscraft.client.WrathSky;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -29,12 +30,14 @@ public abstract class ClientWorldMixin {
         else if (GluttonySky.space()) cir.setReturnValue(Vec3d.ZERO);
         else if (GluttonySky.snow()) cir.setReturnValue(GluttonySky.SNOW_SKY);
         else if (LustSky.active()) cir.setReturnValue(LustSky.skyColor(tickDelta));
+        else if (PrideSky.active()) cir.setReturnValue(PrideSky.mix(PrideSky.DAY_SKY, PrideSky.STORM_SKY, tickDelta));
     }
 
     @Inject(method = "getCloudsColor", at = @At("RETURN"), cancellable = true)
     private void fmscraft$greedClouds(float tickDelta, CallbackInfoReturnable<Vec3d> cir) {
         if (GreedSky.active()) cir.setReturnValue(GreedSky.mix(cir.getReturnValue(), GreedSky.NIGHT_CLOUDS, tickDelta));
         else if (WrathSky.active()) cir.setReturnValue(WrathSky.mix(WrathSky.RED_CLOUDS, WrathSky.RAGE_CLOUDS, tickDelta));
+        else if (PrideSky.active()) cir.setReturnValue(PrideSky.mix(cir.getReturnValue(), PrideSky.STORM_CLOUDS, tickDelta));
     }
 
     @Inject(method = "getSkyBrightness", at = @At("RETURN"), cancellable = true)
@@ -47,5 +50,6 @@ public abstract class ClientWorldMixin {
         if (GluttonySky.space()) cir.setReturnValue(1.0f);
         if (GluttonySky.snow()) cir.setReturnValue(GluttonySky.SNOW_LIGHT);
         if (LustSky.active()) cir.setReturnValue(LustSky.light(tickDelta));
+        if (PrideSky.active()) cir.setReturnValue(PrideSky.light(cir.getReturnValue(), tickDelta));
     }
 }

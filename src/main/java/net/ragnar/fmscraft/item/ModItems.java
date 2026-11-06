@@ -44,6 +44,11 @@ public class ModItems {
     public static final Item SHADOW_ORB = register("shadow_orb", new Item(new Item.Settings()));
     public static final Item SHADOW_CHARGE = register("shadow_charge", new Item(new Item.Settings()));
 
+    // LEONARD's lightning bolt: held, thrown and flung back by him, drawn by item displays. Not obtainable
+    public static final Item LIGHTNING_BOLT = register("lightning_bolt", new Item(new Item.Settings()));
+    /** The traffic cone that makes him CONEMAN. He drops it when he's beaten; it's worn on the head like a carved pumpkin. */
+    public static final Item TRAFFIC_CONE = register("traffic_cone", new TrafficConeItem(new Item.Settings().maxCount(1).rarity(Rarity.RARE)));
+
     private static Item register(String name, Item item) {
         return Registry.register(Registries.ITEM, Identifier.of(FmsCraft.MOD_ID, name), item);
     }

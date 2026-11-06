@@ -53,6 +53,13 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add("message.fmscraft.lalli_caught", "The cold wind carries you back to LALLILARGE.");
         builder.add(ModBossEntities.MUGEN, "MUGEN");
         builder.add(ModBossEntities.MUGEN_CLONE, "MUGEN");
+        builder.add(ModBossEntities.LEONARD, "LEONARD");
+        builder.add(ModItems.LIGHTNING_BOLT, "Lightning Bolt");
+        builder.add(ModItems.TRAFFIC_CONE, "Traffic Cone");
+        builder.add("message.fmscraft.leonard_paralysed", "You're paralysed!");
+        builder.add("message.fmscraft.leonard_caught", "The lightning carries you back to the plaza.");
+        builder.add("message.fmscraft.leonard_grid", "Stand on the squares that aren't lit!");
+        builder.add("message.fmscraft.munch_beam", "Munch is looking at you...");
         builder.add(ModItems.KUNAI, "Kunai");
         builder.add(ModBlocks.VOID_SPIKE, "Void Spike");
         builder.add("message.fmscraft.mugen_bound", "The shadow holds you fast!");

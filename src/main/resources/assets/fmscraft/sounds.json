@@ -111,5 +111,21 @@
         "stream": true
       }
     ]
+  },
+  "music.pride.phase_one": {
+    "sounds": [
+      {
+        "name": "fmscraft:music/pride_phase_one",
+        "stream": true
+      }
+    ]
+  },
+  "music.pride.phase_two": {
+    "sounds": [
+      {
+        "name": "fmscraft:music/pride_phase_two",
+        "stream": true
+      }
+    ]
   }
 }

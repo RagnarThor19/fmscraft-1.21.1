@@ -42,3 +42,8 @@ Bosses should read like the Wither, Ender Dragon or Warden: telegraphed attacks 
   from `lust_arena_source.nbt`. Positions in `LustArena`. His eyes, the kunai/shuriken/orb/blaze item textures, the
   void spike block and the eclipse come from `tools/textures/mugen_textures.py` (his skin is `tools/textures/source/mugen_skin.png`). His sky
   is drawn client-side by `LustSky`.
+- LEONARD's arena (Pride): `structure/arena/pride.nbt` (the plaza in the sky and the temple) is built by
+  `tools/structures/pride_arena.py` from `pride_arena_source.nbt`. Positions (and Munch's) in `PrideArena`. His skin, the
+  shades glint, Munch's skin and eyes, the lightning bolt and the traffic cone's texture come from
+  `tools/textures/leonard_textures.py` (sources `leonard_skin.png`, `munch.png`); the cone's cube model is hand-written
+  (`models/item/traffic_cone.json`). His sky, the cloud sea and banks, and Munch are drawn client-side by `PrideSky`.

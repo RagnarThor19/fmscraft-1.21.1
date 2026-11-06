@@ -65,6 +65,19 @@ public abstract class SinBossEntity extends HostileEntity {
         return true;
     }
 
+    /**
+     * Whether the phase 1 song starts the moment the boss is up. A boss whose entrance waits in silence first returns
+     * false and calls {@link #playSong} itself; the beat clock is silent until then.
+     */
+    protected boolean startsSongAtOnce() {
+        return true;
+    }
+
+    /** How full the boss bar is, 0-1. Health over max health unless the boss shows something else (a bar per phase). */
+    protected float barPercent() {
+        return getHealth() / getMaxHealth();
+    }
+
     /** Starts {@code song} for everyone in the fight (fading in over {@code fadeTicks}) and restarts the beat clock on it. */
     protected void playSong(BossSong song, int fadeTicks) {
         this.song = song;
@@ -113,7 +126,7 @@ public abstract class SinBossEntity extends HostileEntity {
     @Override
     protected void mobTick() {
         super.mobTick();
-        if (!musicStarted) playSong(songForPhase(1), 0);
+        if (!musicStarted && startsSongAtOnce()) playSong(songForPhase(1), 0);
         songTicks++;
 
         if (phase == 1 && getHealth() <= getMaxHealth() * phaseTwoHealth()) {
@@ -127,7 +140,7 @@ public abstract class SinBossEntity extends HostileEntity {
         if (song != null && song.isBeatTick(songTicks)) onBeat(phase, song.beatAt(songTicks));
         tickPhase(phase, songTicks);
 
-        bossBar.setPercent(getHealth() / getMaxHealth());
+        bossBar.setPercent(Math.max(0f, Math.min(1f, barPercent())));
     }
 
     @Override

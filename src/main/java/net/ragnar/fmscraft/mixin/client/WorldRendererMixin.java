@@ -13,6 +13,8 @@ import net.ragnar.fmscraft.client.EnvySky;
 import net.ragnar.fmscraft.client.GluttonySky;
 import net.ragnar.fmscraft.client.GreedSky;
 import net.ragnar.fmscraft.client.LustSky;
+import net.ragnar.fmscraft.client.PrideSky;
+import net.ragnar.fmscraft.boss.pride.PrideArena;
 import net.ragnar.fmscraft.client.WrathSky;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
@@ -27,15 +29,33 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * the screen to. GUMMSS's void: no sky either, only the deep green fog over the black. LalliLarge's space: the stars and
  * the sun on black, turning on Apple Pie's strums; his snowfield: a grey overcast and no clouds (GluttonySky). MUGEN's
  * compound: stars and the full moon over a violet night, or the red eclipse, and black in his Blackout (LustSky).
+ * LEONARD's plaza: the noon sky with banks of cloud all round the horizon, or the storm, and the game's own clouds
+ * drawn as a sea far under the plaza (PrideSky).
  */
 @Mixin(WorldRenderer.class)
 public abstract class WorldRendererMixin {
     @Shadow
     private VertexBuffer starsBuffer;
 
+    /** True while drawing the clouds again at our own height (PrideSky's sea of cloud). */
+    private static boolean fmscraft$cloudSea;
+
+    @Inject(method = "renderSky", at = @At("TAIL"))
+    private void fmscraft$prideBanks(Matrix4f matrix4f, Matrix4f projectionMatrix, float tickDelta, Camera camera,
+                                     boolean thickFog, Runnable fogCallback, CallbackInfo ci) {
+        if (PrideSky.active() && PrideSky.vanillaSky(tickDelta)) PrideSky.renderBanks(matrix4f, tickDelta);
+    }
+
     @Inject(method = "renderSky", at = @At("HEAD"), cancellable = true)
     private void fmscraft$greedNight(Matrix4f matrix4f, Matrix4f projectionMatrix, float tickDelta, Camera camera,
                                      boolean thickFog, Runnable fogCallback, CallbackInfo ci) {
+        if (PrideSky.active() && !PrideSky.vanillaSky(tickDelta)) {
+            // The storm: no sun, no blue, only the banks of grey cloud
+            ci.cancel();
+            fogCallback.run();
+            PrideSky.renderBanks(matrix4f, tickDelta);
+            return;
+        }
         if (LustSky.active()) {
             ci.cancel();
             fogCallback.run();
@@ -83,5 +103,15 @@ public abstract class WorldRendererMixin {
     private void fmscraft$noClouds(MatrixStack matrices, Matrix4f matrix4f, Matrix4f matrix4f2, float tickDelta, double cameraX, double cameraY,
                                    double cameraZ, CallbackInfo ci) {
         if (GluttonySky.space() || GluttonySky.snow() || LustSky.active()) ci.cancel();
+        else if (PrideSky.active() && !fmscraft$cloudSea) {
+            // The same clouds, but far under the plaza: drawn as if the camera were that much higher
+            ci.cancel();
+            fmscraft$cloudSea = true;
+            try {
+                ((WorldRenderer) (Object) this).renderClouds(matrices, matrix4f, matrix4f2, tickDelta, cameraX, cameraY + (192.0 - PrideArena.CLOUD_SEA), cameraZ);
+            } finally {
+                fmscraft$cloudSea = false;
+            }
+        }
     }
 }
