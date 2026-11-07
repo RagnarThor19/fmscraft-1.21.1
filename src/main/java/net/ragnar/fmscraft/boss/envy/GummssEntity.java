@@ -7,6 +7,7 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.PotionContentsComponent;
 import net.minecraft.entity.AreaEffectCloudEntity;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.ai.goal.SwimGoal;
@@ -141,12 +142,21 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
     private static final TrackedData<Integer> POSE = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.INTEGER);
     private static final TrackedData<Boolean> STARING = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     private static final TrackedData<Boolean> FLIPPED = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+    private static final TrackedData<Optional<UUID>> GUISE_PLAYER = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.OPTIONAL_UUID);
+    private static final TrackedData<Integer> GUISE = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.INTEGER);
+
+    /** Disguise, in ticks: pointing at whoever he'll be, the cups turning, wearing their face, the cups again. */
+    public static final int GUISE_POINT = 22, GUISE_SHUFFLE = 28, GUISE_TICKS = 200, GUISE_UNDO = 12;
+    /** How long his cups take to come down (EnvyHazards.Cup). */
+    public static final int CUP_DROP = EnvyHazards.Cup.DROP;
+    /** With fewer of you than this there's nobody to hide among: no Disguise. */
+    public static final int GUISE_MIN_PLAYERS = 3;
 
     enum Action {
         ENTRANCE, MOVE, EXPOSED,
         FORCE_PUSH, FORCE_PULL, TK_SLAM, RECKONING, PEARL, VANISH, MOON, ARROW_RAIN, QUIVER, POISON_DARTS, SWORDS, SWAP,
         PSYCHIC_SLASH, POISON_SLASH, SWORD_RAIN, ILLUSIONS, EVIL_EYE, VENOM_FLASKS, LEVITATION, JUDGEMENT, UPSIDE_DOWN,
-        RUBBLE, ASCEND
+        RUBBLE, ASCEND, DISGUISE
     }
 
     private Action action = Action.ENTRANCE;
@@ -181,6 +191,13 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
     private Vec3d spot;
     private boolean ambush, pearlDone, keepFocus;
     private EnvyHazards.Rubble rubble;
+
+    // His Disguise: whose face, how far through it (0 pointing, 1 cups, 2 wearing it, 3 cups again), the cups
+    private UUID guiseOf;
+    private int guiseStep = -1;
+    private EnvyHazards.Cup[] cups;
+    /** For tests: whether the cups trade the two of them round (null: at random, half the time). */
+    private Boolean guiseSwapForced;
 
     // His fall from the sky at half health (once), and the green blocks round him after it
     private boolean ascended, quakeCharging;
@@ -223,6 +240,8 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         builder.add(POSE, POSE_IDLE);
         builder.add(STARING, false);
         builder.add(FLIPPED, false);
+        builder.add(GUISE_PLAYER, Optional.empty());
+        builder.add(GUISE, GUISE_OFF);
     }
 
     @Override
@@ -284,6 +303,26 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
     @Override
     public float flipRoll(float tickDelta) {
         return MathHelper.lerp(tickDelta, lastFlipRoll, flipRoll);
+    }
+
+    @Override
+    public UUID guisePlayer() {
+        return dataTracker.get(GUISE_PLAYER).orElse(null);
+    }
+
+    @Override
+    public int guiseStage() {
+        return dataTracker.get(GUISE);
+    }
+
+    /** Server side: the fighter whose face he's taken (or is about to), or null. */
+    public ServerPlayerEntity guiseWearer() {
+        return fighter(guiseOf);
+    }
+
+    /** For tests: the cups always trade the two of them round (true), never do (false), or at random (null). */
+    public void forceGuiseSwap(Boolean swap) {
+        guiseSwapForced = swap;
     }
 
     /** How much damage it takes to beat him from full: his max health, and more past the 1024 cap for a big group. */
@@ -451,7 +490,11 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         if (source.isOf(DamageTypes.OUT_OF_WORLD) || source.isOf(DamageTypes.GENERIC_KILL)) return super.damage(source, amount);
         Entity attacker = source.getAttacker();
         if (attacker == this || attacker instanceof GummssIllusionEntity) return false;
-        if (!untouchable && action != Action.ENTRANCE && source.getSource() instanceof PersistentProjectileEntity arrow
+        // Shut in his cup nothing reaches him, and nothing tells you which cup he's in
+        if (guiseStage() == GUISE_HIDDEN) return false;
+        // Found out: a hit knocks the face off him, and he reels
+        if (guiseStage() == GUISE_WORN && attacker instanceof PlayerEntity && getWorld() instanceof ServerWorld world) breakGuise(world);
+        if (!untouchable && action != Action.ENTRANCE && action != Action.DISGUISE && source.getSource() instanceof PersistentProjectileEntity arrow
                 && !(arrow instanceof TridentEntity) && attacker instanceof ServerPlayerEntity shooter && caught() < MAX_CAUGHT
                 && (forceCatch || random.nextFloat() < CATCH_CHANCE)) {
             forceCatch = false;
@@ -514,7 +557,7 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
 
     @Override
     public boolean isPushable() {
-        return action == Action.MOVE;
+        return action == Action.MOVE || action == Action.DISGUISE && guiseStage() == GUISE_WORN;
     }
 
     @Override
@@ -534,6 +577,8 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
             lastFlipRoll = flipRoll;
             float to = isFlipped() ? 180f : 0f;
             flipRoll += MathHelper.clamp(to - flipRoll, -22f, 22f);
+            // Whose face he's wearing, for drawing them as him
+            GummssGuise.report(getId(), guisePlayer(), guiseStage(), getWorld().getTime());
         }
     }
 
@@ -586,6 +631,7 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
             case UPSIDE_DOWN -> tickUpsideDown(world);
             case RUBBLE -> tickRubble(world);
             case ASCEND -> tickAscend(world);
+            case DISGUISE -> tickDisguise(world);
         }
         tickHazards(world);
         illusions.removeIf(id -> !(world.getEntity(id) instanceof GummssIllusionEntity i) || !i.isAlive());
@@ -654,6 +700,7 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         offer(options, weights, Action.JUDGEMENT, 1, 900);
         offer(options, weights, Action.UPSIDE_DOWN, 1, 820);
         offer(options, weights, Action.RUBBLE, new int[]{3, 4, 4}[band], 320);
+        if (fighters.size() >= GUISE_MIN_PLAYERS && illusions.isEmpty()) offer(options, weights, Action.DISGUISE, 2, 700);
         if (options.isEmpty()) return Action.PSYCHIC_SLASH;
         int total = weights.stream().mapToInt(Integer::intValue).sum(), roll = random.nextInt(total);
         for (int i = 0; i < options.size(); i++) {
@@ -789,7 +836,7 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
             untouchable = false;
             // His great spells aren't ready from the start
             for (Action big : new Action[]{Action.MOON, Action.ARROW_RAIN, Action.SWORD_RAIN, Action.ILLUSIONS, Action.EVIL_EYE, Action.RECKONING,
-                    Action.LEVITATION, Action.JUDGEMENT, Action.UPSIDE_DOWN, Action.RUBBLE}) {
+                    Action.LEVITATION, Action.JUDGEMENT, Action.UPSIDE_DOWN, Action.RUBBLE, Action.DISGUISE}) {
                 lastUsed.put(big, age - 300);
             }
             endAttack(12);
@@ -2034,6 +2081,168 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         setNoGravity(false);
     }
 
+    // ---- Disguise: he takes one of your faces and gives them his ----
+
+    /**
+     * He points his staff at one of you, a thread of his mind running to them. Two green cups slam down over the two of
+     * them and turn, faster and faster (and half the time, unseen, he and they trade places inside), then shatter: he
+     * has their face, their name, their armour and what's in their hands, and they have his. For ten seconds he goes
+     * at "GUMMSS" like any of you would. A hit on him knocks the face off him and he reels; a hit on the wrong one is a
+     * hit on a friend. Then the cups come down again, the faces go back, and he's straight into a Poison Slash.
+     */
+    private void tickDisguise(ServerWorld world) {
+        int t = actionTicks;
+        if (t == 1) {
+            ServerPlayerEntity target = fighters.size() >= GUISE_MIN_PLAYERS ? pick(null) : null;
+            if (target == null) {
+                endAttack();
+                return;
+            }
+            guiseOf = target.getUuid();
+            guiseStep = 0;
+            stageTicks = 0;
+            setPoseState(POSE_POINT);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_ILLUSIONER_PREPARE_MIRROR, SoundCategory.HOSTILE, 2.5f, 0.7f);
+            world.playSound(null, target.getX(), target.getY(), target.getZ(), SoundEvents.ENTITY_ILLUSIONER_PREPARE_MIRROR, SoundCategory.HOSTILE, 2.0f, 0.9f);
+        }
+        ServerPlayerEntity wearer = fighter(guiseOf);
+        if (wearer == null) {
+            // They died or left: it's off
+            if (guiseStep >= 0) world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.HOSTILE, 2.0f, 1.3f);
+            if (guiseStage() != GUISE_OFF) addHazard(new EnvyHazards.Shards(world, getPos()));
+            openCups();
+            endGuise(world);
+            endAttack();
+            return;
+        }
+        stageTicks++;
+        switch (guiseStep) {
+            case 0 -> {
+                // Pointing: a thread of his mind to whoever he'll be, a ring closing at their feet
+                stand();
+                faceTowards(wearer.getPos());
+                if (t % 2 == 0) {
+                    Vec3d from = handPos(true).add(0, 0.6, 0), to = wearer.getPos().add(0, 1.1, 0);
+                    for (int i = 1; i <= 12; i++) world.spawnParticles(EnvyHazards.PSYCHIC, MathHelper.lerp(i / 12.0, from.x, to.x),
+                            MathHelper.lerp(i / 12.0, from.y, to.y), MathHelper.lerp(i / 12.0, from.z, to.z), 1, 0, 0, 0, 0);
+                    EnvyHazards.ring(world, EnvyHazards.DEEP_GREEN, wearer.getPos(), 1.6 * (1 - t / (double) GUISE_POINT) + 0.6, 14, t * 0.2);
+                }
+                if (t >= GUISE_POINT) cover(world, wearer, true);
+            }
+            case 1 -> {
+                // In the cups: neither of them can be seen, nor hurt, nor move
+                stand();
+                Cinematics.freeze(wearer);
+                if (stageTicks == EnvyHazards.Cup.DROP) setGuise(GUISE_HIDDEN);
+                if (stageTicks == EnvyHazards.Cup.DROP + GUISE_SHUFFLE / 2 && (guiseSwapForced != null ? guiseSwapForced : random.nextBoolean())) {
+                    // Traded round, unseen: where he went in is no help
+                    Vec3d mine = cups[0].at, theirs = cups[1].at;
+                    refreshPositionAndAngles(theirs.x, theirs.y, theirs.z, getYaw(), getPitch());
+                    wearer.teleport(world, mine.x, mine.y, mine.z, wearer.getYaw(), wearer.getPitch());
+                    EnvyHazards.Cup a = cups[0];
+                    cups[0] = cups[1];
+                    cups[1] = a;
+                }
+                if (stageTicks >= EnvyHazards.Cup.DROP + GUISE_SHUFFLE) {
+                    openCups();
+                    setGuise(GUISE_WORN);
+                    Cinematics.unfreeze(wearer);
+                    wearer.sendMessage(Text.translatable("message.fmscraft.gummss_disguise").formatted(Formatting.DARK_GREEN), true);
+                    setPoseState(POSE_IDLE);
+                    guiseStep = 2;
+                    stageTicks = 0;
+                }
+            }
+            case 2 -> {
+                actLikeAPlayer(wearer);
+                if (stageTicks >= GUISE_TICKS) cover(world, wearer, false);
+            }
+            default -> {
+                // The cups again, and the faces go back
+                stand();
+                Cinematics.freeze(wearer);
+                if (stageTicks == EnvyHazards.Cup.DROP) setGuise(GUISE_HIDDEN);
+                if (stageTicks >= EnvyHazards.Cup.DROP + GUISE_UNDO) {
+                    openCups();
+                    endGuise(world);
+                    ServerPlayerEntity near = nearestFighter();
+                    if (near != null) faceTowards(near.getPos());
+                    startAttack(Action.POISON_SLASH);
+                }
+            }
+        }
+    }
+
+    /** The cups come down over him and whoever's wearing his face (turning, the first time). */
+    private void cover(ServerWorld world, ServerPlayerEntity wearer, boolean spin) {
+        stand();
+        setPoseState(POSE_IDLE);
+        Cinematics.freeze(wearer);
+        cups = new EnvyHazards.Cup[]{new EnvyHazards.Cup(world, ground(getPos()), spin), new EnvyHazards.Cup(world, ground(wearer.getPos()), spin)};
+        for (EnvyHazards.Cup cup : cups) addHazard(cup);
+        guiseStep = spin ? 1 : 3;
+        stageTicks = 0;
+    }
+
+    private void openCups() {
+        if (cups == null) return;
+        for (EnvyHazards.Cup cup : cups) cup.open();
+        cups = null;
+    }
+
+    private void setGuise(int stage) {
+        dataTracker.set(GUISE_PLAYER, Optional.ofNullable(guiseOf));
+        dataTracker.set(GUISE, stage);
+    }
+
+    /** Nobody wearing anyone's face, and whoever was in a cup free to move. */
+    private void endGuise(ServerWorld world) {
+        if (guiseOf != null && world.getPlayerByUuid(guiseOf) instanceof ServerPlayerEntity p) Cinematics.unfreeze(p);
+        guiseOf = null;
+        guiseStep = -1;
+        cups = null;
+        dataTracker.set(GUISE_PLAYER, Optional.empty());
+        dataTracker.set(GUISE, GUISE_OFF);
+    }
+
+    /** Hit while wearing a face: it bursts off both of them in green blocks and he reels. */
+    private void breakGuise(ServerWorld world) {
+        ServerPlayerEntity wearer = guiseWearer();
+        addHazard(new EnvyHazards.Shards(world, getPos()));
+        if (wearer != null) addHazard(new EnvyHazards.Shards(world, wearer.getPos()));
+        openCups();
+        endGuise(world);
+        world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.ENTITY_ILLUSIONER_HURT, SoundCategory.HOSTILE, 2.0f, 0.6f);
+        expose(30, POSE_STUNNED);
+    }
+
+    /**
+     * What one of you would do: go at "GUMMSS" (whoever's wearing his face), circling close, swinging, jumping now and
+     * then. Nothing of his own: no spells, no sounds of him.
+     */
+    private void actLikeAPlayer(ServerPlayerEntity wearer) {
+        if (heldStill) {
+            stand();
+            return;
+        }
+        getLookControl().lookAt(wearer, 40f, 40f);
+        if (--strafeTicks <= 0 || horizontalCollision) {
+            strafe = random.nextBoolean() ? 1 : -1;
+            strafeTicks = 20 + random.nextInt(40);
+        }
+        if (age % 5 == 0 || getNavigation().isIdle()) {
+            Vec3d to = getPos().subtract(wearer.getPos()).multiply(1, 0, 1);
+            double d = to.length();
+            Vec3d away = d > 1e-3 ? to.multiply(1 / d) : Vec3d.fromPolar(0, getYaw() + 180);
+            Vec3d side = new Vec3d(-away.z, 0, away.x).multiply(strafe);
+            Vec3d dest = inside(wearer.getPos().add(away.multiply(2.5 + random.nextDouble() * 2)).add(side.multiply(3)), 44);
+            getNavigation().startMovingTo(dest.x, dest.y, dest.z, d > 7 ? 1.35 : 1.05);
+        }
+        if (isOnGround() && random.nextInt(40) == 0) getJumpControl().setActive();
+        if (squaredDistanceTo(wearer) < 4.5 * 4.5 && random.nextInt(8) == 0) swingHand(Hand.MAIN_HAND);
+    }
+
+
     /** A lingering poison flask, thrown to land where {@code target} is heading. Its cloud is short-lived. */
     private void throwFlask(ServerWorld world, ServerPlayerEntity target) {
         Vec3d from = handPos(false);
@@ -2080,16 +2289,20 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
 
     /** Dark green, always round him, curling up off him; thicker as he falls. Unseen, there's nothing. */
     private void tickAura(ServerWorld world) {
-        if (isInvisible()) return;
-        double w = getWidth() * 0.6, h = getHeight();
-        world.spawnParticles(EnvyHazards.DEEP_GREEN, getX(), getY() + h * 0.5, getZ(), 2, w, h * 0.35, w, 0);
+        // In his Disguise it goes with his face: round whoever's wearing it, and nowhere while they're both in the cups
+        Entity body = this;
+        if (guiseStage() == GUISE_HIDDEN) return;
+        if (guiseStage() == GUISE_WORN && guiseWearer() != null) body = guiseWearer();
+        if (body.isInvisible()) return;
+        double w = body.getWidth() * 0.6, h = body.getHeight(), x = body.getX(), y0 = body.getY(), z = body.getZ();
+        world.spawnParticles(EnvyHazards.DEEP_GREEN, x, y0 + h * 0.5, z, 2, w, h * 0.35, w, 0);
         for (int i = 0; i < 2; i++) {
             double a = age * 0.25 + i * Math.PI, y = ((age + i * 12) % 30) / 30.0 * (h + 0.4);
-            world.spawnParticles(EnvyHazards.DEEP_GREEN, getX() + Math.cos(a) * 0.75, getY() + y, getZ() + Math.sin(a) * 0.75, 1, 0, 0, 0, 0);
+            world.spawnParticles(EnvyHazards.DEEP_GREEN, x + Math.cos(a) * 0.75, y0 + y, z + Math.sin(a) * 0.75, 1, 0, 0, 0, 0);
         }
-        if (age % 4 == 0) world.spawnParticles(ParticleTypes.WARPED_SPORE, getX(), getY() + h * 0.6, getZ(), 1, w, h * 0.3, w, 0);
+        if (age % 4 == 0) world.spawnParticles(ParticleTypes.WARPED_SPORE, x, y0 + h * 0.6, z, 1, w, h * 0.3, w, 0);
         if (age % 6 == 0) {
-            Vec3d tip = handPos(true).add(0, 0.7, 0);
+            Vec3d tip = handPos(body, true).add(0, 0.7, 0);
             world.spawnParticles(EnvyHazards.PSYCHIC, tip.x, tip.y, tip.z, 1, 0.05, 0.05, 0.05, 0);
         }
     }
@@ -2168,6 +2381,7 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
 
     private void clearAttacks(ServerWorld world) {
         endAscend(world);
+        endGuise(world);
         for (EnvyHazards.Hazard h : hazards) h.remove();
         hazards.clear();
         lift = null;
@@ -2187,9 +2401,14 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
 
     /** Roughly where his hand is: right (the staff) or left (his casting hand). */
     Vec3d handPos(boolean right) {
-        Vec3d forward = Vec3d.fromPolar(0, getBodyYaw());
+        return handPos(this, right);
+    }
+
+    /** Roughly where {@code body}'s right or left hand is. */
+    static Vec3d handPos(Entity body, boolean right) {
+        Vec3d forward = Vec3d.fromPolar(0, body instanceof LivingEntity living ? living.getBodyYaw() : body.getYaw());
         Vec3d side = new Vec3d(-forward.z, 0, forward.x).multiply(right ? -0.4 : 0.4);
-        return getPos().add(0, getHeight() * 0.72, 0).add(forward.multiply(0.6)).add(side);
+        return body.getPos().add(0, body.getHeight() * 0.72, 0).add(forward.multiply(0.6)).add(side);
     }
 
     private void stand() {

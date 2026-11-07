@@ -88,6 +88,7 @@
   "message.fmscraft.gorged_brute_eats": "The Gorged Brute gulps it down... (%s/%s)",
   "message.fmscraft.greed_door_open": "The vault door sinks into the floor...",
   "message.fmscraft.gummss_caught": "GUMMSS drags you back. You leave when he says so.",
+  "message.fmscraft.gummss_disguise": "GUMMSS is wearing your face. And you're wearing his.",
   "message.fmscraft.gummss_stare": "Don't look at him...",
   "message.fmscraft.lalli_caught": "The cold wind carries you back to LALLILARGE.",
   "message.fmscraft.leonard_caught": "The lightning carries you back to the plaza.",

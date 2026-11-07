@@ -1529,6 +1529,12 @@ final class EnvyHazards {
         boolean tick(ServerWorld world, GummssEntity boss) {
             age++;
             net.minecraft.entity.Entity around = world.getEntity(owner);
+            // His Disguise: his blocks go with his face, onto whoever's wearing it, and hide in the cup with him
+            boolean shut = false;
+            if (around == boss) {
+                if (boss.guiseStage() == GummssLook.GUISE_HIDDEN) shut = true;
+                else if (boss.guiseStage() == GummssLook.GUISE_WORN && boss.guiseWearer() != null) around = boss.guiseWearer();
+            }
             if (around == null || !around.isAlive()) {
                 // The image broke (or he's gone): its blocks crumble with it
                 for (DisplayEntity.BlockDisplayEntity d : displays) {
@@ -1538,7 +1544,7 @@ final class EnvyHazards {
                 return false;
             }
             // Unseen, he takes them with him: nothing gives away where he walks
-            float size = around.isInvisible() ? 0.001f : SIZE * Math.min(1f, age / 20f);
+            float size = around.isInvisible() || shut ? 0.001f : SIZE * Math.min(1f, age / 20f);
             for (int i = 0; i < displays.length; i++) {
                 DisplayEntity.BlockDisplayEntity d = displays[i];
                 if (d == null) continue;
@@ -1554,6 +1560,159 @@ final class EnvyHazards {
         @Override
         void remove() {
             for (DisplayEntity.BlockDisplayEntity d : displays) if (d != null) d.discard();
+        }
+    }
+
+    // ---- His Disguise: the cups that come down over him and one of you, and the blocks they shatter into ----
+
+    /**
+     * A tall green cup that slams down out of the air over whoever's under it, hiding them, and turns faster and
+     * faster, shaking, until {@link #open} shatters it into {@link Shards}. Emerald, capped with verdant froglight.
+     */
+    static final class Cup extends Hazard {
+        /** Ticks it takes to come down. */
+        static final int DROP = 5;
+        static final float WIDTH = 1.25f, HEIGHT = 1.05f, CAP = 0.22f, FROM = 4.5f;
+        static final BlockState WALL = Blocks.EMERALD_BLOCK.getDefaultState(), LID = Blocks.VERDANT_FROGLIGHT.getDefaultState();
+        final Vec3d at;
+        final boolean spin;
+        final DisplayEntity.BlockDisplayEntity[] parts = new DisplayEntity.BlockDisplayEntity[3];
+        float turn;
+        boolean opened;
+
+        Cup(ServerWorld world, Vec3d at, boolean spin) {
+            this.at = at;
+            this.spin = spin;
+            for (int i = 0; i < parts.length; i++) {
+                DisplayEntity.BlockDisplayEntity d = EntityType.BLOCK_DISPLAY.create(world);
+                if (d == null) continue;
+                d.setBlockState(i == 2 ? LID : WALL);
+                d.setViewRange(4f);
+                // Drawn whenever any of it is on screen, not only its foot
+                d.setDisplayWidth(2f);
+                d.setDisplayHeight(FROM + 3f);
+                d.refreshPositionAndAngles(at.x, at.y, at.z, 0, 0);
+                d.setTransformation(transform(i, FROM, 0, 0, 0));
+                world.spawnEntity(d);
+                parts[i] = d;
+            }
+            world.playSound(null, at.x, at.y, at.z, SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.HOSTILE, 2.0f, 0.6f);
+        }
+
+        /** Part {@code i} (lower wall, upper wall, lid), {@code drop} above the floor, turned {@code yaw}, shaken aside. */
+        static AffineTransformation transform(int i, float drop, float yaw, float jx, float jz) {
+            float w = i == 2 ? WIDTH + 0.12f : WIDTH, h = i == 2 ? CAP : HEIGHT, y0 = i * HEIGHT;
+            Quaternionf rot = new Quaternionf().rotationY(yaw);
+            Vector3f offset = new Vector3f(-w / 2, y0 + drop, -w / 2).rotate(rot).add(jx, 0, jz);
+            return new AffineTransformation(offset, rot, new Vector3f(w, h, w), new Quaternionf());
+        }
+
+        /** Shatters it: the green blocks burst out and whoever was under it is there again. */
+        void open() {
+            opened = true;
+        }
+
+        @Override
+        boolean tick(ServerWorld world, GummssEntity boss) {
+            age++;
+            if (opened) {
+                boss.addHazard(new Shards(world, at));
+                return false;
+            }
+            float drop = age >= DROP ? 0 : FROM * MathHelper.square(1 - age / (float) DROP);
+            float jx = 0, jz = 0;
+            if (age >= DROP && spin) {
+                // Faster and faster, shaking more and more
+                int s = age - DROP;
+                turn += Math.min(0.9f, 0.08f + s * 0.035f);
+                float shake = Math.min(0.12f, s * 0.006f);
+                jx = (world.random.nextFloat() - 0.5f) * shake;
+                jz = (world.random.nextFloat() - 0.5f) * shake;
+                if (s % 4 == 0) world.playSound(null, at.x, at.y, at.z, SoundEvents.BLOCK_GRINDSTONE_USE, SoundCategory.HOSTILE, 0.8f, 0.8f + s * 0.03f);
+            }
+            for (int i = 0; i < parts.length; i++) {
+                if (parts[i] == null) continue;
+                parts[i].setTransformation(transform(i, drop, turn, jx, jz));
+                parts[i].setStartInterpolation(0);
+                parts[i].setInterpolationDuration(1);
+            }
+            if (age == DROP) {
+                world.playSound(null, at.x, at.y, at.z, SoundEvents.BLOCK_HEAVY_CORE_PLACE, SoundCategory.HOSTILE, 2.5f, 0.6f);
+                world.playSound(null, at.x, at.y, at.z, SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.HOSTILE, 1.5f, 0.6f);
+                world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, WALL), at.x, at.y + 0.1, at.z, 20, 0.6, 0.05, 0.6, 0.1);
+            }
+            // Never left standing if he forgets it
+            return age < 400;
+        }
+
+        @Override
+        void remove() {
+            for (var d : parts) if (d != null) d.discard();
+        }
+    }
+
+    /**
+     * A cup bursting (or the poof of a Disguise knocked off him): green blocks flung out and up, tumbling and shrinking
+     * as they fall, through the floor and away.
+     */
+    static final class Shards extends Hazard {
+        static final int LIFE = 26, COUNT = 12;
+        static final BlockState[] BLOCKS = {Blocks.EMERALD_BLOCK.getDefaultState(), Blocks.EMERALD_BLOCK.getDefaultState(),
+                Blocks.VERDANT_FROGLIGHT.getDefaultState(), Blocks.GREEN_STAINED_GLASS.getDefaultState(), Blocks.MOSS_BLOCK.getDefaultState()};
+        final DisplayEntity.BlockDisplayEntity[] pieces = new DisplayEntity.BlockDisplayEntity[COUNT];
+        final Vec3d[] pos = new Vec3d[COUNT], vel = new Vec3d[COUNT];
+        final Vector3f[] axes = new Vector3f[COUNT];
+        final float[] sizes = new float[COUNT];
+
+        Shards(ServerWorld world, Vec3d at) {
+            var r = world.random;
+            for (int i = 0; i < COUNT; i++) {
+                double a = i * MathHelper.TAU / COUNT + r.nextDouble() * 0.4;
+                double y = 0.2 + (i % 4) * 0.55;
+                pos[i] = at.add(Math.cos(a) * 0.45, y, Math.sin(a) * 0.45);
+                double out = 0.16 + r.nextDouble() * 0.18;
+                vel[i] = new Vec3d(Math.cos(a) * out, 0.18 + r.nextDouble() * 0.22, Math.sin(a) * out);
+                axes[i] = new Vector3f(r.nextFloat() - 0.5f, r.nextFloat() - 0.5f, r.nextFloat() - 0.5f);
+                if (axes[i].lengthSquared() < 1e-3f) axes[i].set(0, 1, 0);
+                axes[i].normalize();
+                sizes[i] = 0.32f + r.nextFloat() * 0.2f;
+                DisplayEntity.BlockDisplayEntity d = EntityType.BLOCK_DISPLAY.create(world);
+                if (d == null) continue;
+                d.setBlockState(BLOCKS[i % BLOCKS.length]);
+                d.setTeleportDuration(1);
+                d.setViewRange(4f);
+                d.refreshPositionAndAngles(pos[i].x, pos[i].y, pos[i].z, 0, 0);
+                d.setTransformation(piece(i, 0, sizes[i]));
+                world.spawnEntity(d);
+                pieces[i] = d;
+            }
+            world.playSound(null, at.x, at.y, at.z, SoundEvents.BLOCK_DECORATED_POT_SHATTER, SoundCategory.HOSTILE, 2.5f, 0.7f);
+            world.playSound(null, at.x, at.y, at.z, SoundEvents.BLOCK_GLASS_BREAK, SoundCategory.HOSTILE, 2.0f, 0.6f);
+            world.playSound(null, at.x, at.y, at.z, SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.HOSTILE, 2.0f, 1.2f);
+            world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, BLOCKS[0]), at.x, at.y + 1, at.z, 30, 0.5, 0.8, 0.5, 0.1);
+        }
+
+        AffineTransformation piece(int i, int age, float size) {
+            Quaternionf rot = new Quaternionf().rotationAxis(age * 0.35f + i, axes[i]);
+            Vector3f half = new Vector3f(-0.5f, -0.5f, -0.5f).mul(size).rotate(rot);
+            return new AffineTransformation(half, rot, new Vector3f(size, size, size), new Quaternionf());
+        }
+
+        @Override
+        boolean tick(ServerWorld world, GummssEntity boss) {
+            age++;
+            float shrink = age < LIFE - 10 ? 1f : (LIFE - age) / 10f;
+            for (int i = 0; i < COUNT; i++) {
+                vel[i] = vel[i].multiply(0.96, 1, 0.96).add(0, -0.045, 0);
+                pos[i] = pos[i].add(vel[i]);
+                if (pieces[i] != null) place(pieces[i], pos[i], piece(i, age, Math.max(0.001f, sizes[i] * shrink)), 1);
+            }
+            return age < LIFE;
+        }
+
+        @Override
+        void remove() {
+            for (var d : pieces) if (d != null) d.discard();
         }
     }
 }

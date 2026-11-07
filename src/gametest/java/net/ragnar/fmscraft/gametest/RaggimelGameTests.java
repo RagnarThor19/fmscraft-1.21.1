@@ -379,4 +379,48 @@ public class RaggimelGameTests implements FabricGameTest {
             ctx.complete();
         });
     }
+
+    /** Chest Rain: chests spiral up round him, then rain down for 4 s while he's free to walk; they fall through the floor. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 220, batchId = "raggimel_chests")
+    public void chestRainLandsOnYouWhileHeWalks(TestContext ctx) {
+        floor(ctx);
+        RaggimelEntity boss = spawn(ctx, new BlockPos(1, 1, 1));
+        ServerPlayerEntity player = survivalPlayer(ctx.getWorld(), Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(6, 1, 6))));
+        player.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.RESISTANCE, 400, 2));
+        try {
+            java.lang.reflect.Field join = ServerPlayerEntity.class.getDeclaredField("joinInvulnerabilityTicks");
+            join.setAccessible(true);
+            join.setInt(player, 0);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+        Vec3d[] start = new Vec3d[1];
+        ctx.runAtTick(5, () -> startAttack(boss, "CHEST_RAIN"));
+        ctx.runAtTick(5 + 15, () -> {
+            ctx.assertEquals(boss.currentAction(), "CHEST_RAIN", "casting: the chests rising round him");
+            ctx.assertEquals(boss.fallingChests(), 0, "nothing falling yet");
+            ctx.assertEquals(player.getHealth(), player.getMaxHealth(), "and nobody hurt");
+        });
+        ctx.runAtTick(5 + RaggimelEntity.CHEST_CAST + 2, () -> {
+            ctx.assertEquals(boss.currentAction(), "CHASE", "cast: he's free to walk while it rains");
+            ctx.assertTrue(boss.isRainingChests(), "and it's raining chests");
+            ctx.assertTrue(boss.fallingChests() > 0, "chests coming down");
+            start[0] = boss.getPos();
+        });
+        ctx.runAtTick(5 + RaggimelEntity.CHEST_CAST + 40, () -> {
+            ctx.assertTrue(boss.chestHits() > 0, "a chest came down on the player (standing still)");
+            ctx.assertTrue(player.getHealth() < player.getMaxHealth(), "and it hurt");
+            ctx.assertTrue(boss.getPos().distanceTo(start[0]) > 0.5, "he moved meanwhile, from " + start[0] + " to " + boss.getPos());
+        });
+        ctx.runAtTick(5 + RaggimelEntity.CHEST_CAST + RaggimelEntity.CHEST_RAIN + 60, () -> {
+            ctx.assertFalse(boss.isRainingChests(), "the rain is over");
+            ctx.assertEquals(boss.fallingChests(), 0, "every chest fell through the floor and is gone");
+            ctx.assertTrue(ctx.getWorld().getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
+                    boss.getBoundingBox().expand(40), d -> d.getBlockState().isOf(Blocks.CHEST) || d.getBlockState().isOf(Blocks.TRAPPED_CHEST)).isEmpty(),
+                    "no chest left anywhere");
+            boss.discard();
+            ctx.getWorld().getServer().getPlayerManager().remove(player);
+            ctx.complete();
+        });
+    }
 }

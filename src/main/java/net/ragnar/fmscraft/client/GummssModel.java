@@ -12,14 +12,32 @@ import net.ragnar.fmscraft.boss.envy.GummssLook;
  * work. His arms follow what he's doing: both raised to cast, palms thrust out, a hand clawing back to pull, lifting
  * someone high and dashing them down, throwing, cutting with the staff, looking up into the dark with his arms spread,
  * falling with them out, landing in a crouch, pointing the staff, holding it over his head for the Evil Eye.
+ * <p>
+ * In {@link #guise} (his Disguise, wearing one of you) he's posed like any player: the arms hold whatever that player
+ * holds ({@link #guiseRight}, {@link #guiseLeft}) and none of his own poses show.
  */
 public class GummssModel<T extends HostileEntity & GummssLook> extends PlayerEntityModel<T> {
+    public boolean guise;
+    public BipedEntityModel.ArmPose guiseRight = BipedEntityModel.ArmPose.EMPTY, guiseLeft = BipedEntityModel.ArmPose.EMPTY;
+
     public GummssModel(ModelPart root) {
-        super(root, false);
+        this(root, false);
+    }
+
+    /** {@code slim}: 3-pixel arms, for wearing a player whose skin has them. */
+    public GummssModel(ModelPart root, boolean slim) {
+        super(root, slim);
     }
 
     @Override
     public void setAngles(T boss, float limbAngle, float limbDistance, float age, float headYaw, float headPitch) {
+        if (guise) {
+            sneaking = false;
+            rightArmPose = guiseRight;
+            leftArmPose = guiseLeft;
+            super.setAngles(boss, limbAngle, limbDistance, age, headYaw, headPitch);
+            return;
+        }
         int pose = boss.poseState();
         sneaking = pose == GummssLook.POSE_LAND;
         rightArmPose = BipedEntityModel.ArmPose.ITEM;

@@ -49,6 +49,7 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add(ModBossEntities.GUMMSS_ILLUSION, "GUMMSS");
         builder.add("message.fmscraft.gummss_stare", "Don't look at him...");
         builder.add("message.fmscraft.gummss_caught", "GUMMSS drags you back. You leave when he says so.");
+        builder.add("message.fmscraft.gummss_disguise", "GUMMSS is wearing your face. And you're wearing his.");
         builder.add(ModBossEntities.LALLI, "LALLILARGE");
         builder.add("message.fmscraft.lalli_caught", "The cold wind carries you back to LALLILARGE.");
         builder.add(ModBossEntities.MUGEN, "MUGEN");

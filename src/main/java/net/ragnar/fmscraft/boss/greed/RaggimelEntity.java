@@ -12,6 +12,7 @@ import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.boss.BossBar;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.damage.DamageTypes;
+import net.minecraft.entity.decoration.DisplayEntity;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
@@ -35,6 +36,7 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.AffineTransformation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
@@ -50,6 +52,7 @@ import net.ragnar.fmscraft.fight.Cinematics;
 import net.ragnar.fmscraft.network.BossScreenPayload;
 import net.ragnar.fmscraft.sin.Sin;
 import net.ragnar.fmscraft.sound.ModSounds;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -75,6 +78,8 @@ import java.util.UUID;
  *   <li><b>Sleep Darts</b>: three darts at three players (Ragnars Magic Mod's: drowsy, then asleep until hurt).</li>
  *   <li><b>Dash Punch</b>: crouches with the goat's ram sound, then charges.</li>
  *   <li><b>Splash</b>: hops and lands with a ring of water to jump over.</li>
+ *   <li><b>Chest Rain</b> (both phases): chests spiral up round him into the sky, then rain down on everyone for 4 s,
+ *       a gold ring under each; they fall straight through the island. He walks and punches all the while.</li>
  * </ul>
  *
  * <h2>Phase change: see {@link GreedTimeline}</h2>
@@ -139,7 +144,7 @@ public class RaggimelEntity extends SinBossEntity {
         ENTRANCE, CHASE, FALLING, STUNNED,
         BUBBLE_RIDE, BUBBLE_VOLLEY, DARTS, DASH, SPLASH,
         TRANSITION, PERCH, LEAP,
-        LASER, SWEEP, COIN_STORM, BLINK, TIDAL_SLAM, WATER_SPROUT, DIVE, GIANT_SLAM
+        LASER, SWEEP, COIN_STORM, BLINK, TIDAL_SLAM, WATER_SPROUT, DIVE, GIANT_SLAM, CHEST_RAIN
     }
 
     private Action action = Action.ENTRANCE;
@@ -375,11 +380,13 @@ public class RaggimelEntity extends SinBossEntity {
             case WATER_SPROUT -> tickWaterSprout(world);
             case DIVE -> tickDive(world);
             case GIANT_SLAM -> tickGiantSlam(world);
+            case CHEST_RAIN -> tickChestRain(world);
         }
         tickBeams(world);
         tickRings(world);
         tickMarks(world);
         tickSprouts(world);
+        tickChests(world);
         if (inArena) {
             tickAmbience(world, phase);
             tickVoid(world);
@@ -414,6 +421,7 @@ public class RaggimelEntity extends SinBossEntity {
             offer(options, weights, Action.DARTS, 3, 0);
             offer(options, weights, Action.DASH, 3, 0);
             if (nearestFighterDistance() < 7) offer(options, weights, Action.SPLASH, 2, 0);
+            offer(options, weights, Action.CHEST_RAIN, 2, 360);
         } else {
             offer(options, weights, Action.LASER, 3, 0);
             offer(options, weights, Action.SWEEP, 2, 300);
@@ -426,6 +434,7 @@ public class RaggimelEntity extends SinBossEntity {
             offer(options, weights, Action.WATER_SPROUT, 2, 260);
             offer(options, weights, Action.DIVE, 2, 280);
             offer(options, weights, Action.GIANT_SLAM, 2, 400);
+            offer(options, weights, Action.CHEST_RAIN, 2, 320);
         }
         if (options.isEmpty()) return phase == 1 ? Action.DASH : Action.LASER;
         int total = weights.stream().mapToInt(Integer::intValue).sum(), roll = random.nextInt(total);
@@ -815,6 +824,7 @@ public class RaggimelEntity extends SinBossEntity {
         rings.clear();
         marks.clear();
         sprouts.clear();
+        clearChests();
         setInvisible(false);
         shrinkBack();
         for (GreedBubbleEntity bubble : world.getEntitiesByClass(GreedBubbleEntity.class, getBoundingBox().expand(96), b -> true)) bubble.pop(world);
@@ -1561,6 +1571,217 @@ public class RaggimelEntity extends SinBossEntity {
                 p.velocityModified = true;
             }
         }
+    }
+
+    // ---- Chest Rain: chests spiral up round him into the sky, then rain down all over the island ----
+
+    /** Ticks: the chests rising round him, then the rain; how high they fall from; how many chests ring him. */
+    public static final int CHEST_CAST = 30, CHEST_RAIN = 80, CHEST_RING = 8;
+    static final double CHEST_HEIGHT = 22, CHEST_SIZE = 0.875;
+    /** A chest that lands on you (before {@link #DAMAGE_DEALT}): phase 1, phase 2. */
+    static final float CHEST_HIT_ONE = 10f, CHEST_HIT_TWO = 13f;
+
+    /** One chest falling out of the sky, the gold ring on the ground showing where; it falls through the island. */
+    static final class FallingChest {
+        final DisplayEntity.BlockDisplayEntity display;
+        final double x, z, ground;
+        final float yaw, tumble;
+        final Set<UUID> hit = new HashSet<>();
+        double y, speed = 0.55;
+        int age;
+        boolean through;
+
+        FallingChest(DisplayEntity.BlockDisplayEntity display, double x, double y, double z, double ground, float yaw, float tumble) {
+            this.display = display;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.ground = ground;
+            this.yaw = yaw;
+            this.tumble = tumble;
+        }
+    }
+
+    private final List<FallingChest> chests = new ArrayList<>();
+    private final DisplayEntity.BlockDisplayEntity[] castChests = new DisplayEntity.BlockDisplayEntity[CHEST_RING];
+    /** Ticks of rain left (it goes on while he walks and punches). */
+    private int chestRain;
+    private int chestHits;
+
+    /** For tests: how many chests are falling right now. */
+    public int fallingChests() {
+        return chests.size();
+    }
+
+    public boolean isRainingChests() {
+        return chestRain > 0;
+    }
+
+    /** For tests: how many times a chest has come down on someone. */
+    public int chestHits() {
+        return chestHits;
+    }
+
+    private DisplayEntity.BlockDisplayEntity chestDisplay(ServerWorld world, Vec3d at, boolean trapped) {
+        DisplayEntity.BlockDisplayEntity d = EntityType.BLOCK_DISPLAY.create(world);
+        if (d == null) return null;
+        d.setBlockState((trapped ? Blocks.TRAPPED_CHEST : Blocks.CHEST).getDefaultState());
+        d.setTeleportDuration(1);
+        d.setViewRange(5f);
+        d.setTransformation(chestTransform(0, 0, 0.01f));
+        d.refreshPositionAndAngles(at.x, at.y, at.z, 0, 0);
+        world.spawnEntity(d);
+        return d;
+    }
+
+    /** A chest centred on its display's position, turned {@code yaw} and tipped {@code tumble}, {@code size} big. */
+    private static AffineTransformation chestTransform(float yaw, float tumble, float size) {
+        Quaternionf rot = new Quaternionf().rotationY(yaw).rotateX(tumble);
+        Vector3f half = new Vector3f(-0.5f, -0.5f, -0.5f).mul(size).rotate(rot);
+        return new AffineTransformation(half, rot, new Vector3f(size, size, size), new Quaternionf());
+    }
+
+    /**
+     * The cast: he stamps his staff and eight chests burst up out of the ground round him, circling him faster and
+     * faster as they rise in a spiral, gold streaming after them, until they shoot straight up into the sky. Then he's
+     * free to walk and punch while the chests come back down on all of you for four seconds.
+     */
+    private void tickChestRain(ServerWorld world) {
+        int t = actionTicks, rise = CHEST_CAST - 8;
+        getNavigation().stop();
+        setVelocity(0, getVelocity().y, 0);
+        if (t == 1) {
+            setPoseState(POSE_SLAM);
+            swingHand(Hand.MAIN_HAND);
+            for (int i = 0; i < CHEST_RING; i++) castChests[i] = chestDisplay(world, getPos(), i % 2 == 1);
+            world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, groundState()), getX(), getY() + 0.1, getZ(), 50, 1.6, 0.1, 1.6, 0.15);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_IRON_GOLEM_ATTACK, SoundCategory.HOSTILE, 2.0f, 0.6f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_CHEST_OPEN, SoundCategory.HOSTILE, 2.5f, 0.6f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_VAULT_OPEN_SHUTTER, SoundCategory.HOSTILE, 2.0f, 0.7f);
+        }
+        if (t == 6) setPoseState(POSE_CAST);
+        // The ring of chests: out of the ground, round and up, faster and faster, then straight up into the sky
+        float u = Math.min(1f, t / (float) rise);
+        double spin = 1.2 * t + 0.035 * t * t, radius = 2.8 - 1.4 * u, height = -0.4 + 4.2 * Math.pow(u, 1.4);
+        if (t > rise) height += 0.9 * MathHelper.square(t - rise);
+        float size = (float) Math.min(1.0, t / 6.0) * (float) CHEST_SIZE;
+        for (int i = 0; i < CHEST_RING; i++) {
+            DisplayEntity.BlockDisplayEntity d = castChests[i];
+            if (d == null) continue;
+            double a = i * MathHelper.TAU / CHEST_RING + spin * 0.05;
+            Vec3d at = getPos().add(Math.cos(a) * radius, height + (i % 2) * 0.5, Math.sin(a) * radius);
+            d.setPosition(at.x, at.y, at.z);
+            d.setTransformation(chestTransform((float) -a, t * 0.15f * (i % 2 == 0 ? 1 : -1), size));
+            d.setStartInterpolation(0);
+            d.setInterpolationDuration(1);
+            if (t % 2 == 0) world.spawnParticles(GOLD, at.x, at.y, at.z, 1, 0.1, 0.1, 0.1, 0);
+        }
+        if (t % 3 == 0 && t <= rise) {
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_NOTE_BLOCK_CHIME.value(), SoundCategory.HOSTILE, 1.5f, 0.5f + t / (float) rise);
+        }
+        world.spawnParticles(GOLD, getX(), getY() + getHeight() + 0.3, getZ(), 2, 0.4, 0.2, 0.4, 0);
+        if (t == rise) {
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_FIREWORK_ROCKET_LAUNCH, SoundCategory.HOSTILE, 3.0f, 0.6f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_CHEST_CLOSE, SoundCategory.HOSTILE, 2.5f, 0.5f);
+        }
+        if (t >= CHEST_CAST) {
+            for (int i = 0; i < CHEST_RING; i++) {
+                if (castChests[i] != null) castChests[i].discard();
+                castChests[i] = null;
+            }
+            chestRain = CHEST_RAIN;
+            world.playSound(null, getX(), getY() + 20, getZ(), SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.HOSTILE, 2.0f, 1.4f);
+            for (ServerPlayerEntity p : fighters) p.playSoundToPlayer(SoundEvents.BLOCK_VAULT_EJECT_ITEM, SoundCategory.HOSTILE, 1.5f, 0.6f);
+            endAttack();
+            // He walks and punches through it; nothing else until it's over
+            rest = Math.max(rest, CHEST_RAIN);
+        }
+    }
+
+    /** The rain itself: new chests over all of you, and each falling one hitting whoever it lands on. */
+    private void tickChests(ServerWorld world) {
+        if (chestRain > 0) {
+            chestRain--;
+            int phase = getPhase();
+            // Some over where each of you stands (so keep moving), more at random round all of you
+            int aimed = phase == 1 ? 12 : frenzy ? 6 : 8, scatter = phase == 1 ? 2 : 1;
+            if ((CHEST_RAIN - chestRain) % aimed == 1) {
+                for (ServerPlayerEntity p : fighters) dropChest(world, p.getPos());
+            }
+            if (chestRain % scatter == 0 && !fighters.isEmpty()) {
+                ServerPlayerEntity p = fighters.get(random.nextInt(fighters.size()));
+                double a = random.nextDouble() * MathHelper.TAU, d = 1.5 + random.nextDouble() * 8;
+                dropChest(world, p.getPos().add(Math.cos(a) * d, 0, Math.sin(a) * d));
+            }
+        }
+        float damage = boosted(getPhase() == 1 ? CHEST_HIT_ONE : CHEST_HIT_TWO);
+        Iterator<FallingChest> it = chests.iterator();
+        while (it.hasNext()) {
+            FallingChest c = it.next();
+            c.age++;
+            double from = c.y;
+            c.speed = Math.min(1.6, c.speed + 0.07);
+            c.y -= c.speed;
+            // Where it'll land: a gold ring, tightening
+            if (from > c.ground + 0.5 && c.age % 2 == 0) {
+                double r = 0.45 + 0.5 * Math.min(1, (from - c.ground) / CHEST_HEIGHT);
+                for (int i = 0; i < 8; i++) {
+                    double a = i * MathHelper.TAU / 8 + c.age * 0.2;
+                    world.spawnParticles(GOLD, c.x + Math.cos(a) * r, c.ground + 0.12, c.z + Math.sin(a) * r, 1, 0, 0, 0, 0);
+                }
+            }
+            // Whoever it comes down on, once each
+            double half = CHEST_SIZE / 2;
+            net.minecraft.util.math.Box swept = new net.minecraft.util.math.Box(c.x - half, c.y - half, c.z - half, c.x + half, from + half, c.z + half);
+            for (ServerPlayerEntity p : fighters) {
+                if (c.hit.contains(p.getUuid()) || !p.getBoundingBox().intersects(swept)) continue;
+                c.hit.add(p.getUuid());
+                chestHits++;
+                if (p.damage(getDamageSources().fallingBlock(this), damage)) {
+                    p.setVelocity(p.getVelocity().x * 0.3, -0.4, p.getVelocity().z * 0.3);
+                    p.velocityModified = true;
+                }
+                world.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_ZOMBIE_ATTACK_WOODEN_DOOR, SoundCategory.HOSTILE, 1.5f, 0.8f);
+                world.spawnParticles(ParticleTypes.CRIT, p.getX(), p.getY() + 1.6, p.getZ(), 12, 0.3, 0.2, 0.3, 0.2);
+            }
+            // Through the island with a thud and a spill of gold, and on down out of sight
+            if (!c.through && c.y - half <= c.ground) {
+                c.through = true;
+                world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, Blocks.OAK_PLANKS.getDefaultState()), c.x, c.ground + 0.2, c.z, 14, 0.35, 0.1, 0.35, 0.1);
+                world.spawnParticles(new ItemStackParticleEffect(ParticleTypes.ITEM, new ItemStack(Items.GOLD_NUGGET)), c.x, c.ground + 0.4, c.z, 8, 0.3, 0.2, 0.3, 0.15);
+                world.playSound(null, c.x, c.ground, c.z, SoundEvents.BLOCK_CHEST_CLOSE, SoundCategory.HOSTILE, 1.2f, 0.6f + random.nextFloat() * 0.3f);
+                world.playSound(null, c.x, c.ground, c.z, SoundEvents.BLOCK_WOOD_BREAK, SoundCategory.HOSTILE, 1.0f, 0.7f);
+            }
+            if (c.display != null) {
+                c.display.setPosition(c.x, c.y, c.z);
+                c.display.setTransformation(chestTransform(c.yaw, c.tumble + c.age * 0.04f, (float) CHEST_SIZE));
+                c.display.setStartInterpolation(0);
+                c.display.setInterpolationDuration(1);
+            }
+            if (c.y < c.ground - 3 || c.age > 80) {
+                if (c.display != null) c.display.discard();
+                it.remove();
+            }
+        }
+    }
+
+    /** A chest out of the sky over {@code at} (nothing over the void: there's nowhere for it to land). */
+    private void dropChest(ServerWorld world, Vec3d at) {
+        double ground = groundBelow(at.add(0, 4, 0), 14);
+        if (Double.isNaN(ground)) return;
+        double y = ground + CHEST_HEIGHT + random.nextDouble() * 4;
+        DisplayEntity.BlockDisplayEntity d = chestDisplay(world, new Vec3d(at.x, y, at.z), random.nextInt(4) == 0);
+        chests.add(new FallingChest(d, at.x, y, at.z, ground, random.nextFloat() * MathHelper.TAU, (random.nextFloat() - 0.5f) * 0.6f));
+    }
+
+    private void clearChests() {
+        for (FallingChest c : chests) if (c.display != null) c.display.discard();
+        chests.clear();
+        for (int i = 0; i < CHEST_RING; i++) {
+            if (castChests[i] != null) castChests[i].discard();
+            castChests[i] = null;
+        }
+        chestRain = 0;
     }
 
     // ---- Greed's Due (gold circles) ----

@@ -150,6 +150,14 @@ Health / armor: 1000 HP, 10 armor, 6 toughness; takes x0.75 damage in phase 1, x
   they touch for 3.5 s; a teammate's hit pops them early), *Sleep Darts* (three, at three players; Ragnars Magic
   Mod's dart: drowsy, then asleep until hurt), *Dash Punch* (crouches with the goat's ram sound, charges), *Splash*
   (hops and lands with a ring of water to jump over).
+- **Chest Rain (both phases):** he stamps his staff and eight chests (every other one trapped) burst up out of the
+  ground round him, circling faster and faster as they spiral up past his head, gold streaming after them and a chime
+  climbing, until they shoot straight up into the sky (1.5 s). Then for 4 s chests rain down out of the sky, 22-26
+  blocks up: some over where each of you stands (every 12 ticks, 8 in phase 2, 6 in frenzy), more at random round all
+  of you. A gold ring tightens on the ground under each as it comes. One that lands on you is 10 (13 in phase 2, then
+  x1.35) as a falling block (a helmet helps, a shield doesn't) and knocks you down; then it falls on through the island
+  with a thud and a spill of gold and is gone. He walks and punches the whole time but starts nothing else until the rain
+  is over. Chests are block displays: nothing is placed or broken.
 - **Phase change (at 70%):** everything goes black, everyone freezes, music cuts; heartbeat and cave sounds for
   5 s, then `greed_switch_voiceline`. Under the black he grows to 3 blocks, moves to a perch over the island's
   middle shrine 50 blocks west and night falls (dark blue sky, stars, no sun, dimmer light, closer fog). As the
@@ -177,7 +185,8 @@ Health / armor: 1000 HP, 10 armor, 6 toughness; takes x0.75 damage in phase 1, x
   are plain arrows. The mod's built jar has to include Sleep Darts for those to work.
 - Tuning knobs: `RaggimelEntity` (health, damage taken, `MAX_HIT`, rests, attack weights and gaps in
   `chooseAttack`), `GreedTimeline` (cutscene timings), `GreedArena` (positions).
-- Tests: `RaggimelGameTests` (the whole fight flow in the real arena, the phase 1 clamp, bubbles, magic bubbles),
+- Tests: `RaggimelGameTests` (the whole fight flow in the real arena, the phase 1 clamp, bubbles, magic bubbles,
+  Chest Rain landing on a player while he walks and every chest gone after),
   `GreedTimelineTest`.
 
 ## ORNAMIX (Wrath) (built: `boss/wrath/`)
@@ -323,6 +332,21 @@ Damage: every hit he deals is x1.2, rounded up (DAMAGE_DEALT): his staff (10), e
   and widens, the fog closes in and the screen's edges throb; a great eye opens over him as he turns slowly; anyone
   looking at him when it ends takes 10, Nausea and Darkness: look away), *Venom Flasks* (three lingering poison flasks
   thrown where you're heading; the clouds last 8 s).
+- **Disguise** (only with 3 or more of you, never while his Mirror Images are out, none in the first 20 s, at most
+  every 35 s): he points his staff at one of you, a thread of his mind running to them and a green ring closing at
+  their feet (1.1 s). Then a tall emerald cup capped with verdant froglight slams down out of the air over each of
+  them. Under the cups neither can be seen, hurt or (for the player) move, and the cups turn, faster and faster,
+  grinding and shaking, for 1.4 s; half the time, unseen, he and they trade places inside. The cups shatter into
+  tumbling green blocks (emerald, froglight, green glass, moss) that fall through the floor, and **he has their face**:
+  their skin (slim arms or not), name tag, armour, what's in their hands, cape, hat and sleeve layers, at a player's
+  size. **They have his**: his skin, his staff, no name, his green aura and (after his fall) his seven green blocks.
+  Nothing of his gives him away: no spells, no sounds of him, no caught arrows; for 10 s he goes at "GUMMSS" like any of
+  you would, circling close, swinging, jumping now and then. A hit on the real one knocks the face off him in a burst of
+  green blocks and he reels (1.5 s, taking extra damage). A hit on the wrong one is a hit on a friend. Left alone, the
+  cups come down again, the faces go back, and he's straight into a Poison Slash on whoever's nearest. The wearer gets
+  "GUMMSS is wearing your face. And you're wearing his." and sees it too (themselves as GUMMSS in third person, a copy
+  of themselves walking about). Drawn on each client (`GummssRenderer`, `GummssGuiseRenderer`,
+  `PlayerEntityRendererMixin`); timings `GUISE_*` in `GummssEntity`.
 - **Rare attacks** (long gaps, none in the first 20 s): *Tome of Levitation* (motes rise round everyone's feet, then
   everyone levitates for 5 s, and he looses the Tome of the Quiver at them while they hang there; the drop afterwards
   hurts), *the full Tome of Judgement* (as the magic mod casts it: a colossal netherite sword forms 48 blocks over where
@@ -365,7 +389,8 @@ Damage: every hit he deals is x1.2, rounded up (DAMAGE_DEALT): his staff (10), e
   the full Judgement crushing only the crowd it falls on; Upside Down flipping everyone and back, and never leaving
   anyone flipped; ten players falling in the ring and all landing unhurt; Rubble Barrage tearing up 6-12 blocks,
   hurting, and mending the floor; the fall from the sky flipping him, landing heavy, leaving the green blocks and no
-  phase 2, and starting by itself at half health), `GummssTimelineTest`.
+  phase 2, and starting by itself at half health; Disguise hiding both, trading places, a hit knocking it off, wearing
+  off after 10 s, never with two players), `GummssTimelineTest`.
 
 ## LalliLarge (Gluttony) (built: `boss/gluttony/`)
 

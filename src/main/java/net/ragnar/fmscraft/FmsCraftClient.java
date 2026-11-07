@@ -100,7 +100,11 @@ public class FmsCraftClient implements ClientModInitializer {
         EntityRendererRegistry.register(ModBossEntities.ORNAMIX, OrnamixRenderer::new);
         // Drawn like a ghast's fireball
         EntityRendererRegistry.register(ModBossEntities.ORNAMIX_FIREBALL, ctx -> new FlyingItemEntityRenderer<>(ctx, 3.0f, true));
-        EntityRendererRegistry.register(ModBossEntities.GUMMSS, ctx -> new GummssRenderer<>(ctx, 0.5f));
+        EntityRendererRegistry.register(ModBossEntities.GUMMSS, ctx -> {
+            // Whoever's face he takes is drawn as him: built alongside him
+            net.ragnar.fmscraft.client.GummssGuiseRenderer.init(ctx);
+            return new GummssRenderer<>(ctx, 0.5f);
+        });
         // His Mirror Images cast no shadow: the tell
         EntityRendererRegistry.register(ModBossEntities.GUMMSS_ILLUSION, ctx -> new GummssRenderer<>(ctx, 0f));
         EntityRendererRegistry.register(ModBossEntities.LALLI, LalliRenderer::new);

@@ -22,6 +22,7 @@
 		"client.LightmapTextureManagerMixin",
 		"client.MouseMixin",
 		"client.MusicTrackerMixin",
+		"client.PlayerEntityRendererMixin",
 		"client.CubeMapRendererAccessor",
 		"client.ScreenMixin",
 		"client.TitleScreenMixin",

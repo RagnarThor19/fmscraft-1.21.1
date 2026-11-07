@@ -646,6 +646,113 @@ public class GummssGameTests implements FabricGameTest {
         });
     }
 
+    // ---- Disguise ----
+
+    private static final int GUISE_HIDDEN_AT = GummssEntity.GUISE_POINT + GummssEntity.CUP_DROP + 2;
+    private static final int GUISE_WORN_AT = GummssEntity.GUISE_POINT + GummssEntity.CUP_DROP + GummssEntity.GUISE_SHUFFLE + 3;
+
+    private static List<net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity> blocks(ServerWorld world, GummssEntity boss, double range,
+                                                                                                  net.minecraft.block.Block... of) {
+        return world.getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class, boss.getBoundingBox().expand(range), d -> {
+            if (of.length == 0) return true;
+            for (net.minecraft.block.Block b : of) if (d.getBlockState().isOf(b)) return true;
+            return false;
+        });
+    }
+
+    /** Disguise: the cups hide both of them, he takes one player's face (trading places if the cups say so), a hit knocks it off. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200, batchId = "gummss_disguise")
+    public void disguiseHidesBothTradesFacesAndAHitBreaksIt(TestContext ctx) {
+        floor(ctx);
+        ServerWorld world = ctx.getWorld();
+        GummssEntity boss = spawn(ctx, new BlockPos(1, 1, 1));
+        ServerPlayerEntity[] players = {player(ctx, new BlockPos(6, 1, 1), 0), player(ctx, new BlockPos(6, 1, 6), 0), player(ctx, new BlockPos(1, 1, 6), 0)};
+        whenReady(ctx, boss, () -> {
+            Vec3d bossStart = boss.getPos();
+            Vec3d[] starts = new Vec3d[players.length];
+            for (int i = 0; i < players.length; i++) starts[i] = players[i].getPos();
+            boss.forceGuiseSwap(true);
+            start(boss, "DISGUISE");
+            ctx.waitAndRun(10, () -> ctx.assertEquals(boss.guiseStage(), GummssEntity.GUISE_OFF, "pointing at them first: nothing yet"));
+            ctx.waitAndRun(GUISE_HIDDEN_AT, () -> {
+                ctx.assertEquals(boss.guiseStage(), GummssEntity.GUISE_HIDDEN, "both shut in the cups");
+                ServerPlayerEntity wearer = world.getServer().getPlayerManager().getPlayer(boss.guisePlayer());
+                ctx.assertTrue(wearer != null, "one of the players is under the other cup");
+                ctx.assertTrue(Cinematics.isFrozen(wearer), "held still in it");
+                float before = boss.getHealth();
+                boss.damage(world.getDamageSources().playerAttack(players[0] == wearer ? players[1] : players[0]), 6);
+                ctx.assertEquals(boss.getHealth(), before, "nothing reaches him in the cup");
+                int walls = blocks(world, boss, 12, Blocks.EMERALD_BLOCK).size();
+                ctx.assertTrue(walls >= 4, "two emerald cups, " + walls + " walls");
+            });
+            ctx.waitAndRun(GUISE_WORN_AT, () -> {
+                ctx.assertEquals(boss.guiseStage(), GummssEntity.GUISE_WORN, "the cups shattered: he's wearing their face");
+                ServerPlayerEntity wearer = world.getServer().getPlayerManager().getPlayer(boss.guisePlayer());
+                int w = java.util.Arrays.asList(players).indexOf(wearer);
+                ctx.assertTrue(w >= 0, "one of them");
+                ctx.assertFalse(Cinematics.isFrozen(wearer), "and they're free again");
+                ctx.assertTrue(boss.getPos().distanceTo(starts[w]) < 1.5, "traded round: he's where they stood, at " + boss.getPos());
+                ctx.assertTrue(wearer.getPos().distanceTo(bossStart) < 1.5, "and they're where he stood, at " + wearer.getPos());
+                ctx.assertTrue(blocks(world, boss, 12, Blocks.VERDANT_FROGLIGHT, Blocks.MOSS_BLOCK).size() > 0, "green blocks flying from the cups");
+                float before = boss.getHealth();
+                boss.damage(world.getDamageSources().playerAttack(players[(w + 1) % players.length]), 6);
+                ctx.assertEquals(boss.guiseStage(), GummssEntity.GUISE_OFF, "found out: the face is knocked off him");
+                ctx.assertEquals(boss.currentAction(), "EXPOSED", "and he reels");
+                ctx.assertTrue(boss.getHealth() < before, "the hit lands");
+            });
+            ctx.waitAndRun(GUISE_WORN_AT + 40, () -> {
+                ctx.assertTrue(blocks(world, boss, 20).isEmpty(), "every green block gone");
+                boss.discard();
+                done(ctx, players);
+            });
+        });
+    }
+
+    /** Left alone, the Disguise lasts its ten seconds, then the cups come down again and the faces go back. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 420, batchId = "gummss_disguise_end")
+    public void disguiseWearsOffAfterTenSeconds(TestContext ctx) {
+        floor(ctx);
+        GummssEntity boss = spawn(ctx, new BlockPos(1, 1, 1));
+        ServerPlayerEntity[] players = {player(ctx, new BlockPos(6, 1, 1), 0), player(ctx, new BlockPos(6, 1, 6), 0), player(ctx, new BlockPos(1, 1, 6), 0)};
+        int over = GUISE_WORN_AT + GummssEntity.GUISE_TICKS + GummssEntity.CUP_DROP + GummssEntity.GUISE_UNDO + 2;
+        whenReady(ctx, boss, () -> {
+            Vec3d bossStart = boss.getPos();
+            boss.forceGuiseSwap(false);
+            start(boss, "DISGUISE");
+            ctx.waitAndRun(GUISE_WORN_AT, () -> {
+                ctx.assertEquals(boss.guiseStage(), GummssEntity.GUISE_WORN, "wearing a face");
+                ctx.assertTrue(boss.getPos().distanceTo(bossStart) < 1.5, "not traded round this time");
+            });
+            ctx.waitAndRun(GUISE_WORN_AT + GummssEntity.GUISE_TICKS - 10, () ->
+                    ctx.assertEquals(boss.guiseStage(), GummssEntity.GUISE_WORN, "for ten seconds"));
+            ctx.waitAndRun(over, () -> {
+                ctx.assertEquals(boss.guiseStage(), GummssEntity.GUISE_OFF, "the faces back where they belong");
+                ctx.assertTrue(boss.guisePlayer() == null, "nobody's");
+                for (ServerPlayerEntity p : players) ctx.assertFalse(Cinematics.isFrozen(p), "nobody left in a cup");
+                ctx.assertFalse(boss.currentAction().equals("DISGUISE"), "and he's on to the next thing, " + boss.currentAction());
+                boss.discard();
+                done(ctx, players);
+            });
+        });
+    }
+
+    /** With only two of you there's nobody to hide among: no Disguise. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 120, batchId = "gummss_disguise_few")
+    public void noDisguiseWithTwoPlayers(TestContext ctx) {
+        floor(ctx);
+        GummssEntity boss = spawn(ctx, new BlockPos(1, 1, 1));
+        ServerPlayerEntity a = player(ctx, new BlockPos(6, 1, 1), 0), b = player(ctx, new BlockPos(6, 1, 6), 0);
+        whenReady(ctx, boss, () -> {
+            start(boss, "DISGUISE");
+            ctx.waitAndRun(4, () -> {
+                ctx.assertEquals(boss.currentAction(), "MOVE", "he doesn't even start it");
+                ctx.assertEquals(boss.guiseStage(), GummssEntity.GUISE_OFF, "and wears nobody's face");
+                boss.discard();
+                done(ctx, a, b);
+            });
+        });
+    }
+
     private static void waitForAction(TestContext ctx, GummssEntity boss, String action, int ticksLeft, Runnable then) {
         if (boss.currentAction().equals(action)) then.run();
         else if (ticksLeft <= 0) ctx.throwGameTestException("he should have started " + action + ", is doing " + boss.currentAction());
