@@ -3,6 +3,11 @@ Paints RAGGIMEL's bubble: the see-through skin of the bubbles he rides and blows
 in RaggimelRenderer). A 16x16x16 cube unwrapped onto 64x32, the same 16x16 tile on every face: a faint pale-blue film,
 a brighter rim, and a couple of white glints like the shine on glass or a slime's outer layer.
 
+Also his glowing eyes: raggimel_eyes.png, the layer drawn over his face while he calls up the Twister
+(RaggimelRenderer, like a spider's or an enderman's eyes; drawn additively, so dark pixels glow faintly). A 64x64
+skin-shaped sheet, see-through but for his eyes: the irises a bright sea blue, the whites a pale ice blue, and a faint
+blue glow on the brows above them. The eye pixels are where raggimel.png has its eyes (front of the head, row 13).
+
 RAGGIMEL himself wears raggimel.png (the skin he was drawn with) and the intro uses gui/seven_sins.png; both are
 copied in as they are, not painted here.
 
@@ -53,7 +58,30 @@ def bubble():
     return img
 
 
+EYE_IRIS = (0x3c, 0xc8, 0xff, 255)
+EYE_WHITE = (0xb4, 0xec, 0xff, 255)
+EYE_HAZE = (0x14, 0x3c, 0x6c, 255)
+IRISES = [(10, 13), (13, 13)]
+WHITES = [(9, 13), (14, 13)]
+HAZES = [(9, 12), (10, 12), (13, 12), (14, 12)]
+
+
+def eyes():
+    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    for p in HAZES:
+        img.putpixel(p, EYE_HAZE)
+    for p in WHITES:
+        img.putpixel(p, EYE_WHITE)
+    for p in IRISES:
+        img.putpixel(p, EYE_IRIS)
+    return img
+
+
 def main():
+    eyes_out = ROOT / "entity/raggimel/raggimel_eyes.png"
+    eyes_out.parent.mkdir(parents=True, exist_ok=True)
+    eyes().save(eyes_out)
+    print(f"Wrote {eyes_out}")
     out = ROOT / "entity/raggimel/bubble.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     img = bubble()

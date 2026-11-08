@@ -31,6 +31,7 @@ Bosses should read like the Wither, Ender Dragon or Warden: telegraphed attacks 
   `greed_arena_source.nbt` (saved in a newer Minecraft; the script swaps blocks 1.21.1 lacks). Positions in `GreedArena`.
   His second arena, `structure/arena/greed_manor.nbt` (the Roswall manor), is built by `tools/structures/greed_manor.py`
   from the litematic in `~/for boss fights/Raggimel` (needs numpy). Positions in `GreedManor`; his sky is `GreedSky`.
+  His bubble and glowing blue eyes (the Twister) come from `tools/textures/raggimel_textures.py`.
 - `structure/arena/wrath.nbt` (ORNAMIX's colosseum) is built by `tools/structures/wrath_arena.py` from
   `wrath_arena_source.nbt` (bars the pit's tunnels, adds the fires). Positions in `WrathArena`.
 - GUMMSS's arena (Envy) is built in code by `EnvyArena.build`, not a template. Its watching eyes come from

@@ -97,12 +97,19 @@ import java.util.UUID;
  *       with water bolts like a minigun, then drops off it with a heavy crash and a ring of water.</li>
  *   <li><b>Blink Strike</b>: teleports behind three players in turn (portal particles warn where) and strikes.</li>
  *   <li><b>Tidal Slam</b>: leaps and lands with three shockwave rings to jump.</li>
+ *   <li><b>Twister</b>: grows four times his size again, eyes burning blue, and raises his arms for 5 s while a tornado
+ *       of water rises in front of him. Then he lets it go and shrinks back: for 12 s it wanders where it likes, and
+ *       anyone it reaches is carried up round it and thrown a long way. Hit him while he casts.</li>
+ *   <li><b>Deluge</b>: sinks into the water and four of him rise round the garden, three times his size, eyes blue,
+ *       arms raised under a great orb of the sea, for 5 s. Only one is him (find him and hit him). Then all four throw:
+ *       the orbs arc high into the sky and come down on all of you (nothing on the ground shows where: look up), 10
+ *       blocks round, hardest in the middle. He's left alone at his size; the others go back into the water.</li>
  *   <li><b>Dart Fan</b> and a double <b>Dash Punch</b>.</li>
  * </ul>
  * The night itself: snow and souls drifting, the shrine pulsing on the beat, lightning around the island.
  * Falling off the island kills you.
  */
-public class RaggimelEntity extends SinBossEntity {
+public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
     public static final BossSong PHASE_ONE = new BossSong("fmscraft:music.greed.phase_one", 130, 15);
     /** Measures ~172 BPM; attacks go on every other beat. */
     public static final BossSong PHASE_TWO = new BossSong("fmscraft:music.greed.phase_two", 86, 7);
@@ -126,12 +133,14 @@ public class RaggimelEntity extends SinBossEntity {
 
     // ---- Synced to the client for the model and the beams ----
     public static final int POSE_IDLE = 0, POSE_CAST = 1, POSE_AIM = 2, POSE_CROUCH = 3, POSE_STUNNED = 4, POSE_SLAM = 5,
-            POSE_SHAKE = 6, POSE_SMASH = 7;
+            POSE_SHAKE = 6, POSE_SMASH = 7, POSE_RAISE = 8;
     public static final int BEAM_SLOTS = 3;
     /** Beam stages, 2 bits per slot (plus a "low" bit: fired along the ground from his feet). */
     public static final int BEAM_OFF = 0, BEAM_CHARGE = 1, BEAM_LOCK = 2, BEAM_FIRE = 3;
     private static final TrackedData<Integer> POSE = DataTracker.registerData(RaggimelEntity.class, TrackedDataHandlerRegistry.INTEGER);
     private static final TrackedData<Boolean> BUBBLED = DataTracker.registerData(RaggimelEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+    /** His eyes burning blue (the Twister's cast). */
+    private static final TrackedData<Boolean> EYES = DataTracker.registerData(RaggimelEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     private static final TrackedData<Integer> BEAMS = DataTracker.registerData(RaggimelEntity.class, TrackedDataHandlerRegistry.INTEGER);
     @SuppressWarnings("unchecked")
     private static final TrackedData<Vector3f>[] BEAM_ENDS = new TrackedData[]{
@@ -147,7 +156,7 @@ public class RaggimelEntity extends SinBossEntity {
         ENTRANCE, CHASE, FALLING, STUNNED,
         BUBBLE_RIDE, BUBBLE_VOLLEY, DARTS, DASH, SPLASH,
         TRANSITION,
-        LASER, SWEEP, ANVIL_SLAM, BLINK, TIDAL_SLAM, WATER_SPROUT, DIVE, GIANT_SLAM, CHEST_RAIN, CLOUD_RIDE
+        LASER, SWEEP, ANVIL_SLAM, BLINK, TIDAL_SLAM, WATER_SPROUT, DIVE, GIANT_SLAM, CHEST_RAIN, CLOUD_RIDE, TWISTER, DELUGE
     }
 
     private Action action = Action.ENTRANCE;
@@ -170,16 +179,18 @@ public class RaggimelEntity extends SinBossEntity {
     private final List<GreedWater.Piece> water = new ArrayList<>();
     private GreedWater.Spout spout;
     private GreedWater.Cloud cloud;
+    /** The Twister's tornado, while it's up (only one at a time). */
+    private GreedWater.Twister twister;
     /** Where the phase change and the Cloud Ride are happening: the ground under him, where he flies round. */
     private Vec3d tideBase, rideFrom, flyCenter, dropFrom, dropTo;
     private final Map<UUID, Integer> strayTicks = new HashMap<>();
     private final List<Sprout> sprouts = new ArrayList<>();
-    /** Players a Water Sprout shot up: no fall damage until they're down. */
-    private final Set<UUID> floating = new HashSet<>();
     private Vec3d diveFrom, diveTo, giantSpot;
     /** His size before a Giant Slam (0 when he isn't in one): he's always put back to it. */
     private float giantBase;
     private List<ServerPlayerEntity> fighters = List.of();
+    /** Client side: ticks he's been in {@link #POSE_RAISE}. */
+    private int raiseTicks;
 
     public RaggimelEntity(EntityType<? extends HostileEntity> type, World world) {
         super(type, world);
@@ -207,6 +218,7 @@ public class RaggimelEntity extends SinBossEntity {
         super.initDataTracker(builder);
         builder.add(POSE, POSE_IDLE);
         builder.add(BUBBLED, false);
+        builder.add(EYES, false);
         builder.add(BEAMS, 0);
         for (TrackedData<Vector3f> end : BEAM_ENDS) builder.add(end, new Vector3f());
     }
@@ -244,6 +256,15 @@ public class RaggimelEntity extends SinBossEntity {
 
     public boolean isBubbled() {
         return dataTracker.get(BUBBLED);
+    }
+
+    public boolean hasGlowingEyes() {
+        return dataTracker.get(EYES);
+    }
+
+    /** Client side: how long he's been raising his arms (the Twister's cast), for the model. */
+    public float raiseTime(float tickDelta) {
+        return raiseTicks <= 0 ? 0 : raiseTicks + tickDelta;
     }
 
     public int beamStage(int slot) {
@@ -284,6 +305,10 @@ public class RaggimelEntity extends SinBossEntity {
 
     public String currentAction() {
         return action.name();
+    }
+
+    private void setGlowingEyes(boolean glowing) {
+        dataTracker.set(EYES, glowing);
     }
 
     private void setPoseState(int pose) {
@@ -342,6 +367,7 @@ public class RaggimelEntity extends SinBossEntity {
     @Override
     public void tick() {
         super.tick();
+        if (getWorld().isClient) raiseTicks = poseState() == POSE_RAISE ? raiseTicks + 1 : 0;
         if (getWorld() instanceof ServerWorld world && age % 5 == 0) shrugOffSpells(world);
     }
 
@@ -389,6 +415,8 @@ public class RaggimelEntity extends SinBossEntity {
             case GIANT_SLAM -> tickGiantSlam(world);
             case CHEST_RAIN -> tickChestRain(world);
             case CLOUD_RIDE -> tickCloudRide(world);
+            case TWISTER -> tickTwister(world);
+            case DELUGE -> tickDeluge(world);
         }
         tickBeams(world);
         tickRings(world);
@@ -436,7 +464,7 @@ public class RaggimelEntity extends SinBossEntity {
             offer(options, weights, Action.SWEEP, 2, 300);
             offer(options, weights, Action.BUBBLE_VOLLEY, 2, 360);
             offer(options, weights, Action.ANVIL_SLAM, 2, 240);
-            offer(options, weights, Action.CLOUD_RIDE, 2, 480);
+            offer(options, weights, Action.CLOUD_RIDE, 3, 380);
             offer(options, weights, Action.BLINK, 2, 200);
             offer(options, weights, Action.TIDAL_SLAM, 2, 200);
             offer(options, weights, Action.DARTS, 2, 0);
@@ -445,6 +473,8 @@ public class RaggimelEntity extends SinBossEntity {
             offer(options, weights, Action.DIVE, 2, 280);
             offer(options, weights, Action.GIANT_SLAM, 2, 400);
             offer(options, weights, Action.CHEST_RAIN, 2, 320);
+            if (twister == null) offer(options, weights, Action.TWISTER, 2, 560);
+            offer(options, weights, Action.DELUGE, 2, 640);
         }
         if (options.isEmpty()) return phase == 1 ? Action.DASH : Action.LASER;
         int total = weights.stream().mapToInt(Integer::intValue).sum(), roll = random.nextInt(total);
@@ -479,6 +509,9 @@ public class RaggimelEntity extends SinBossEntity {
         setPoseState(POSE_IDLE);
         setInvisible(false);
         shrinkBack();
+        setGlowingEyes(false);
+        clearMirages();
+        untouchable = false;
         rest = getPhase() == 1 ? REST_ONE : frenzy ? REST_FRENZY : REST_TWO;
     }
 
@@ -840,8 +873,11 @@ public class RaggimelEntity extends SinBossEntity {
         water.clear();
         spout = null;
         cloud = null;
+        twister = null;
         clearChests();
+        clearMirages();
         setInvisible(false);
+        setGlowingEyes(false);
         shrinkBack();
         for (GreedBubbleEntity bubble : world.getEntitiesByClass(GreedBubbleEntity.class, getBoundingBox().expand(96), b -> true)) bubble.pop(world);
         for (Entity dart : world.getOtherEntities(this, getBoundingBox().expand(96),
@@ -1187,6 +1223,8 @@ public class RaggimelEntity extends SinBossEntity {
     static final class Sprout {
         static final int CHARGE = 10, GUSH = 16;
         static final double ON_TOP = 1.3, NEAR = 3.2;
+        /** How fast it shoots you up: on top (about 27 blocks), at the inside and the outside of the near ring. */
+        static final double LAUNCH = 2.4, LAUNCH_NEAR = 1.7, LAUNCH_EDGE = 1.1;
         final Vec3d at;
         int age;
         /** The water itself: the ripple, then the column shooting up and falling back. */
@@ -1241,28 +1279,20 @@ public class RaggimelEntity extends SinBossEntity {
                 continue;
             }
             if (s.age == Sprout.CHARGE) {
-                // It bursts: whoever is on it is shot high into the air, whoever is near it not so high. It hurts nobody.
+                // It bursts: whoever is on it is shot way up into the air (27 blocks), whoever is near it not so high.
+                // The water doesn't hurt; the landing does.
                 for (ServerPlayerEntity p : fighters) {
                     double d = Math.sqrt(MathHelper.square(p.getX() - at.x) + MathHelper.square(p.getZ() - at.z));
                     if (d > Sprout.NEAR || p.getY() < at.y - 1 || p.getY() > at.y + 3) continue;
-                    double up = d <= Sprout.ON_TOP ? 1.9 : MathHelper.lerp((d - Sprout.ON_TOP) / (Sprout.NEAR - Sprout.ON_TOP), 1.15, 0.7);
+                    double up = d <= Sprout.ON_TOP ? Sprout.LAUNCH : MathHelper.lerp((d - Sprout.ON_TOP) / (Sprout.NEAR - Sprout.ON_TOP), Sprout.LAUNCH_NEAR, Sprout.LAUNCH_EDGE);
                     if (p.getVelocity().y >= up) continue;
                     p.setVelocity(p.getVelocity().x * 0.3, up, p.getVelocity().z * 0.3);
                     p.velocityModified = true;
                     p.fallDistance = 0;
-                    floating.add(p.getUuid());
                 }
             }
             if (s.age >= Sprout.CHARGE + Sprout.GUSH) it.remove();
         }
-        // Shot up by the water, not hurt by the fall back down
-        floating.removeIf(id -> {
-            ServerPlayerEntity p = fighter(id);
-            if (p == null) return true;
-            if (p.isOnGround() && p.getVelocity().y <= 0) return true;
-            p.fallDistance = 0;
-            return false;
-        });
     }
 
     // ---- Dive: he dives into the ground, a wake running under it, and bursts out under one of you ----
@@ -1468,6 +1498,416 @@ public class RaggimelEntity extends SinBossEntity {
             world.playSound(null, c.x, c.y, c.z, SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundCategory.HOSTILE, 2.0f, 0.6f);
             endAttack();
         }
+    }
+
+    // ---- Twister: he grows huge again, eyes burning blue, raises his arms and calls up a tornado of water ----
+
+    /** Ticks: the cast (5 s), the throw before he shrinks back, how long the tornado roams (more in frenzy). */
+    public static final int TWISTER_CAST = 100, TWISTER_THROW = 16, TWISTER_ROAM = 240, TWISTER_ROAM_FRENZY = 280;
+    /** How hard a tornado throws you, sideways and up; what it does to you (before {@link #DAMAGE_DEALT}). */
+    public static final double TWISTER_FLING = 2.8, TWISTER_LIFT = 1.25;
+    public static final float TWISTER_DAMAGE = 9f;
+    private static final float TWISTER_GROWTH = 4f;
+    private Vec3d twisterSpot;
+    private int twisterFlings;
+    private Vec3d lastFling = Vec3d.ZERO;
+
+    /** For tests: how many times a tornado has thrown someone, and how hard the last throw was. */
+    public int twisterFlings() {
+        return twisterFlings;
+    }
+
+    public Vec3d lastTwisterFling() {
+        return lastFling;
+    }
+
+    public boolean hasTwister() {
+        return twister != null;
+    }
+
+    private void tickTwister(ServerWorld world) {
+        int t = actionTicks, grow = 20;
+        getNavigation().stop();
+        setVelocity(0, getVelocity().y, 0);
+        if (t == 1) {
+            ServerPlayerEntity target = pick(null);
+            giantBase = (float) getAttributeInstance(EntityAttributes.GENERIC_SCALE).getBaseValue();
+            if (target != null) faceYaw(yawTo(target.getPos()));
+            // Where the tornado rises: out in front of him, towards whoever he's looking at
+            Vec3d front = getPos().add(Vec3d.fromPolar(0, getYaw()).multiply(giantBase * 3 + 1.5));
+            double ground = groundBelow(front.add(0, 3, 0), 10);
+            twisterSpot = new Vec3d(front.x, Double.isNaN(ground) ? getY() : ground, front.z);
+            boolean manor = GreedManor.contains(getPos());
+            twister = new GreedWater.Twister(world, twisterSpot, TWISTER_CAST,
+                    manor ? GreedManor.CENTER : twisterSpot, manor ? GreedManor.RADIUS - 10 : 2);
+            water.add(twister);
+            setPoseState(POSE_RAISE);
+            setGlowingEyes(true);
+            world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.ENTITY_ELDER_GUARDIAN_CURSE, SoundCategory.HOSTILE, 2.0f, 0.6f);
+            world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.HOSTILE, 3.0f, 0.5f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_CONDUIT_ACTIVATE, SoundCategory.HOSTILE, 3.0f, 0.5f);
+        }
+        if (twisterSpot == null) {
+            endAttack();
+            return;
+        }
+        if (t <= TWISTER_CAST) faceYaw(yawTo(twisterSpot));
+        if (t <= grow) {
+            // Growing again, four times over, water streaming off him
+            float u = t / (float) grow, eased = u * u * (3 - 2 * u);
+            getAttributeInstance(EntityAttributes.GENERIC_SCALE).setBaseValue(giantBase * (1 + (TWISTER_GROWTH - 1) * eased));
+            world.spawnParticles(ParticleTypes.SPLASH, getX(), getY() + getHeight() * 0.5, getZ(), 10, getWidth() * 0.6, getHeight() * 0.4, getWidth() * 0.6, 0.1);
+            if (t % 5 == 0) world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.HOSTILE, 2.0f, 1.0f - u * 0.6f);
+        }
+        if (t < TWISTER_CAST) {
+            // Arms raised to the sky: his eyes burn, and the water's drawn up out of his hands into the storm
+            Vec3d eyes = getPos().add(0, getHeight() * 0.87, 0).add(Vec3d.fromPolar(0, getYaw()).multiply(getWidth() * 0.45));
+            if (t % 2 == 0) world.spawnParticles(PALE_BLUE, eyes.x, eyes.y, eyes.z, 2, getWidth() * 0.18, 0.05, getWidth() * 0.18, 0);
+            Vec3d hands = getPos().add(0, getHeight() * 1.12, 0);
+            Vec3d top = twisterSpot.add(0, 6 + 14 * Math.min(1, t / (double) TWISTER_CAST), 0);
+            for (int i = 0; i < 3; i++) {
+                double u = ((t * 0.07 + i / 3.0) % 1.0);
+                Vec3d along = hands.lerp(top, u).add(0, Math.sin(u * Math.PI) * 4, 0);
+                world.spawnParticles(i == 0 ? PALE_BLUE : ParticleTypes.SPLASH, along.x, along.y, along.z, 2, 0.15, 0.15, 0.15, 0.02);
+            }
+            if (t % 3 == 0) world.spawnParticles(ParticleTypes.FALLING_WATER, hands.x, hands.y, hands.z, 4, getWidth() * 0.4, 0.2, getWidth() * 0.4, 0);
+            if (t % 20 == 10) world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_BREEZE_CHARGE, SoundCategory.HOSTILE, 2.5f, 0.4f + t / (float) TWISTER_CAST * 0.4f);
+            if (t == 60) {
+                world.playSound(null, twisterSpot.x, twisterSpot.y + 10, twisterSpot.z, SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.WEATHER, 4.0f, 0.6f);
+                for (ServerPlayerEntity p : audience(world)) if (p.squaredDistanceTo(this) < 40 * 40) Cinematics.flash(p, 0.25f, 8);
+            }
+            if (t > 70 && t % 5 == 0) MagicSpells.shake(world, twisterSpot, 20, 0.15f + 0.3f * (t - 70) / 30f, 6);
+            return;
+        }
+        if (t == TWISTER_CAST) {
+            // He throws it out at you: off it goes
+            setPoseState(POSE_SMASH);
+            swingHand(Hand.MAIN_HAND);
+            if (twister != null) twister.release(frenzy ? TWISTER_ROAM_FRENZY : TWISTER_ROAM, frenzy ? 0.34 : 0.27);
+            strikeCosmetic(world, twisterSpot.add(2, 0, 2));
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 4.0f, 0.5f);
+            world.playSound(null, twisterSpot.x, twisterSpot.y, twisterSpot.z, SoundEvents.ENTITY_BREEZE_WIND_BURST.value(), SoundCategory.HOSTILE, 4.0f, 0.5f);
+            world.playSound(null, twisterSpot.x, twisterSpot.y, twisterSpot.z, SoundEvents.ITEM_TRIDENT_RIPTIDE_3.value(), SoundCategory.HOSTILE, 4.0f, 0.5f);
+            MagicSpells.shake(world, twisterSpot, 30, 0.8f, 14);
+            return;
+        }
+        if (t >= TWISTER_CAST + TWISTER_THROW) {
+            // Poof: back down to his size; the tornado goes on without him
+            Vec3d c = getPos().add(0, getHeight() * 0.5, 0);
+            world.spawnParticles(ParticleTypes.POOF, c.x, c.y, c.z, 120, getWidth() * 0.6, getHeight() * 0.4, getWidth() * 0.6, 0.08);
+            world.spawnParticles(ParticleTypes.CLOUD, c.x, c.y, c.z, 60, getWidth() * 0.5, getHeight() * 0.4, getWidth() * 0.5, 0.05);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.HOSTILE, 2.5f, 0.8f);
+            twisterSpot = null;
+            endAttack();
+            // He walks and punches while it roams; the next big attack waits a while
+            rest = Math.max(rest, TWISTER_ROAM / 2);
+        }
+    }
+
+    /**
+     * A tornado's done with {@code p}: hurt, and thrown along {@code dir} a long way (in the manor, never out over the
+     * edge: bent back towards the garden). The landing hurts too: it's a long way down.
+     */
+    void twisterFling(ServerPlayerEntity p, Vec3d dir) {
+        if (!(getWorld() instanceof ServerWorld world)) return;
+        if (GreedManor.contains(p.getPos())) {
+            Vec3d lands = p.getPos().add(dir.multiply(30));
+            if (!GreedManor.inBounds(new Vec3d(lands.x, GreedManor.FLOOR_Y + 1, lands.z))) {
+                Vec3d home = GreedManor.CENTER.subtract(p.getPos()).multiply(1, 0, 1);
+                if (home.lengthSquared() > 1e-4) dir = dir.add(home.normalize().multiply(1.6)).normalize();
+            }
+        }
+        p.timeUntilRegen = 0;
+        p.damage(getDamageSources().mobAttack(this), boosted(TWISTER_DAMAGE));
+        Vec3d fling = new Vec3d(dir.x * TWISTER_FLING, TWISTER_LIFT, dir.z * TWISTER_FLING);
+        p.setVelocity(fling);
+        p.velocityModified = true;
+        p.fallDistance = 0;
+        twisterFlings++;
+        lastFling = fling;
+        Cinematics.flash(p, 0.3f, 8);
+        world.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_BREEZE_WIND_BURST.value(), SoundCategory.HOSTILE, 2.0f, 0.7f);
+        world.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.HOSTILE, 1.5f, 1.0f);
+    }
+
+    // ---- Deluge: he goes into the water and four of him rise, huge, each holding up an orb of the sea ----
+
+    /** Ticks: gone under, the cast (5 s), the throw before the false ones go back into the water. */
+    public static final int DELUGE_VANISH = 10, DELUGE_CAST = 100, DELUGE_THROW = 18, DELUGE_COPIES = 4;
+    private static final float DELUGE_GROWTH = 3f;
+    private final List<RaggimelMirageEntity> mirages = new ArrayList<>();
+    private final List<GreedWater.Orb> heldOrbs = new ArrayList<>();
+    private final List<Vec3d> delugeSpots = new ArrayList<>();
+    private int delugeReal, orbHits;
+    private Vec3d delugeMiddle;
+
+    /** For tests: the false RAGGIMELs up right now; orbs still held or in the air; times an orb has hit someone. */
+    public List<RaggimelMirageEntity> mirages() {
+        return List.copyOf(mirages);
+    }
+
+    public int orbsUp() {
+        return (int) water.stream().filter(p -> p instanceof GreedWater.Orb).count();
+    }
+
+    public int orbHits() {
+        return orbHits;
+    }
+
+    private void clearMirages() {
+        for (RaggimelMirageEntity m : mirages) m.vanish();
+        mirages.clear();
+        heldOrbs.clear();
+    }
+
+    /** Him and the false ones, in the order of their spots. */
+    private List<HostileEntity> delugeGiants() {
+        List<HostileEntity> all = new ArrayList<>();
+        int m = 0;
+        for (int i = 0; i < delugeSpots.size(); i++) {
+            if (i == delugeReal) all.add(this);
+            else if (m < mirages.size()) all.add(mirages.get(m++));
+        }
+        return all;
+    }
+
+    /**
+     * The cast: he sinks into the ground in a splash, and four of him burst up out of the water round the garden, each
+     * growing to three times his size, eyes burning blue, arms raised, an orb of the sea swelling over each head. Only
+     * one is him (he can be hurt; blows splash off the others), and every one looks and moves exactly alike. After 5 s
+     * they all throw: the orbs climb into the sky and come down on all of you, wherever you were standing.
+     */
+    private void tickDeluge(ServerWorld world) {
+        int t = actionTicks, appear = DELUGE_VANISH, thrown = appear + DELUGE_CAST;
+        getNavigation().stop();
+        setVelocity(0, getVelocity().y, 0);
+        boolean manor = GreedManor.contains(getPos());
+        if (t == 1) {
+            giantBase = (float) getAttributeInstance(EntityAttributes.GENERIC_SCALE).getBaseValue();
+            untouchable = true;
+            setInvisible(true);
+            Vec3d c = getPos().add(0, getHeight() * 0.5, 0);
+            world.spawnParticles(ParticleTypes.SPLASH, c.x, c.y, c.z, 150, getWidth() * 0.6, getHeight() * 0.4, getWidth() * 0.6, 0.4);
+            world.spawnParticles(ParticleTypes.POOF, c.x, c.y, c.z, 40, getWidth() * 0.5, getHeight() * 0.4, getWidth() * 0.5, 0.05);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.HOSTILE, 3.0f, 0.5f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_ILLUSIONER_PREPARE_MIRROR, SoundCategory.HOSTILE, 3.0f, 0.6f);
+            // Four spots round the middle of the fight, a quarter turn apart
+            Vec3d middle = manor ? GreedManor.CENTER : getPos();
+            delugeMiddle = middle;
+            double r = manor ? 13 : 2.5, turn = random.nextDouble() * MathHelper.TAU;
+            delugeSpots.clear();
+            for (int i = 0; i < DELUGE_COPIES; i++) {
+                double a = turn + i * MathHelper.TAU / DELUGE_COPIES + (random.nextDouble() - 0.5) * 0.5;
+                double d = r * (0.85 + random.nextDouble() * 0.3);
+                Vec3d at = middle.add(Math.cos(a) * d, 0, Math.sin(a) * d);
+                double ground = groundBelow(at.add(0, 6, 0), 16);
+                delugeSpots.add(new Vec3d(at.x, Double.isNaN(ground) ? middle.y : ground, at.z));
+            }
+            delugeReal = random.nextInt(DELUGE_COPIES);
+        }
+        if (delugeSpots.isEmpty()) {
+            endAttack();
+            return;
+        }
+        if (t < appear) {
+            // Gone: the water churning where they'll come up
+            for (Vec3d at : delugeSpots) {
+                world.spawnParticles(ParticleTypes.SPLASH, at.x, at.y + 0.1, at.z, 8, 0.9, 0.05, 0.9, 0.2);
+                world.spawnParticles(ParticleTypes.BUBBLE_POP, at.x, at.y + 0.2, at.z, 4, 0.8, 0.05, 0.8, 0.03);
+            }
+            if (t == 4) for (Vec3d at : delugeSpots) world.playSound(null, at.x, at.y, at.z, SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_INSIDE, SoundCategory.HOSTILE, 2.0f, 0.6f);
+            return;
+        }
+        if (t == appear) {
+            // Up they come, all four, in a gush of water
+            for (int i = 0; i < delugeSpots.size(); i++) {
+                Vec3d at = delugeSpots.get(i);
+                if (i == delugeReal) {
+                    requestTeleport(at.x, at.y, at.z);
+                    setInvisible(false);
+                    untouchable = false;
+                } else {
+                    RaggimelMirageEntity m = net.ragnar.fmscraft.boss.ModBossEntities.RAGGIMEL_MIRAGE.create(world);
+                    if (m == null) continue;
+                    m.setOwner(this);
+                    m.refreshPositionAndAngles(at.x, at.y, at.z, getYaw(), 0);
+                    m.getAttributeInstance(EntityAttributes.GENERIC_SCALE).setBaseValue(giantBase);
+                    world.spawnEntity(m);
+                    mirages.add(m);
+                }
+                water.add(new GreedWater.Column(world, at, 2.6f, 6f, 0, 2, 3));
+                world.spawnParticles(ParticleTypes.SPLASH, at.x, at.y + 1, at.z, 120, 1.2, 1.0, 1.2, 0.5);
+                world.playSound(null, at.x, at.y, at.z, SoundEvents.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.HOSTILE, 3.0f, 0.6f);
+            }
+            heldOrbs.clear();
+            for (HostileEntity g : delugeGiants()) {
+                GreedWater.Orb orb = new GreedWater.Orb(world, g, DELUGE_CAST - 10);
+                heldOrbs.add(orb);
+                water.add(orb);
+            }
+            setGlowingEyes(true);
+            world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.ENTITY_ELDER_GUARDIAN_CURSE, SoundCategory.HOSTILE, 2.5f, 0.5f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.HOSTILE, 4.0f, 0.5f);
+            for (ServerPlayerEntity p : fighters) p.playSoundToPlayer(SoundEvents.BLOCK_CONDUIT_ACTIVATE, SoundCategory.HOSTILE, 1.0f, 0.5f);
+        }
+        // All four, exactly alike: growing, arms up, eyes burning, facing whoever's nearest, his aura round each
+        int since = t - appear;
+        float u = Math.min(1f, since / 15f), eased = u * u * (3 - 2 * u);
+        float scale = giantBase * (1 + (DELUGE_GROWTH - 1) * eased);
+        int pose = t < thrown ? POSE_RAISE : POSE_SMASH;
+        boolean aura = getPhase() == 2 && Arenas.sinOf(world) == Sin.GREED;
+        for (HostileEntity g : delugeGiants()) {
+            if (g.isRemoved()) continue;
+            var size = g.getAttributeInstance(EntityAttributes.GENERIC_SCALE);
+            if (size.getBaseValue() != scale) size.setBaseValue(scale);
+            ServerPlayerEntity near = null;
+            for (ServerPlayerEntity p : fighters) if (near == null || p.squaredDistanceTo(g) < near.squaredDistanceTo(g)) near = p;
+            if (near != null && t < thrown) {
+                float yaw = (float) (MathHelper.atan2(near.getZ() - g.getZ(), near.getX() - g.getX()) * (180 / Math.PI)) - 90f;
+                g.setYaw(yaw);
+                g.setBodyYaw(yaw);
+                g.setHeadYaw(yaw);
+            }
+            g.setVelocity(0, g.getVelocity().y, 0);
+            if (g instanceof RaggimelMirageEntity m) m.setLook(pose, true);
+            if (aura && age % 2 == 0) {
+                world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, g.getX(), g.getY() + g.getHeight() * 0.6, g.getZ(), 2, g.getWidth() * 0.6, g.getHeight() * 0.35, g.getWidth() * 0.6, 0.05);
+                world.spawnParticles(PALE_BLUE, g.getX(), g.getY() + 0.2, g.getZ(), 1, 0.4, 0.05, 0.4, 0);
+            }
+            if (t < thrown && t % 2 == 0) {
+                Vec3d eyes = g.getPos().add(0, g.getHeight() * 0.87, 0).add(Vec3d.fromPolar(0, g.getYaw()).multiply(g.getWidth() * 0.45));
+                world.spawnParticles(PALE_BLUE, eyes.x, eyes.y, eyes.z, 2, g.getWidth() * 0.18, 0.05, g.getWidth() * 0.18, 0);
+            }
+        }
+        setPoseState(pose);
+        if (t < thrown) {
+            if (since % 20 == 10) world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_BREEZE_CHARGE, SoundCategory.HOSTILE, 2.5f, 0.4f + since / (float) DELUGE_CAST * 0.4f);
+            if (since == 60) {
+                Vec3d c = delugeSpots.get(0);
+                world.playSound(null, c.x, c.y + 20, c.z, SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.WEATHER, 6.0f, 0.5f);
+                for (ServerPlayerEntity p : audience(world)) if (p.squaredDistanceTo(this) < 60 * 60) Cinematics.flash(p, 0.3f, 10);
+            }
+            if (since > 70 && since % 5 == 0) {
+                for (Vec3d at : delugeSpots) MagicSpells.shake(world, at, 24, 0.2f + 0.4f * (since - 70) / 30f, 6);
+            }
+            return;
+        }
+        if (t == thrown) {
+            // They throw: every orb up into the sky, each to come down on its own spot
+            List<Vec3d> targets = delugeTargets(heldOrbs.size(), manor);
+            for (int i = 0; i < heldOrbs.size(); i++) heldOrbs.get(i).throwAt(targets.get(i));
+            for (HostileEntity g : delugeGiants()) {
+                g.swingHand(Hand.MAIN_HAND);
+                world.playSound(null, g.getX(), g.getY(), g.getZ(), SoundEvents.ITEM_TRIDENT_RIPTIDE_3.value(), SoundCategory.HOSTILE, 3.0f, 0.5f);
+                world.playSound(null, g.getX(), g.getY(), g.getZ(), SoundEvents.ENTITY_BREEZE_SHOOT, SoundCategory.HOSTILE, 3.0f, 0.5f);
+            }
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 4.0f, 0.5f);
+            heldOrbs.clear();
+            return;
+        }
+        if (t >= thrown + DELUGE_THROW) {
+            // The false ones go back into the water; he poofs back down to his size
+            Vec3d c = getPos().add(0, getHeight() * 0.5, 0);
+            world.spawnParticles(ParticleTypes.POOF, c.x, c.y, c.z, 120, getWidth() * 0.6, getHeight() * 0.4, getWidth() * 0.6, 0.08);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.HOSTILE, 2.5f, 0.8f);
+            delugeSpots.clear();
+            endAttack();
+            // Nothing else until the orbs are down
+            rest = Math.max(rest, GreedWater.Orb.FLIGHT);
+        }
+    }
+
+    /**
+     * Where the orbs come down: one on (or near) each of you, more at random among you if there are fewer of you than
+     * orbs; in the manor never off the garden, and as far apart as it can manage.
+     */
+    private List<Vec3d> delugeTargets(int count, boolean manor) {
+        Vec3d middle = manor ? GreedManor.CENTER : delugeMiddle != null ? delugeMiddle : getPos();
+        double bound = manor ? GreedManor.RADIUS - 4 : 3, apart = manor ? 9 : 0;
+        List<Vec3d> out = new ArrayList<>();
+        Set<UUID> aimed = new HashSet<>();
+        for (int i = 0; i < count; i++) {
+            ServerPlayerEntity at = pick(aimed);
+            if (at != null) aimed.add(at.getUuid());
+            Vec3d best = null;
+            for (int tries = 0; tries < 24; tries++) {
+                Vec3d base;
+                double spread;
+                if (at != null) {
+                    base = at.getPos();
+                    spread = 3;
+                } else if (!fighters.isEmpty()) {
+                    base = fighters.get(random.nextInt(fighters.size())).getPos();
+                    spread = 14;
+                } else {
+                    base = middle;
+                    spread = bound;
+                }
+                double a = random.nextDouble() * MathHelper.TAU, d = Math.sqrt(random.nextDouble()) * spread;
+                Vec3d cand = base.add(Math.cos(a) * d, 0, Math.sin(a) * d);
+                Vec3d off = new Vec3d(cand.x - middle.x, 0, cand.z - middle.z);
+                if (off.length() > bound) cand = new Vec3d(middle.x, cand.y, middle.z).add(off.normalize().multiply(bound));
+                double ground = groundBelow(cand.add(0, 12, 0), 30);
+                if (Double.isNaN(ground)) continue;
+                cand = new Vec3d(cand.x, ground, cand.z);
+                boolean clear = true;
+                for (Vec3d o : out) clear &= o.squaredDistanceTo(cand) >= apart * apart;
+                best = cand;
+                if (clear) break;
+            }
+            out.add(best != null ? best : new Vec3d(middle.x, middle.y, middle.z));
+        }
+        return out;
+    }
+
+    /** An orb comes down: everyone within 10 blocks is hit, hardest in the middle, and thrown out; a burst of the sea. */
+    void orbLands(ServerWorld world, GreedWater.Orb orb) {
+        Vec3d c = orb.landing();
+        if (c == null) return;
+        for (ServerPlayerEntity p : fighters) {
+            Vec3d to = p.getPos().subtract(c);
+            double flat = Math.sqrt(to.x * to.x + to.z * to.z);
+            if (flat > GreedDeluge.RADIUS || to.y < -3 || to.y > 7) continue;
+            p.timeUntilRegen = 0;
+            if (p.damage(getDamageSources().explosion(this, this), boosted(GreedDeluge.damageAt(flat)))) orbHits++;
+            Vec3d away = flat > 0.1 ? new Vec3d(to.x / flat, 0, to.z / flat) : Vec3d.fromPolar(0, random.nextFloat() * 360);
+            double out = GreedDeluge.throwAt(flat);
+            p.setVelocity(away.x * out, GreedDeluge.liftAt(flat), away.z * out);
+            p.velocityModified = true;
+        }
+        water.add(new GreedWater.Ring(c, 0.9, GreedDeluge.RADIUS + 1, 2.4f));
+        water.add(new GreedWater.Column(world, c, 4.5f, 13f, 0, 2, 3));
+        rings.add(new Ring(c, GreedDeluge.RADIUS, 0.7, 0, Ring.WATER, 0));
+        rings.add(new Ring(c, GreedDeluge.RADIUS, 0.5, 0, Ring.PULSE, 2));
+        world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, c.x, c.y + 0.5, c.z, 2, 1.5, 0.2, 1.5, 0);
+        world.spawnParticles(ParticleTypes.SPLASH, c.x, c.y + 0.5, c.z, 400, 4, 1, 4, 0.8);
+        world.spawnParticles(ParticleTypes.CLOUD, c.x, c.y + 0.5, c.z, 80, 4, 0.5, 4, 0.2);
+        world.spawnParticles(GreedWater.ORB_BLUE, c.x, c.y + 1.5, c.z, 80, 4, 1.5, 4, 0);
+        BlockState ground = getWorld().getBlockState(BlockPos.ofFloored(c).down());
+        if (!ground.isAir()) world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, ground), c.x, c.y + 0.3, c.z, 160, 4, 0.3, 4, 0.3);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 5.0f, 0.5f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.HOSTILE, 5.0f, 0.5f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.HOSTILE, 3.0f, 0.6f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.HOSTILE, 5.0f, 0.4f);
+        strikeCosmetic(world, c);
+        for (ServerPlayerEntity p : audience(world)) if (p.squaredDistanceTo(c) < 25 * 25) Cinematics.flash(p, 0.45f, 12);
+        MagicSpells.shake(world, c, 32, 1.3f, 18);
+    }
+
+    private final Map<UUID, Vec3d> lastPush = new HashMap<>();
+
+    /** Adds {@code push} to how {@code p} is moving (on their own client, so it doesn't fight their own steering). */
+    void pushPlayer(ServerPlayerEntity p, Vec3d push) {
+        lastPush.put(p.getUuid(), push);
+        if (net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(p, net.ragnar.fmscraft.network.GreedPushPayload.ID)) {
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(p,
+                    new net.ragnar.fmscraft.network.GreedPushPayload((float) push.x, (float) push.y, (float) push.z));
+        }
+    }
+
+    /** For tests: the last nudge a tornado gave {@code p} (zero if none). */
+    public Vec3d lastPush(PlayerEntity p) {
+        return lastPush.getOrDefault(p.getUuid(), Vec3d.ZERO);
     }
 
     private void faceYaw(float yaw) {
@@ -1874,6 +2314,7 @@ public class RaggimelEntity extends SinBossEntity {
             if (!piece.tick(world, this)) {
                 piece.remove();
                 water.remove(piece);
+                if (piece == twister) twister = null;
             }
         }
     }
@@ -2090,8 +2531,8 @@ public class RaggimelEntity extends SinBossEntity {
         if (age % 10 == 0) {
             for (ServerPlayerEntity p : fighters) world.spawnParticles(ParticleTypes.SOUL, p.getX(), p.getY() + 0.2, p.getZ(), 1, 7, 0.1, 7, 0.02);
         }
-        // His aura
-        if (age % 2 == 0) {
+        // His aura (the Deluge gives it to all four of him itself)
+        if (age % 2 == 0 && action != Action.DELUGE) {
             world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, getX(), getY() + getHeight() * 0.6, getZ(), 2, getWidth() * 0.6, getHeight() * 0.35, getWidth() * 0.6, 0.05);
             world.spawnParticles(PALE_BLUE, getX(), getY() + 0.2, getZ(), 1, 0.4, 0.05, 0.4, 0);
         }
@@ -2163,7 +2604,9 @@ public class RaggimelEntity extends SinBossEntity {
             water.clear();
             spout = null;
             cloud = null;
+            twister = null;
             clearChests();
+            clearMirages();
         }
         super.remove(reason);
     }

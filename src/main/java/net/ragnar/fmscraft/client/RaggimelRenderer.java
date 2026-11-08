@@ -8,6 +8,8 @@ import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.BipedEntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.render.entity.feature.EyesFeatureRenderer;
+import net.minecraft.client.render.entity.feature.FeatureRendererContext;
 import net.minecraft.client.render.entity.model.EntityModelLayers;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
@@ -15,35 +17,42 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import net.ragnar.fmscraft.FmsCraft;
+import net.minecraft.entity.mob.HostileEntity;
 import net.ragnar.fmscraft.boss.greed.RaggimelEntity;
+import net.ragnar.fmscraft.boss.greed.RaggimelLook;
 
 /**
  * RAGGIMEL: his skin on a player model, his bubble around him while he rides it, and his lasers, drawn like the
  * guardian's beam in pale blue: a thin flickering line while charging, white when it locks, thick when it fires.
+ * The false RAGGIMELs of his Deluge are drawn by this too, exactly like him.
+ * While he calls up the Twister or the Deluge his eyes burn blue (raggimel_eyes.png, tools/textures/raggimel_textures.py).
  */
-public class RaggimelRenderer extends BipedEntityRenderer<RaggimelEntity, RaggimelModel> {
+public class RaggimelRenderer<T extends HostileEntity & RaggimelLook> extends BipedEntityRenderer<T, RaggimelModel<T>> {
     private static final Identifier TEXTURE = Identifier.of(FmsCraft.MOD_ID, "textures/entity/raggimel/raggimel.png");
     private static final RenderLayer BEAM = RenderLayer.getEntityCutoutNoCull(Identifier.ofVanilla("textures/entity/guardian_beam.png"));
+    private static final RenderLayer EYES = RenderLayer.getEyes(Identifier.of(FmsCraft.MOD_ID, "textures/entity/raggimel/raggimel_eyes.png"));
 
     public RaggimelRenderer(EntityRendererFactory.Context ctx) {
-        super(ctx, new RaggimelModel(ctx.getPart(EntityModelLayers.PLAYER)), 0.5f);
+        super(ctx, new RaggimelModel<>(ctx.getPart(EntityModelLayers.PLAYER)), 0.5f);
+        addFeature(new GlowingEyes<>(this));
     }
 
     @Override
-    public Identifier getTexture(RaggimelEntity boss) {
+    public Identifier getTexture(T boss) {
         return TEXTURE;
     }
 
     @Override
-    public boolean shouldRender(RaggimelEntity boss, Frustum frustum, double x, double y, double z) {
-        return boss.hasBeams() || super.shouldRender(boss, frustum, x, y, z);
+    public boolean shouldRender(T entity, Frustum frustum, double x, double y, double z) {
+        return entity instanceof RaggimelEntity boss && boss.hasBeams() || super.shouldRender(entity, frustum, x, y, z);
     }
 
     @Override
-    public void render(RaggimelEntity boss, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider buffers, int light) {
-        // Under the ground (Dive): nothing of him, not even his staff
-        if (boss.isInvisible()) return;
-        super.render(boss, yaw, tickDelta, matrices, buffers, light);
+    public void render(T entity, float yaw, float tickDelta, MatrixStack matrices, VertexConsumerProvider buffers, int light) {
+        // Under the ground (Dive), or gone into the water (Deluge): nothing of him, not even his staff
+        if (entity.isInvisible()) return;
+        super.render(entity, yaw, tickDelta, matrices, buffers, light);
+        if (!(entity instanceof RaggimelEntity boss)) return;
         float age = boss.age + tickDelta;
         if (boss.isBubbled()) {
             matrices.push();
@@ -110,5 +119,22 @@ public class RaggimelRenderer extends BipedEntityRenderer<RaggimelEntity, Raggim
                 .overlay(OverlayTexture.DEFAULT_UV)
                 .light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
                 .normal(entry, 0.0f, 1.0f, 0.0f);
+    }
+
+    private static final class GlowingEyes<T extends HostileEntity & RaggimelLook> extends EyesFeatureRenderer<T, RaggimelModel<T>> {
+        GlowingEyes(FeatureRendererContext<T, RaggimelModel<T>> context) {
+            super(context);
+        }
+
+        @Override
+        public void render(MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, T boss,
+                           float limbAngle, float limbDistance, float tickDelta, float animationProgress, float headYaw, float headPitch) {
+            if (boss.hasGlowingEyes()) super.render(matrices, vertexConsumers, light, boss, limbAngle, limbDistance, tickDelta, animationProgress, headYaw, headPitch);
+        }
+
+        @Override
+        public RenderLayer getEyesTexture() {
+            return EYES;
+        }
     }
 }

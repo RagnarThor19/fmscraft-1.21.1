@@ -64,6 +64,7 @@ import net.ragnar.fmscraft.client.TomeWheelHud;
 import net.ragnar.fmscraft.network.BossMusicPayload;
 import net.ragnar.fmscraft.network.BossScreenPayload;
 import net.ragnar.fmscraft.network.GreedSkyPayload;
+import net.ragnar.fmscraft.network.GreedPushPayload;
 import net.ragnar.fmscraft.network.GardenFogPayload;
 import net.ragnar.fmscraft.network.TomeWheelPayload;
 import net.ragnar.fmscraft.network.VaultFogPayload;
@@ -95,7 +96,8 @@ public class FmsCraftClient implements ClientModInitializer {
                     }
                 });
 
-        EntityRendererRegistry.register(ModBossEntities.RAGGIMEL, RaggimelRenderer::new);
+        EntityRendererRegistry.register(ModBossEntities.RAGGIMEL, ctx -> new RaggimelRenderer<>(ctx));
+        EntityRendererRegistry.register(ModBossEntities.RAGGIMEL_MIRAGE, ctx -> new RaggimelRenderer<>(ctx));
         EntityRendererRegistry.register(ModBossEntities.GREED_BUBBLE, GreedBubbleRenderer::new);
         EntityRendererRegistry.register(ModBossEntities.ORNAMIX, OrnamixRenderer::new);
         // Drawn like a ghast's fireball
@@ -137,6 +139,9 @@ public class FmsCraftClient implements ClientModInitializer {
                 (payload, context) -> context.client().execute(() -> BossScreen.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(GreedSkyPayload.ID,
                 (payload, context) -> context.client().execute(() -> GreedSky.set(payload.phase())));
+        ClientPlayNetworking.registerGlobalReceiver(GreedPushPayload.ID, (payload, context) -> context.client().execute(() -> {
+            if (context.client().player != null) context.client().player.addVelocity(payload.x(), payload.y(), payload.z());
+        }));
         ClientPlayNetworking.registerGlobalReceiver(WrathSkyPayload.ID,
                 (payload, context) -> context.client().execute(() -> WrathSky.set(payload.phase())));
         ClientPlayNetworking.registerGlobalReceiver(LustSkyPayload.ID,

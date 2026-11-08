@@ -187,21 +187,38 @@ Health / armor: 1000 HP, 10 armor, 6 toughness; takes x0.75 damage in phase 1, x
   particles show where he'll appear behind three players in turn), *Tidal Slam* (three soul-fire rings to jump),
   *Dart Fan* (seven darts), a double *Dash Punch*, *Water Sprout* (drives his staff into the ground; ten spots round him
   ripple and bubble for half a second, then real columns of water shoot up out of them, 8 blocks high, foam boiling on
-  top, and fall back: whoever is on one is shot high into the air, whoever is
-  near it not so high; it hurts nobody, not even the fall back down) and *Dive* (crouches, dives into the ground with a
+  top, and fall back: whoever is on one is shot about 27 blocks into the air, whoever is
+  near it not so high; the water hurts nobody, but the landing does: that's the point) and *Dive* (crouches, dives into the ground with a
   splash and is gone, unseen and untouchable, a wake running under the ground after one of you; the ground churns
   where he'll come up, set a moment before, then he bursts up out of it, hitting hard, and comes down hard again, a
   ring of water rolling out) and *Giant Slam* (shakes his head like a wet dog, then grows to four times his size while the spot in
   front of him is ringed in water and gold, and brings his staff down on it: whoever is in the ring (7.5 blocks round
-  it as a giant in phase 2) takes a heavy hit and is thrown far, and a ring of water rolls out past it; then he poofs back down to his size and carries on). Below 30% he goes into a frenzy: a roar and a flash, two
+  it as a giant in phase 2) takes a heavy hit and is thrown far, and a ring of water rolls out past it; then he poofs back down to his size and carries on) and *Twister* (grows to four times his size again, his eyes burn blue
+  and he sweeps his arms up over his head, stirring the sky, for a 5 s cast (hit him meanwhile): a whirlpool opens in
+  front of him and a tornado of water rises out of it, 24 blocks high, a funnel of spinning glass and ice rings that
+  bends and sways, the ground and ice whirling up it, a cloud on top, spray and rain round it; then he throws it out
+  and poofs back down. For 12 s (14 in frenzy) it wanders where it likes: a new place every second or two, often one
+  of you, often not, weaving and now and then lurching sideways, never off the garden. From half-formed on it drags
+  everyone within 18 blocks towards it, harder the closer (added to your own movement: sprint and you get clear).
+  Anyone it reaches is carried up round it and thrown about 30 blocks (9, and the fall hurts; in the manor bent back
+  towards the garden rather than over the edge). One at a time; he walks and punches while it roams) and *Deluge*
+  (he sinks into the water in a splash and four of him burst up round the garden, 13 blocks out from the middle,
+  each growing to three times his size, eyes burning blue, arms raised, a great orb of the sea swelling over each
+  head: a heart of blue ice in three shells of glass turning against each other, a ring of ice shards whirling round
+  it, water drawn up into it out of the ground, sparks crackling over it. 5 s. Only one is him: he can be hurt, blows
+  splash off the other three, and every one looks, stands and glows exactly alike. Then all four throw: the orbs arc
+  high into the sky and come down one on each of you (more at random if there are fewer of you), apart from each
+  other, with nothing on the ground showing where: look up. 36 where one lands, falling off to 15% at 10 blocks
+  (explosion damage: blast protection helps), everyone in it thrown out. The false ones go back into the water and
+  he poofs back to his size). Below 30% he goes into a frenzy: a roar and a flash, two
   lasers at once, a second round of anvils, four blink strikes, shorter rests, more lightning.
 - **The night (GreedSky):** a navy sky with seventeen black holes hanging in it, big and small: each a disc of pure
   black with a thin bright edge, a tilted ring of pale light whirling round it, the navy darkened round it; faint stars
   turning behind. Snowflakes, glow specks and souls drifting around everyone, sparks off him, a ring of light pulsing
   out across the garden every 8 beats, cosmetic lightning striking round it (with a flash on screen). When he dies the
   night lifts again.
-- **Solid water:** the spouts, the wave, the sprouts' columns, the rings of water, the bolts, the anvils and the cloud
-  are block displays (ice, stained glass, snow, the anvil: `GreedWater`; a fluid can't be shown in one), tagged
+- **Solid water:** the spouts, the wave, the sprouts' columns, the rings of water, the bolts, the anvils, the cloud, the
+  tornado and the orbs are block displays (ice, stained glass, snow, the anvil: `GreedWater`; a fluid can't be shown in one), tagged
   `fmscraft.greed_water`; each goes when it's done, or with him.
 - **Magic mod:** he holds its diamond staff (netherite in phase 2), can't be put to sleep or carried off in a
   player's bubble (he wakes / bursts it at once), and status effects don't stick to him. Without the mod his darts
@@ -213,7 +230,10 @@ Health / armor: 1000 HP, 10 armor, 6 toughness; takes x0.75 damage in phase 1, x
   wave), everyone carried to the manor and held, him grown, the burst freeing everyone, hurting nobody, the song,
   falling off the grounds; the phase 1 clamp, bubbles, magic bubbles, the sprout's ripple and column, the Anvil Slam
   crushing whoever stays under and missing whoever steps out, the Cloud Ride flying, raining bolts and crashing down,
-  Chest Rain landing on a player while he walks and every chest gone after),
+  Chest Rain landing on a player while he walks and every chest gone after, the Twister growing him, glowing his eyes,
+  dragging a player in, throwing another far and falling apart with nothing left behind, the Deluge's three false
+  ones that can't be hurt beside the real one that can, all alike, gone after the throw, and the orbs hitting hard),
+  `GreedDelugeTest` (the orbs' falloff),
   `GreedTimelineTest`.
 
 ## ORNAMIX (Wrath) (built: `boss/wrath/`)

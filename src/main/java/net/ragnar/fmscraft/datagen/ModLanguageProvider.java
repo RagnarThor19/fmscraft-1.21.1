@@ -54,6 +54,7 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add("message.fmscraft.lalli_caught", "The cold wind carries you back to LALLILARGE.");
         builder.add(ModBossEntities.MUGEN, "MUGEN");
         builder.add(ModBossEntities.MUGEN_CLONE, "MUGEN");
+        builder.add(ModBossEntities.RAGGIMEL_MIRAGE, "RAGGIMEL");
         builder.add(ModBossEntities.LEONARD, "LEONARD");
         builder.add(ModItems.LIGHTNING_BOLT, "Lightning Bolt");
         builder.add(ModItems.TRAFFIC_CONE, "Traffic Cone");

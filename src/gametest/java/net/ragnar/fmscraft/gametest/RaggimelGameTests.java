@@ -424,9 +424,12 @@ public class RaggimelGameTests implements FabricGameTest {
         }
     }
 
-    /** Water Sprout: on top of it you're shot high, near it not so high, further off nothing, and nobody is hurt. */
+    /**
+     * Water Sprout: on top of it you're shot way up (it's the fall that hurts), near it not so high, further off nothing;
+     * the water itself hurts nobody.
+     */
     @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 100, batchId = "raggimel_sprout")
-    public void waterSproutShootsYouUpAndHurtsNobody(TestContext ctx) {
+    public void waterSproutShootsYouWayUp(TestContext ctx) {
         floor(ctx);
         RaggimelEntity boss = spawn(ctx, new BlockPos(1, 1, 1));
         Vec3d spot = Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(5, 1, 5)));
@@ -440,11 +443,11 @@ public class RaggimelGameTests implements FabricGameTest {
             ctx.assertTrue(ctx.getWorld().getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
                     new net.minecraft.util.math.Box(spot, spot).expand(2), e -> e.getBlockState().isOf(Blocks.ICE)).size() >= 2,
                     "a column of water shooting up");
-            ctx.assertTrue(on.getVelocity().y > 1.5, "on top: shot high, " + on.getVelocity().y);
-            ctx.assertTrue(near.getVelocity().y > 0.5 && near.getVelocity().y < on.getVelocity().y, "near it: not so high, " + near.getVelocity().y);
+            ctx.assertTrue(on.getVelocity().y > 2.3, "on top: shot way up (about 27 blocks), " + on.getVelocity().y);
+            ctx.assertTrue(near.getVelocity().y > 1.0 && near.getVelocity().y < on.getVelocity().y, "near it: not so high, " + near.getVelocity().y);
             ctx.assertTrue(far.getVelocity().y < 0.1, "further off: nothing, " + far.getVelocity().y);
             for (ServerPlayerEntity p : new ServerPlayerEntity[]{on, near, far}) {
-                ctx.assertEquals(p.getHealth(), p.getMaxHealth(), "the water hurts nobody");
+                ctx.assertEquals(p.getHealth(), p.getMaxHealth(), "the water itself hurts nobody");
             }
             boss.discard();
             for (ServerPlayerEntity p : new ServerPlayerEntity[]{on, near, far}) ctx.getWorld().getServer().getPlayerManager().remove(p);
@@ -565,6 +568,150 @@ public class RaggimelGameTests implements FabricGameTest {
             ctx.assertTrue(ctx.getWorld().getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
                     boss.getBoundingBox().expand(40), d -> d.getBlockState().isOf(Blocks.CHEST) || d.getBlockState().isOf(Blocks.TRAPPED_CHEST)).isEmpty(),
                     "no chest left anywhere");
+            boss.discard();
+            ctx.getWorld().getServer().getPlayerManager().remove(player);
+            ctx.complete();
+        });
+    }
+
+    /** Blocks of his water (block displays tagged by GreedWater) within {@code range} of {@code at}. */
+    private static int tornadoPieces(ServerWorld world, Vec3d at, double range) {
+        return world.getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
+                new net.minecraft.util.math.Box(at, at).expand(range), d -> d.getCommandTags().contains("fmscraft.greed_water")).size();
+    }
+
+    /**
+     * Twister: he grows four times his size, eyes glowing, arms raised, while a tornado of water forms in front of him;
+     * it takes whoever's in it up and throws them far; he shrinks back once it's loose; it roams, then falls apart.
+     */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 440, batchId = "raggimel_twister")
+    public void twisterRisesThrowsYouFarAndFallsApart(TestContext ctx) {
+        floor(ctx);
+        RaggimelEntity boss = spawn(ctx, new BlockPos(1, 1, 3));
+        Vec3d stand = Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(6, 1, 3)));
+        ServerPlayerEntity player = survivalPlayer(ctx.getWorld(), stand);
+        player.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.RESISTANCE, 400, 2));
+        try {
+            java.lang.reflect.Field join = ServerPlayerEntity.class.getDeclaredField("joinInvulnerabilityTicks");
+            join.setAccessible(true);
+            join.setInt(player, 0);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+        // Another, a way off: dragged in, not taken
+        ServerPlayerEntity off = survivalPlayer(ctx.getWorld(), Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(1, 1, 6))));
+        double[] size = new double[1];
+        int cast = RaggimelEntity.TWISTER_CAST;
+        ctx.runAtTick(5, () -> {
+            size[0] = boss.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_SCALE);
+            startAttack(boss, "TWISTER");
+        });
+        ctx.runAtTick(5 + 30, () -> {
+            ctx.assertEquals(boss.currentAction(), "TWISTER", "casting");
+            ctx.assertEquals(boss.poseState(), RaggimelEntity.POSE_RAISE, "arms raised");
+            ctx.assertTrue(boss.hasGlowingEyes(), "eyes glowing blue");
+            double now = boss.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_SCALE);
+            ctx.assertTrue(Math.abs(now - size[0] * 4) < 0.01, "four times his size, " + now);
+            ctx.assertTrue(boss.hasTwister(), "a tornado forming");
+            ctx.assertTrue(tornadoPieces(ctx.getWorld(), stand, 30) >= 80, "built of water, " + tornadoPieces(ctx.getWorld(), stand, 30));
+            ctx.assertEquals(boss.twisterFlings(), 0, "not formed enough to take anyone yet");
+        });
+        ctx.runAtTick(5 + 75, () -> {
+            Vec3d push = boss.lastPush(off);
+            Vec3d toward = stand.subtract(off.getPos()).multiply(1, 0, 1).normalize();
+            ctx.assertTrue(push.length() > 0.01, "the one a way off is dragged in, " + push);
+            ctx.assertTrue(push.normalize().dotProduct(toward) > 0.5, "towards the tornado, " + push);
+            ctx.assertEquals(off.getHealth(), off.getMaxHealth(), "but not taken");
+        });
+        ctx.runAtTick(5 + cast - 2, () -> {
+            ctx.assertEquals(boss.currentAction(), "TWISTER", "still casting: 5 s");
+            ctx.assertTrue(boss.twisterFlings() >= 1, "it took the player (standing in it) and threw them");
+            ctx.assertTrue(player.getHealth() < player.getMaxHealth(), "and it hurt");
+            Vec3d fling = boss.lastTwisterFling();
+            ctx.assertTrue(fling.horizontalLength() > 2.5 && fling.y > 1, "thrown far, " + fling);
+            // Out of the way: the rest is about the tornado
+            ctx.getWorld().getServer().getPlayerManager().remove(player);
+            ctx.getWorld().getServer().getPlayerManager().remove(off);
+        });
+        ctx.runAtTick(5 + cast + RaggimelEntity.TWISTER_THROW + 3, () -> {
+            double now = boss.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_SCALE);
+            ctx.assertTrue(Math.abs(now - size[0]) < 0.01, "back to his size, " + now);
+            ctx.assertFalse(boss.hasGlowingEyes(), "eyes back to normal");
+            ctx.assertFalse(boss.currentAction().equals("TWISTER"), "on with the fight");
+            ctx.assertTrue(boss.hasTwister(), "while the tornado roams");
+        });
+        ctx.runAtTick(5 + cast + RaggimelEntity.TWISTER_ROAM + 40, () -> {
+            ctx.assertFalse(boss.hasTwister(), "the tornado has fallen apart");
+            ctx.assertEquals(tornadoPieces(ctx.getWorld(), stand, 40), 0, "and every piece of it is gone");
+            boss.discard();
+            ctx.complete();
+        });
+    }
+
+    /**
+     * Deluge: he goes under, four of him rise (only he can be hurt), huge, eyes glowing, each under an orb; they throw,
+     * the false ones go, he shrinks back, and the orbs come down hard on the player.
+     */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 260, batchId = "raggimel_deluge")
+    public void delugeRaisesFourOfHimAndBringsTheOrbsDown(TestContext ctx) {
+        floor(ctx);
+        RaggimelEntity boss = spawn(ctx, new BlockPos(3, 1, 3));
+        ServerPlayerEntity player = survivalPlayer(ctx.getWorld(), Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(6, 1, 6))));
+        // Enough health to take every orb and show what they did
+        player.getAttributeInstance(net.minecraft.entity.attribute.EntityAttributes.GENERIC_MAX_HEALTH).setBaseValue(400);
+        player.setHealth(400);
+        try {
+            java.lang.reflect.Field join = ServerPlayerEntity.class.getDeclaredField("joinInvulnerabilityTicks");
+            join.setAccessible(true);
+            join.setInt(player, 0);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+        double[] size = new double[1];
+        int appear = RaggimelEntity.DELUGE_VANISH, thrown = appear + RaggimelEntity.DELUGE_CAST;
+        ctx.runAtTick(5, () -> {
+            size[0] = boss.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_SCALE);
+            startAttack(boss, "DELUGE");
+        });
+        ctx.runAtTick(5 + 4, () -> {
+            ctx.assertTrue(boss.isInvisible(), "gone into the water");
+            ctx.assertTrue(boss.isUntouchable(), "and can't be hit there");
+        });
+        ctx.runAtTick(5 + appear + 25, () -> {
+            var mirages = boss.mirages();
+            ctx.assertEquals(mirages.size(), 3, "three false ones beside him");
+            ctx.assertFalse(boss.isInvisible(), "and him, back up");
+            ctx.assertEquals(boss.orbsUp(), 4, "an orb over each");
+            double now = boss.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_SCALE);
+            ctx.assertTrue(Math.abs(now - size[0] * 3) < 0.01, "three times his size, " + now);
+            ctx.assertTrue(boss.hasGlowingEyes() && boss.poseState() == RaggimelEntity.POSE_RAISE, "eyes burning, arms raised");
+            for (var m : mirages) {
+                ctx.assertTrue(m.hasGlowingEyes() && m.poseState() == RaggimelEntity.POSE_RAISE, "every one exactly like him");
+                double ms = m.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_SCALE);
+                ctx.assertTrue(Math.abs(ms - now) < 0.01, "the same size, " + ms);
+                ctx.assertFalse(m.damage(ctx.getWorld().getDamageSources().playerAttack(player), 10), "a false one can't be hurt");
+                ctx.assertFalse(m.isRemoved(), "or got rid of");
+            }
+            float before = boss.getHealth();
+            boss.damage(ctx.getWorld().getDamageSources().playerAttack(player), 10);
+            ctx.assertTrue(boss.getHealth() < before, "the real one can");
+            ctx.assertEquals(player.getHealth(), player.getMaxHealth(), "nothing's come down yet");
+        });
+        ctx.runAtTick(5 + thrown + RaggimelEntity.DELUGE_THROW + 3, () -> {
+            ctx.assertEquals(boss.mirages().size(), 0, "the false ones are gone");
+            ctx.assertTrue(ctx.getWorld().getEntitiesByClass(net.ragnar.fmscraft.boss.greed.RaggimelMirageEntity.class,
+                    boss.getBoundingBox().expand(30), e -> true).isEmpty(), "every one of them");
+            double now = boss.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_SCALE);
+            ctx.assertTrue(Math.abs(now - size[0]) < 0.01, "he's back to his size, " + now);
+            ctx.assertFalse(boss.hasGlowingEyes(), "eyes back to normal");
+            ctx.assertFalse(boss.currentAction().equals("DELUGE"), "on with the fight");
+            ctx.assertEquals(boss.orbsUp(), 4, "while the orbs are still up in the sky");
+        });
+        ctx.runAtTick(5 + thrown + 60 + 8, () -> {
+            ctx.assertEquals(boss.orbsUp(), 0, "every orb has come down");
+            ctx.assertTrue(boss.orbHits() >= 1, "on the player");
+            float lost = player.getMaxHealth() - player.getHealth();
+            ctx.assertTrue(lost > 30, "and it hit hard, " + lost);
             boss.discard();
             ctx.getWorld().getServer().getPlayerManager().remove(player);
             ctx.complete();

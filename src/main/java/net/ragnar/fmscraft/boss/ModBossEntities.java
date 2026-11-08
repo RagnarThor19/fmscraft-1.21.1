@@ -15,6 +15,7 @@ import net.ragnar.fmscraft.boss.gluttony.LalliEntity;
 import net.ragnar.fmscraft.boss.greed.GreedBubbleEntity;
 import net.ragnar.fmscraft.boss.greed.GreedIntro;
 import net.ragnar.fmscraft.boss.greed.RaggimelEntity;
+import net.ragnar.fmscraft.boss.greed.RaggimelMirageEntity;
 import net.ragnar.fmscraft.boss.lust.LustIntro;
 import net.ragnar.fmscraft.boss.lust.MugenCloneEntity;
 import net.ragnar.fmscraft.boss.lust.MugenEntity;
@@ -49,6 +50,18 @@ public class ModBossEntities {
                     // Fights don't survive a restart, so neither do bosses: one saved mid-fight would be a second boss later
                     .disableSaving()
                     .build("raggimel"));
+
+    /** The three false RAGGIMELs of his Deluge: just like him, holding up orbs, but only water. */
+    public static final EntityType<RaggimelMirageEntity> RAGGIMEL_MIRAGE = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "raggimel_mirage"),
+            EntityType.Builder.create(RaggimelMirageEntity::new, SpawnGroup.MISC)
+                    .dimensions(0.6f, 1.8f)
+                    .eyeHeight(1.62f)
+                    .makeFireImmune()
+                    .maxTrackingRange(12)
+                    .trackingTickInterval(1)
+                    .disableSaving()
+                    .build("raggimel_mirage"));
 
     public static final EntityType<GreedBubbleEntity> GREED_BUBBLE = Registry.register(Registries.ENTITY_TYPE,
             Identifier.of(FmsCraft.MOD_ID, "greed_bubble"),
@@ -213,6 +226,7 @@ public class ModBossEntities {
     public static void initialize() {
         FabricDefaultAttributeRegistry.register(TEST_BOSS, TestBossEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(RAGGIMEL, RaggimelEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(RAGGIMEL_MIRAGE, RaggimelMirageEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(ORNAMIX, OrnamixEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(GUMMSS, GummssEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(GUMMSS_ILLUSION, GummssIllusionEntity.createAttributes());

@@ -69,7 +69,7 @@ public final class GreedManor {
 
     public static boolean inBounds(Vec3d pos) {
         double dx = pos.x - CENTER.x, dz = pos.z - CENTER.z;
-        return dx * dx + dz * dz <= RADIUS * RADIUS && pos.y > FLOOR_Y - 4 && pos.y < FLOOR_Y + 30;
+        return dx * dx + dz * dz <= RADIUS * RADIUS && pos.y > FLOOR_Y - 4 && pos.y < FLOOR_Y + 70;
     }
 
     /** Where someone wandering off at {@code pos} is set back down: 8 in from the edge of the fight, towards them. */

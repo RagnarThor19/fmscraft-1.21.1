@@ -25,6 +25,7 @@ import net.ragnar.fmscraft.fight.Cinematics;
 import net.ragnar.fmscraft.network.BossMusicPayload;
 import net.ragnar.fmscraft.network.BossScreenPayload;
 import net.ragnar.fmscraft.network.GreedSkyPayload;
+import net.ragnar.fmscraft.network.GreedPushPayload;
 import net.ragnar.fmscraft.network.WrathSkyPayload;
 import net.ragnar.fmscraft.boss.wrath.FlameRoot;
 import net.ragnar.fmscraft.boss.wrath.OrnamixEntity;
@@ -62,6 +63,7 @@ public class FmsCraft implements ModInitializer {
 		PayloadTypeRegistry.playS2C().register(GardenFogPayload.ID, GardenFogPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(BossScreenPayload.ID, BossScreenPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(GreedSkyPayload.ID, GreedSkyPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(GreedPushPayload.ID, GreedPushPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(WrathSkyPayload.ID, WrathSkyPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(net.ragnar.fmscraft.network.LustSkyPayload.ID, net.ragnar.fmscraft.network.LustSkyPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(net.ragnar.fmscraft.network.MugenControlPayload.ID, net.ragnar.fmscraft.network.MugenControlPayload.CODEC);

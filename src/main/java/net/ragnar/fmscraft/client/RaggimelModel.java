@@ -3,16 +3,26 @@ package net.ragnar.fmscraft.client;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.entity.LivingEntity;
 import net.ragnar.fmscraft.boss.greed.RaggimelEntity;
+import net.ragnar.fmscraft.boss.greed.RaggimelLook;
 
-/** RAGGIMEL is a player (wide arms) whose arms follow what he's doing: casting, aiming, crouching to charge, slamming. */
-public class RaggimelModel extends PlayerEntityModel<RaggimelEntity> {
+/** RAGGIMEL is a player (wide arms) whose arms follow what he's doing: casting, aiming, crouching to charge, slamming, calling up the Twister. */
+public class RaggimelModel<T extends LivingEntity & RaggimelLook> extends PlayerEntityModel<T> {
     public RaggimelModel(ModelPart root) {
         super(root, false);
     }
 
+    private float tickDelta;
+
     @Override
-    public void setAngles(RaggimelEntity boss, float limbAngle, float limbDistance, float age, float headYaw, float headPitch) {
+    public void animateModel(T boss, float limbAngle, float limbDistance, float tickDelta) {
+        super.animateModel(boss, limbAngle, limbDistance, tickDelta);
+        this.tickDelta = tickDelta;
+    }
+
+    @Override
+    public void setAngles(T boss, float limbAngle, float limbDistance, float age, float headYaw, float headPitch) {
         int pose = boss.poseState();
         sneaking = pose == RaggimelEntity.POSE_CROUCH;
         super.setAngles(boss, limbAngle, limbDistance, age, headYaw, headPitch);
@@ -60,6 +70,24 @@ public class RaggimelModel extends PlayerEntityModel<RaggimelEntity> {
                 rightArm.roll = 0;
                 leftArm.roll = 0;
                 head.pitch = 0.5f;
+            }
+            case RaggimelEntity.POSE_RAISE -> {
+                // The Twister: arms swept out and up over his head, looking up into the storm, then slowly stirring
+                // the sky in circles, shaking harder as it's about to break
+                float rt = boss.raiseTime(tickDelta);
+                float u = MathHelper.clamp(rt / 24f, 0, 1), up = u * u * (3 - 2 * u);
+                float out = MathHelper.sin(up * MathHelper.PI) * 1.1f;
+                float stir = up * MathHelper.clamp((rt - 18) / 12f, 0, 1);
+                float shake = MathHelper.clamp((rt - 60) / 40f, 0, 1) * 0.07f * MathHelper.sin(age * 2.7f);
+                float circle = rt * 0.2f;
+                rightArm.pitch = -2.95f * up + 0.14f * MathHelper.sin(circle) * stir + shake;
+                leftArm.pitch = -2.95f * up + 0.14f * MathHelper.sin(circle + MathHelper.PI) * stir - shake;
+                rightArm.roll = 0.12f + out + 0.2f * MathHelper.cos(circle) * stir;
+                leftArm.roll = -0.12f - out - 0.2f * MathHelper.cos(circle + MathHelper.PI) * stir;
+                rightArm.yaw = 0;
+                leftArm.yaw = 0;
+                head.pitch = MathHelper.lerp(up, head.pitch, -0.55f);
+                head.yaw *= 1 - up;
             }
             case RaggimelEntity.POSE_STUNNED -> {
                 head.roll = MathHelper.sin(age * 0.3f) * 0.35f;
