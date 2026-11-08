@@ -22,7 +22,9 @@ import net.ragnar.fmscraft.boss.envy.EnvyArena;
 import net.ragnar.fmscraft.boss.gluttony.GluttonyArena;
 import net.ragnar.fmscraft.boss.greed.GreedArena;
 import net.ragnar.fmscraft.boss.lust.LustArena;
+import net.ragnar.fmscraft.boss.ModBossEntities;
 import net.ragnar.fmscraft.boss.pride.PrideArena;
+import net.ragnar.fmscraft.boss.sloth.SlothArena;
 import net.ragnar.fmscraft.boss.wrath.WrathArena;
 import net.ragnar.fmscraft.sin.Sin;
 
@@ -34,7 +36,7 @@ import java.util.Optional;
  *
  * To give a sin its own arena, save it with a structure block as {@code fmscraft:arena/<sin>} (centered on
  * x/z 0, floor at y 63) and put the .nbt in data/fmscraft/structure/arena/. Without one, a plain platform is built.
- * Arenas that don't fit that mold (Greed's floating island, Wrath's colosseum, Envy's eye, Lust's compound, Pride's plaza) give their own {@link ArenaLayout} in
+ * Arenas that don't fit that mold (Greed's floating island, Wrath's colosseum, Envy's eye, Lust's compound, Pride's plaza, Sloth's city) give their own {@link ArenaLayout} in
  * {@link #layout}.
  */
 public final class Arenas {
@@ -62,6 +64,7 @@ public final class Arenas {
     }
 
     public static ArenaLayout layout(Sin sin) {
+        if (ModBossEntities.usesStandIn(sin)) return DEFAULT;
         return switch (sin) {
             case GREED -> GreedArena.LAYOUT;
             case WRATH -> WrathArena.LAYOUT;
@@ -69,7 +72,7 @@ public final class Arenas {
             case GLUTTONY -> GluttonyArena.LAYOUT;
             case LUST -> LustArena.LAYOUT;
             case PRIDE -> PrideArena.LAYOUT;
-            default -> DEFAULT;
+            case SLOTH -> SlothArena.LAYOUT;
         };
     }
 
@@ -82,6 +85,11 @@ public final class Arenas {
 
     /** Removes everything left over from the last fight and builds the arena again. */
     public static void reset(ServerWorld world, Sin sin) {
+        if (sin == Sin.SLOTH && !ModBossEntities.usesStandIn(sin)) {
+            // RICKY's city is far too big to wipe whole; only the fighting ground is (SlothArena)
+            SlothArena.build(world);
+            return;
+        }
         if (sin == Sin.GLUTTONY) {
             // LalliLarge's Earth and snowfield are far too big to wipe whole; only the fighting ground is (GluttonyArena)
             GluttonyArena.build(world);
@@ -112,7 +120,7 @@ public final class Arenas {
         }
         Optional<StructureTemplate> template = world.getStructureTemplateManager()
                 .getTemplate(Identifier.of(FmsCraft.MOD_ID, "arena/" + sin.id()));
-        if (template.isPresent()) {
+        if (template.isPresent() && !ModBossEntities.usesStandIn(sin)) {
             var size = template.get().getSize();
             BlockPos corner = layout.templateCorner() != null ? layout.templateCorner()
                     : new BlockPos(-size.getX() / 2, FLOOR_Y, -size.getZ() / 2);

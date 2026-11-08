@@ -22,6 +22,7 @@ public final class BossScreen {
     private static final float GREED_X = 0.665f, GREED_Y = 0.272f, WRATH_X = 0.291f, WRATH_Y = 0.567f, ZOOM = 3.4f;
     private static final float ENVY_X = 0.595f, ENVY_Y = 0.805f, GLUTTONY_X = 0.400f, GLUTTONY_Y = 0.797f;
     private static final float LUST_X = 0.709f, LUST_Y = 0.569f, PRIDE_X = 0.500f, PRIDE_Y = 0.166f;
+    private static final float SLOTH_X = 0.338f, SLOTH_Y = 0.274f;
     private static final int WHITE_COLOR = 0xF2F8FF;
     private static final int FLASH_COLOR = 0xE6F4FF, FIRE_COLOR = 0xFF6A1E;
 
@@ -48,6 +49,7 @@ public final class BossScreen {
                 case "gluttony" -> GLUTTONY_X;
                 case "lust" -> LUST_X;
                 case "pride" -> PRIDE_X;
+                case "sloth" -> SLOTH_X;
                 default -> GREED_X;
             };
             focusY = switch (sin) {
@@ -56,6 +58,7 @@ public final class BossScreen {
                 case "gluttony" -> GLUTTONY_Y;
                 case "lust" -> LUST_Y;
                 case "pride" -> PRIDE_Y;
+                case "sloth" -> SLOTH_Y;
                 default -> GREED_Y;
             };
             screen = BossScreenPayload.INTRO;

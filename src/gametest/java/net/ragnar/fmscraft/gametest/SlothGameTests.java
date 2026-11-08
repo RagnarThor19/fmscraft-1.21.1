@@ -125,7 +125,8 @@ public class SlothGameTests implements FabricGameTest {
 
     // ---- The structure ----
 
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 1600)
+    // Long: RICKY's whole fight (RickyGameTests) holds Sloth for nearly a minute, and this waits for it
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 4000)
     public void sphereOfSlothIsBuiltAroundItsCore(TestContext ctx) {
         ServerWorld world = ctx.getWorld();
         SlothSpherePiece piece = build(ctx, -20480, BlockRotation.CLOCKWISE_90);

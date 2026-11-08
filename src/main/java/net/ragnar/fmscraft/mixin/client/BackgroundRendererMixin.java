@@ -15,6 +15,7 @@ import net.ragnar.fmscraft.client.GluttonySky;
 import net.ragnar.fmscraft.client.GreedSky;
 import net.ragnar.fmscraft.client.LustSky;
 import net.ragnar.fmscraft.client.PrideSky;
+import net.ragnar.fmscraft.client.SlothSky;
 import net.ragnar.fmscraft.client.VaultFog;
 import net.ragnar.fmscraft.client.WrathSky;
 import org.spongepowered.asm.mixin.Mixin;
@@ -31,7 +32,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * thinning out far enough to see across the arena, and closing in, brighter, during his Evil Eye (EnvySky). Round
  * LalliLarge's Earth it's the black of space; over his snowfield a grey haze that lets you see out to the castle (GluttonySky).
  * Over MUGEN's compound it's violet under the moon, a red haze closing in under the eclipse, and black, four blocks out,
- * in his Blackout (LustSky).
+ * in his Blackout (LustSky). Over RICKY's city it's the sunset's own, until he goes Super Saiyan: then a grey haze
+ * settles in (SlothSky).
  */
 @Mixin(BackgroundRenderer.class)
 public abstract class BackgroundRendererMixin {
@@ -51,6 +53,15 @@ public abstract class BackgroundRendererMixin {
         }
         if (PrideSky.active()) {
             Vec3d fog = PrideSky.mix(PrideSky.DAY_FOG, PrideSky.STORM_FOG, tickDelta);
+            red = (float) fog.x;
+            green = (float) fog.y;
+            blue = (float) fog.z;
+            RenderSystem.clearColor(red, green, blue, 0.0f);
+            return;
+        }
+        if (SlothSky.active()) {
+            // The sunset's own fog, going over to RICKY's grey haze in the dark
+            Vec3d fog = SlothSky.fogColor(new Vec3d(red, green, blue), tickDelta);
             red = (float) fog.x;
             green = (float) fog.y;
             blue = (float) fog.z;
@@ -112,6 +123,11 @@ public abstract class BackgroundRendererMixin {
             float start = RenderSystem.getShaderFogStart(), end = RenderSystem.getShaderFogEnd();
             RenderSystem.setShaderFogStart(Math.min(start, MathHelper.lerp(night, start, 24f)));
             RenderSystem.setShaderFogEnd(Math.min(end, MathHelper.lerp(night, end, 120f)));
+        }
+        if (SlothSky.active() && fogType == BackgroundRenderer.FogType.FOG_TERRAIN) {
+            RenderSystem.setShaderFogStart(SlothSky.fogStart(RenderSystem.getShaderFogStart(), tickDelta));
+            RenderSystem.setShaderFogEnd(SlothSky.fogEnd(RenderSystem.getShaderFogEnd(), tickDelta));
+            return;
         }
         if (LustSky.active() && fogType == BackgroundRenderer.FogType.FOG_TERRAIN) {
             RenderSystem.setShaderFogStart(LustSky.fogStart(RenderSystem.getShaderFogStart(), tickDelta));

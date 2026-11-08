@@ -47,16 +47,37 @@ class OrnamixTimelineTest {
     }
 
     @Test
-    void theEntranceComesDownSmoothlyAndLandsOnTime() {
-        assertEquals(34.0, OrnamixTimeline.entranceHeight(0, 34), 1e-9);
-        assertEquals(0.0, OrnamixTimeline.entranceHeight(OrnamixTimeline.ENTRANCE_FALL, 34), 1e-9);
-        double last = 34;
-        for (int t = 1; t <= OrnamixTimeline.ENTRANCE_FALL; t++) {
-            double h = OrnamixTimeline.entranceHeight(t, 34);
-            assertTrue(h <= last, "only ever down");
+    void theEntranceSlamsDownOnTheDrop() {
+        assertEquals(OrnamixTimeline.DROP_SONG_TICK, OrnamixTimeline.ENTRANCE_SLAM + OrnamixTimeline.SONG_LEAD,
+                "the slam is on the song's drop");
+        // The drop is beat 13 of the song's own beat clock
+        net.ragnar.fmscraft.boss.BossSong song = new net.ragnar.fmscraft.boss.BossSong("fmscraft:music.wrath.phase_one", 140, 1);
+        assertTrue(Math.abs(song.firstBeatTick() + 13 * song.ticksPerBeat() - OrnamixTimeline.DROP_SONG_TICK) < 1);
+        // The seams grow on the beats before it, all after the wheel has gone
+        for (int k = 1; k <= OrnamixTimeline.CRACK_BEATS + 1; k++) {
+            assertTrue(OrnamixTimeline.beatBeforeDrop(k) > 25, "beat " + k + " before the drop");
+        }
+        assertEquals(OrnamixTimeline.ENTRANCE_LEAP, OrnamixTimeline.beatBeforeDrop(1));
+        assertEquals(0.0, OrnamixTimeline.leapHeight(OrnamixTimeline.ENTRANCE_LEAP), 1e-9);
+        assertEquals(0.0, OrnamixTimeline.leapHeight(OrnamixTimeline.ENTRANCE_SLAM), 1e-9);
+        double top = 0;
+        for (int t = OrnamixTimeline.ENTRANCE_LEAP; t <= OrnamixTimeline.ENTRANCE_SLAM; t++) top = Math.max(top, OrnamixTimeline.leapHeight(t));
+        assertTrue(top > 2.5 && top <= OrnamixTimeline.LEAP_HEIGHT, "a real leap, " + top);
+    }
+
+    @Test
+    void ragemodeRisesThroughTheVoiceAndComesDownAsItEnds() {
+        assertEquals(OrnamixTimeline.VOICE_AT + OrnamixTimeline.VOICE_TICKS, OrnamixTimeline.REVEAL_AT,
+                "he comes down as the voice line ends");
+        assertTrue(OrnamixTimeline.RESHAPE_AT < OrnamixTimeline.LIFT_AT, "he's in place before the black lifts");
+        assertEquals(0.0, OrnamixTimeline.riseHeight(OrnamixTimeline.VOICE_AT), 1e-9);
+        assertEquals(0.0, OrnamixTimeline.riseHeight(OrnamixTimeline.REVEAL_AT), 1e-9);
+        double last = 0;
+        for (int t = OrnamixTimeline.VOICE_AT; t <= OrnamixTimeline.REVEAL_AT - OrnamixTimeline.SLAM_TICKS; t++) {
+            double h = OrnamixTimeline.riseHeight(t);
+            assertTrue(h >= last, "only ever up while the voice plays");
             last = h;
         }
-        assertEquals(OrnamixTimeline.VOICE_AT + OrnamixTimeline.VOICE_TICKS, OrnamixTimeline.REVEAL_AT,
-                "the black lifts as the voice line ends");
+        assertEquals(OrnamixTimeline.RISE_HEIGHT, last, 1e-9);
     }
 }

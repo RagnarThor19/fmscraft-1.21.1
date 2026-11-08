@@ -1,10 +1,15 @@
 {
-  "type": "fmscraft:arena",
+  "type": "fmscraft:sloth_arena",
   "generator": {
     "type": "minecraft:flat",
     "settings": {
       "biome": "minecraft:the_void",
-      "layers": [],
+      "layers": [
+        {"block": "minecraft:air", "height": 56},
+        {"block": "minecraft:stone", "height": 1},
+        {"block": "minecraft:gravel", "height": 1},
+        {"block": "minecraft:water", "height": 1}
+      ],
       "lakes": false,
       "features": false,
       "structure_overrides": []

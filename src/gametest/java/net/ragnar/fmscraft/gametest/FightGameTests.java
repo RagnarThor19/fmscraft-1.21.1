@@ -41,7 +41,10 @@ import net.ragnar.fmscraft.world.FmsWorldState;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Each test uses a different sin so they can run at the same time. Join windows are shortened to 1 second. */
+/**
+ * Each test uses a different sin so they can run at the same time. Join windows are shortened to 1 second. The Sloth
+ * tests queue for Sloth (withSloth), and RICKY's whole fight holds it for nearly a minute: their limits allow for that.
+ */
 public class FightGameTests implements FabricGameTest {
     private static final int JOIN = 20;
     /** Server tick until which a test holds Sloth (a test that completes drops its own tasks, so no task frees it). */
@@ -49,15 +52,22 @@ public class FightGameTests implements FabricGameTest {
 
     /**
      * Runs {@code body} once no Sloth fight is open and no other test holds Sloth, holding it for {@code holdTicks}
-     * (a fight the body opens holds it from then on by itself).
+     * (a fight the body opens holds it from then on by itself). These tests fight the stand-in boss (it dies in one hit,
+     * on the plain platform, with no intro) in RICKY's place.
      */
     private static void withSloth(TestContext ctx, int holdTicks, Runnable body) {
+        withSloth(ctx, holdTicks, true, body);
+    }
+
+    /** As above; {@code standIn} false for RICKY himself, in his city (RickyGameTests). */
+    static void withSloth(TestContext ctx, int holdTicks, boolean standIn, Runnable body) {
         int now = ctx.getWorld().getServer().getTicks();
         if (now < slothClaimedUntil || BossFights.session(Sin.SLOTH) != null) {
-            ctx.waitAndRun(1, () -> withSloth(ctx, holdTicks, body));
+            ctx.waitAndRun(1, () -> withSloth(ctx, holdTicks, standIn, body));
             return;
         }
         slothClaimedUntil = now + holdTicks + 1;
+        net.ragnar.fmscraft.boss.ModBossEntities.useStandIn(Sin.SLOTH, standIn);
         body.run();
     }
 
@@ -147,7 +157,7 @@ public class FightGameTests implements FabricGameTest {
         ctx.complete();
     }
 
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 1500)
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 4000)
     public void emptyPortalClosesWithoutAFight(TestContext ctx) {
         // One Sloth fight at a time, and other tests' batches overlap this one: wait for Sloth to be free
         withSloth(ctx, 1, () -> {
@@ -165,8 +175,8 @@ public class FightGameTests implements FabricGameTest {
         });
     }
 
-    /** Sloth still fights the stand-in test boss, which can be beaten in one hit; its own batch, so no other Sloth fight is open. */
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 1500, batchId = "fight_win")
+    /** Sloth fights the stand-in test boss here (in RICKY's place), which can be beaten in one hit; its own batch. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 4000, batchId = "fight_win")
     public void killingTheBossWinsTheFight(TestContext ctx) {
         // One Sloth fight at a time, and other tests' batches overlap this one: wait for Sloth to be free
         withSloth(ctx, 1, () -> {
@@ -211,7 +221,7 @@ public class FightGameTests implements FabricGameTest {
     }
 
     /** Dead in a boss's arena with no fight on (after a win, or never came through the portal): never left lying there. */
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 1500, batchId = "fight_stray_death")
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 4000, batchId = "fight_stray_death")
     public void aDeathInAnArenaOutsideAFightStillChestsTheLoot(TestContext ctx) {
         // One Sloth fight at a time, and other tests' batches overlap this one: wait for Sloth to be free
         withSloth(ctx, 10, () -> {
@@ -247,7 +257,7 @@ public class FightGameTests implements FabricGameTest {
     }
 
     // Its own batch: Sloth's portal can only be open once at a time
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 1500, batchId = "fight_death")
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 4000, batchId = "fight_death")
     public void aDeathEndsTheFightAndChestsTheLoot(TestContext ctx) {
         // One Sloth fight at a time, and other tests' batches overlap this one: wait for Sloth to be free
         withSloth(ctx, 1, () -> {
@@ -304,7 +314,7 @@ public class FightGameTests implements FabricGameTest {
     }
 
     /** Bots join like players, walk in, and one dying ends it for everyone with its kit chested by the portal. */
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 2000, batchId = "fight_bots")
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 4500, batchId = "fight_bots")
     public void botsFightAndFallLikeFriends(TestContext ctx) {
         withSloth(ctx, 1, () -> {
             ServerWorld world = ctx.getWorld();
@@ -348,7 +358,7 @@ public class FightGameTests implements FabricGameTest {
     }
 
     /** With canDie off a bot is left on half a heart, the fight goes on, and it eats a golden apple. */
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 2000, batchId = "fight_bots_undying")
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 4500, batchId = "fight_bots_undying")
     public void undyingBotSurvivesAndEats(TestContext ctx) {
         withSloth(ctx, 1, () -> {
             ServerWorld world = ctx.getWorld();

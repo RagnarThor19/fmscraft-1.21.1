@@ -14,6 +14,7 @@ import net.ragnar.fmscraft.client.GluttonySky;
 import net.ragnar.fmscraft.client.GreedSky;
 import net.ragnar.fmscraft.client.LustSky;
 import net.ragnar.fmscraft.client.PrideSky;
+import net.ragnar.fmscraft.client.SlothSky;
 import net.ragnar.fmscraft.boss.pride.PrideArena;
 import net.ragnar.fmscraft.client.WrathSky;
 import org.joml.Matrix4f;
@@ -30,7 +31,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * the sun on black, turning on Apple Pie's strums; his snowfield: a grey overcast and no clouds (GluttonySky). MUGEN's
  * compound: stars and the full moon over a violet night, or the red eclipse, and black in his Blackout (LustSky).
  * LEONARD's plaza: the noon sky with banks of cloud all round the horizon, or the storm, and the game's own clouds
- * drawn as a sea far under the plaza (PrideSky).
+ * drawn as a sea far under the plaza (PrideSky). RICKY's city: vanilla's sunset, until he goes Super Saiyan and it drains
+ * to a black sky full of red lights, no clouds (SlothSky).
  */
 @Mixin(WorldRenderer.class)
 public abstract class WorldRendererMixin {
@@ -44,6 +46,8 @@ public abstract class WorldRendererMixin {
     private void fmscraft$prideBanks(Matrix4f matrix4f, Matrix4f projectionMatrix, float tickDelta, Camera camera,
                                      boolean thickFog, Runnable fogCallback, CallbackInfo ci) {
         if (PrideSky.active() && PrideSky.vanillaSky(tickDelta)) PrideSky.renderBanks(matrix4f, tickDelta);
+        // RICKY's red lights coming out over the sunset as it drains away
+        if (SlothSky.active() && SlothSky.vanillaSky(tickDelta)) SlothSky.renderLights(matrix4f, tickDelta);
     }
 
     @Inject(method = "renderSky", at = @At("HEAD"), cancellable = true)
@@ -54,6 +58,13 @@ public abstract class WorldRendererMixin {
             ci.cancel();
             fogCallback.run();
             PrideSky.renderBanks(matrix4f, tickDelta);
+            return;
+        }
+        if (SlothSky.active() && !SlothSky.vanillaSky(tickDelta)) {
+            // RICKY's dark: no sun, a black sky full of red lights
+            ci.cancel();
+            fogCallback.run();
+            SlothSky.renderDark(matrix4f, tickDelta);
             return;
         }
         if (LustSky.active()) {
@@ -102,7 +113,7 @@ public abstract class WorldRendererMixin {
     @Inject(method = "renderClouds", at = @At("HEAD"), cancellable = true)
     private void fmscraft$noClouds(MatrixStack matrices, Matrix4f matrix4f, Matrix4f matrix4f2, float tickDelta, double cameraX, double cameraY,
                                    double cameraZ, CallbackInfo ci) {
-        if (GluttonySky.space() || GluttonySky.snow() || LustSky.active()) ci.cancel();
+        if (GluttonySky.space() || GluttonySky.snow() || LustSky.active() || SlothSky.active() && !SlothSky.vanillaSky(tickDelta)) ci.cancel();
         else if (PrideSky.active() && !fmscraft$cloudSea) {
             // The same clouds, but far under the plaza: drawn as if the camera were that much higher
             ci.cancel();

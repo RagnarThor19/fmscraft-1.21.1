@@ -121,6 +121,21 @@ public class OrnamixModel extends PlayerEntityModel<OrnamixEntity> {
                 leftArm.pitch = 0.1f;
                 leftArm.roll = -0.3f;
             }
+            case OrnamixEntity.POSE_ASCEND -> {
+                // Rising into the air: arms spread low, palms open, head thrown back, shaking with it
+                float shake = MathHelper.sin(age * 2.7f) * 0.05f;
+                head.pitch = -0.55f + shake;
+                rightArm.pitch = 0.2f + shake;
+                rightArm.yaw = 0;
+                rightArm.roll = 0.8f;
+                leftArm.pitch = 0.2f - shake;
+                leftArm.yaw = 0;
+                leftArm.roll = -0.8f;
+                rightLeg.pitch = 0.15f;
+                leftLeg.pitch = -0.1f;
+                rightLeg.roll = 0.05f;
+                leftLeg.roll = -0.05f;
+            }
             case OrnamixEntity.POSE_ROAR -> {
                 head.pitch = -0.6f;
                 rightArm.pitch = -0.4f + sway * 0.4f;

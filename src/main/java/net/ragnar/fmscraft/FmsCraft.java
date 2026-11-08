@@ -66,6 +66,7 @@ public class FmsCraft implements ModInitializer {
 		PayloadTypeRegistry.playS2C().register(net.ragnar.fmscraft.network.LustSkyPayload.ID, net.ragnar.fmscraft.network.LustSkyPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(net.ragnar.fmscraft.network.MugenControlPayload.ID, net.ragnar.fmscraft.network.MugenControlPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(net.ragnar.fmscraft.network.PrideSkyPayload.ID, net.ragnar.fmscraft.network.PrideSkyPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(net.ragnar.fmscraft.network.SlothSkyPayload.ID, net.ragnar.fmscraft.network.SlothSkyPayload.CODEC);
 
 		FragmentTriggers.register();
 		BossFights.register();
@@ -74,6 +75,7 @@ public class FmsCraft implements ModInitializer {
 		TomeWheel.register();
 		FlameRoot.register();
 		net.ragnar.fmscraft.boss.gluttony.GluttonyArena.register();
+		net.ragnar.fmscraft.boss.sloth.SlothArena.register();
 		OrnamixEntity.registerEvents();
 		GummssEntity.registerEvents();
 		EnvyMazes.register();

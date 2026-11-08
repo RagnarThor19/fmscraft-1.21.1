@@ -100,8 +100,8 @@ off still hear them), loop, and pause vanilla music. The test boss uses Pigstep,
 ## Boss template
 
 Every boss extends `boss/SinBossEntity` and is swapped in for its sin in `boss/ModBossEntities.forSin`
-(Greed is RAGGIMEL, Wrath is ORNAMIX, Envy is GUMMSS, Gluttony is LalliLarge, Lust is MUGEN, Pride is LEONARD; Sloth
-still uses the stand-in `TestBossEntity`):
+(Greed is RAGGIMEL, Wrath is ORNAMIX, Envy is GUMMSS, Gluttony is LalliLarge, Lust is MUGEN, Pride is LEONARD, Sloth is
+RICKY; the stand-in `TestBossEntity` is only fought by the generic fight tests, `ModBossEntities.useStandIn`):
 - Boss bar named after the friend (`bossBarName` to call it something else), always in capitals. Every other boss bar
   in the mod is in capitals too (the fight countdown, Drowsiness, the Wrath timer, the Gorged Brute, the Mother Warden).
 - **Phase 2 at half health** (`onPhaseTwo`; `phaseTwoHealth` to move it) — switch songs and behaviour here. A boss with
@@ -210,14 +210,19 @@ Health / armor: 900 HP for 5-7 players (60% alone, 70% for two... OrnamixTimelin
 ```
 
 - **Intro (the 30 s the portal is open):** exactly like RAGGIMEL's, frozen behind the Seven Deadly Sins wheel, but
-  it zooms in on Wrath; at 25 s N***as in Paris fades in. When the wheel fades he's already coming down out of the
-  bright red sky like a meteor (a ring of fire marks where), lands kneeling in a blast of fire that throws everyone
-  near back (no damage), rises and roars in a pillar of flame. He can't be hurt until he's up (4 s).
+  it zooms in on Wrath; 2 s before the end N***as in Paris starts, so its beat drops (5.6 s in, beat 13) 3.6 s into
+  the fight. When the wheel fades he's **kneeling in the middle of the pit over his planted sword**, head down, and on
+  each of the four beats before the drop seams of glowing magma split further out across the sand from it (a
+  heartbeat thud each time). A beat before the drop he rips the sword out and leaps; **on the drop he drives it into
+  the sand**: every seam bursts into a wall of real flame, a ring of fire rolls out over the whole pit, a pillar of
+  fire roars up round him and everyone near is thrown back (no damage). Then he roars, and he's loose (5 s in all;
+  nothing touches him until then). Timings: `OrnamixTimeline` (it keeps to the song's own clock).
 - **Always burning:** flames curl up round him, embers and smoke come off him, flames run along his sword's blade
   (drawn on each client from where the blade actually is, `OrnamixRenderer`). His cuts set you alight.
 - **Phase 1 (100-40%), the red sky:** bright blood-red sky, orange-red haze, ash and embers on the air. He runs people
   down and cuts them, and on the beat picks one of: *Stab and Leap* (a lunge at whoever is closest, then a leap back),
-  *Fire Wave* (sword raised, then a crescent wall of flame cut across the pit: too tall to jump, step aside), *Flame
+  *Fire Wave* (sword raised, then a crescent wall of real flames, nearly three high, a glowing seam of magma under
+  it, sweeping across the pit: too tall to jump, step aside; it breaks on the wall and sinks into the sand), *Flame
   Spin* (a fire whirl round him, flinging people far), *Flamethrower* (a cone of fire from his hand that turns after
   its target, slower than you can circle him; walls block it), *Ignite* (Ragnars Magic Mod's Ignition: a ring of
   fire bursts out to 10 blocks; a circle shows how far first), *Sun* (leaps far back, then casts the Tome of the
@@ -225,13 +230,17 @@ Health / armor: 900 HP for 5-7 players (60% alone, 70% for two... OrnamixTimelin
   bow and looses a stream of burning arrows, sweeping from one player to the next; shields stop them), *Flurry*
   (rushes in and cuts very fast), *Dash Stab* (crouches with a line of flame along the floor showing the way, then
   charges straight through; into the wall and his sword sticks: stuck for 2.5 s, taking extra damage), *Floor
-  Waves* (slams his sword down, three rings of low fire roll out along the floor: jump each one or be stuck in the
-  flames for 5 s, burning) and *Haymaker* (rushes someone and punches them across the pit).
-- **Ragemode (at 40%):** everything goes black, everyone freezes, the music cuts; a heartbeat and the fires roaring
-  louder in the dark for 5 s (and something answering). Under the black the sky turns and he takes the middle of
-  the pit. Then his voice line, "ragemode" (`entity.ornamix.ragemode`), and as it ends the black lifts on him in a
-  pillar of fire with his eyes burning, a blast throws everyone back and Return to Zero starts. Timings:
-  `OrnamixTimeline`.
+  Waves* (slams his sword down, three rings of real fire a block high roll out along the floor: jump each one or be
+  stuck in the flames for 5 s, burning) and *Haymaker* (rushes someone and punches them across the pit).
+- **Ragemode (at 40%):** everything goes black, everyone freezes, the music cuts. Under the black the sky turns
+  almost black red and he takes the middle of the pit, and after a second the black lifts on him **kneeling there,
+  his sword driven into the sand**, eyes burning. A heartbeat, and with each beat the seams of magma spread further
+  and a pulse of fire rolls out from him, the fires roaring louder. Then his voice line, "ragemode"
+  (`entity.ornamix.ragemode`): **he rises into the air on a pillar of fire**, arms spread, head back, while chunks of
+  the pit (magma, blackstone, sandstone, shroomlight) tear up out of the sand and whirl round him, faster and closer.
+  As it ends he comes down like a hammer: the chunks are flung away, the seams erupt into walls of flame, a ring of
+  fire rolls out, everyone is thrown back, and Return to Zero starts. Everyone stays held (but can look round) until
+  he lands. Timings: `OrnamixTimeline`.
 - **Phase 2 (40-0%), Ragemode:** an almost black red sky, no sun, dimmer light, dark red fog closing in round the pit,
   thick ash, embers and flames on the air, and harmless geysers of flame from the sand. **The world blinks dark on
   every hit of the bass** (19.25 s, then every 0.6 s, through both stretches the bass plays: to 58.85 s and again
@@ -241,18 +250,24 @@ Health / armor: 900 HP for 5-7 players (60% alone, 70% for two... OrnamixTimelin
   (Tome of Meteor: charges up, a burning ring marks where each player stands, 4 s later a meteor crashes into each,
   breaking nothing), *Wither Skeletons* (2-4, in iron, climb out of smouldering spots in the sand; never more than 6,
   no loot, and they go with him), *Fireballs* (a stream of ghast fireballs that break nothing; punch or shoot one
-  back into him for 24 damage) and *Inferno* (rises over a huge circle of fire, then crashes down spinning in a
-  firestorm filling it: the hardest hit of the fight, then he's dizzy and takes extra damage).
+  back into him for 24 damage) and *Inferno* (rises 6 blocks while a wall of real fire rises round a huge circle,
+  then crashes down spinning: the wall roars up, the ground inside glows with rays of magma and five whirling arms of
+  flame fill it: the hardest hit of the fight, then he's dizzy, takes extra damage, and the storm sinks away).
 - **Staying in the pit:** anyone over the wall or up in the stands for 2 s is thrown back down by the flames.
 - **Magic mod:** like RAGGIMEL, he can't be put to sleep or carried off in a bubble, and status effects don't stick to
   him. His Ignite, Sun and Meteor are the mod's spells cast by him (same look and sound), but they don't break or burn
   the arena. They work without the mod too.
+- **Solid fire:** the fire wave, the floor rings, the Inferno's storm and both cutscenes' seams, pillars and shards are
+  block displays (vanilla's own animated fire, magma, rock: `WrathFlames`), all tagged `fmscraft.wrath_flame`; each
+  goes when its attack does, and the arena reset wipes any a stopped server left behind.
 - **Damage:** his hits count as attacks (Fire Resistance only spares you the burning), the fireballs as blasts.
 - Tuning knobs: `OrnamixEntity` (health, damage taken and dealt, `MAX_HIT`, dodge chances, rests, speeds, attack
   weights and gaps in `chooseAttack`, each attack's numbers in its `tick...` method), `OrnamixTimeline` (cutscene
-  timings, the blink, `healthScale`), `WrathArena` (positions), `FlameRoot.TICKS`.
-- Tests: `OrnamixGameTests` (the whole fight flow in the real colosseum, the phase 1 clamp, floor waves rooting only
-  who doesn't jump, fireballs breaking nothing and hurting him when returned, meteors breaking nothing, skeletons in
+  timings, the blink, `healthScale`), `WrathArena` (positions), `FlameRoot.TICKS`, `WrathFlames` (the solid fire: sizes, heights, timings).
+- Tests: `OrnamixGameTests` (the whole fight flow in the real colosseum: kneeling, the seams on the beats, the leap,
+  the slam on the drop hurting nobody, Ragemode's kneel, rise on the pillar and slam, nothing left behind; the phase 1
+  clamp, floor waves of real fire rooting only who doesn't jump, the fire wave a moving wall of real fire, the Inferno's
+  firestorm, fireballs breaking nothing and hurting him when returned, meteors breaking nothing, skeletons in
   armor that leave with him, arena fire never spreading), `OrnamixTimelineTest`.
 
 ## GUMMSS (Envy) (built: `boss/envy/`)
@@ -701,6 +716,129 @@ Health / armor: 800 HP for 5-7 players (healthScale: 60% alone ... 124% for 10, 
   soul and the cone, nothing left behind; Discharge paralysing only who doesn't jump and letting go; arrows never
   landing; the thrown bolt and the boomerang coming back; strikes burning nothing; Munch's beam hitting only who stays;
   the Almighty Pull; the rods and balls leaving nothing; the Stomp; the Zoom), `LeonardTimelineTest`.
+
+## RICKY (Sloth) (built: `boss/sloth/`)
+
+```
+Boss: Patrik Atanaia - Sin of Sloth. Boss bar: RICKY (red, gold once he's a Super Saiyan). His own skin (wide arms: a
+       hoodie with a red emblem) on a player model, the earth tome he's casting in his hand. As a Super Saiyan he wears
+       his second skin (spiked golden hair), the hair and teal eyes glowing (ricky_saiyan_glow.png), and a golden aura:
+       the charged creeper's energy swirl, tinted gold, on a copy of him a little bigger (tools/textures/ricky_textures.py,
+       sources ricky_skin.png and ricky_saiyan_skin.png).
+Song (phase 1): Ken Carson - overseas (Instrumental), trimmed to 2:20 (its last 4.7 s are silence); measured 151.4 BPM on
+       0.187 s, the beat drops at 25.6 s, beat 64 (music.sloth.phase_one). He picks an attack on every other beat.
+Song (phase 2): Chief Keef - Kills (slowed to perfection, reverb, bass boosted), 4:00; measured 74.92 BPM on 0.233 s, the
+       slow intro breaks into the beat at 17.05 s, beat 21 (music.sloth.phase_two). (Both measured from the audio;
+       tools/sounds/sloth_sounds.py makes the files.)
+Arena: the heart of the "Abandoned City" map (a 1.18.1 world save from Planet Minecraft), cut out of the save's region
+       files by tools/structures/sloth_arena.py (structure/arena/sloth.nbt): a flooded ruin, one block of water over
+       gravel to the horizon, six moss-streaked skyscrapers 190 blocks tall, and a green hill with a glasshouse and a
+       ruined village. The fight is in the clearing on the hill's south-west slope (grass, a trampled field of wheat and
+       a dirt path at y 58-59), the flooded plaza and three towers to the west, the hill north, ruins and trees south
+       and east. Players arrive east of the middle looking west, into the sunset; the exit frame (mossy stone bricks,
+       cracked corners) stands north of the middle. Own dimension type (sloth_arena): the clock stands at 12500, the
+       sun a hand over the western horizon, the sky gold and red. The flooded plain is the dimension's own ground (a flat
+       world of stone, gravel and water), so it runs on past the fog. Positions: SlothArena.
+Health / armor: 1000 HP for 5-7 players (healthScale: 60% alone ... 124% for 10, at most double; past the 1024 cap he
+       takes proportionally less damage instead), 8 armor, 4 toughness; takes x0.85 damage in phase 1, x0.9 as a Super
+       Saiyan, at most 26 a hit; phase 1 can't be skipped by one big hit. Super Saiyan he hits x1.15 (rounded up).
+```
+
+- **Intro (the 30 s the portal is open):** frozen behind the Seven Deadly Sins wheel, zooming in on Sloth, with only the
+  wind over the water and a bell far off. When the portal closes overseas starts and the wheel fades on the clearing
+  (2 s), everyone in an arc to the east, and they can move. **He's asleep.** Flat on his back in the grass by the water,
+  snoring. He rolls over (12.5 s), sits up and yawns (16.5 s), gets up and stretches (20.5 s), the dark gathers round
+  him (22.5 s), and on the drop at 25.6 s he stamps: a wave of dark red throws everyone back (it hurts nobody), the bar
+  comes up, and he's loose a second later. Nothing touches him while he sleeps. Timings: `RickyTimeline`.
+- **How he fights (phase 1):** he won't stand still and he won't come close. Always facing whoever he's after, he
+  **walks backwards** away from them when they come within 6.5, edges in when they're past 12, sidesteps in between;
+  cornered, he punches and hops back. A faint dark red aura curls up off him all fight. On the beat he picks one of
+  the Ragnars Magic Mod's earth tomes, each held in his hand as he casts it:
+  - *Tome of Rocks* (the basic one): three rocks, one after another, at you (the mod's own rocks).
+  - *Tome of Boulders*: the boulder forms over his head and he hurls it (the mod's own boulder: its slam, its roll).
+  - *Tome of Rising Spikes*: two seconds crouched, a palm to the ground, while three lines of cracks creep out from
+    him, glowing dark red at their ends, the ground grinding louder; then a wave of spikes bursts along each, three lanes
+    wide, the middle one at you and the others 40 degrees either side. 12 and tossed up.
+  - *Tome of Impaling*: under two of you (three for four or more), one after another: the ring tightens, the ground
+    cracks, then the great spike and its crown. 18 on the spot and thrown high, 8 round it.
+  - *Tome of the Stone Cannon*, rapid: seven spikes spun up beside him and fired one after another at each of you in
+    turn, fast and straight. A clean hit is 10. What misses sticks where it lands and **beeps three times**, each beep
+    higher and brighter, a red ring showing how far it'll reach, then blows: up to 12 within 3.4.
+  - *Tome of Smashing*, three times in a row: up into the air, a red ring marking where he'll come down on whoever he's
+    after, then down on it with a sonic boom: 12 within 5 and thrown. The third shakes the ground for further: a ring of
+    upturned earth rolls out to 16 (jump it, 7).
+  - *Snake Spikes*: three seconds' charge, on his knees, palms to the ground, the ground shaking harder and harder, a
+    dark red ring widening, his heartbeat quickening. Then **four rows of spikes snake out** from under him, a spike a
+    step, turning left and right at random (never back, never out of the fight, never into a wall), for four and a half
+    seconds. Two of them start at you. Very heavy: 20, and thrown.
+  - *The Hands*: he lifts his arms, and under each of you the ground goes dark in a long strip; **a huge hand of
+    shadow**, 11 blocks tall, claws tipped dark red, rises out of the ground at its end, looms, and slams down flat
+    along the strip: 20 and thrown aside. Step out of the strip sideways. Then it sinks back into the ground.
+  - *Dashpunch*: he crouches, fist drawn back, power gathering in it, a red line flickering on the ground to you; then
+    he's on you at two blocks a tick, homing (it can only turn so fast: sidestep late). A crack like thunder, a sonic boom
+    off his fist, a flash: 22 and **thrown clean across the city**. Into a wall and he stops dead.
+- **Half health, Super Saiyan:** his health stops at half, the music cuts, everyone is held still, and the sunset drains
+  to black over three seconds: a black sky full of glowing red lights, big and small, twinkling, and a grey haze settling
+  over the city. Kills starts. He lifts off the ground, rubble tearing loose all round him and rising, the dark drawn
+  into him, sparks, the ground shaking (everyone can move again after 3 s; nothing touches him). The anime power-up
+  starts so that it ends on the drop; his hair flickers gold, faster and faster, longer and longer; and on Kills' drop
+  (17.05 s) it bursts: a pillar of gold, a flash, the rubble flung away, a blast that throws everyone back (it hurts
+  nobody). The bar turns gold.
+- **Phase 2, Super Saiyan:** a golden aura blazes round him all the time (flames of gold licking up out of a ring at his
+  feet, sparks, and black-and-red lightning crackling through it: an evil Saiyan). **He flies**, zipping from spot to
+  spot round whoever he's after a few blocks up, swooping in low to punch. A hit while he's free is teleported out of
+  20% of the time (the DBZ teleport): gone, and out behind whoever hit him with a punch. He keeps the Snake Spikes (six
+  rows), the Hands (one more) and the Dashpunch (twice, the second from out of nowhere beside you), and:
+  - *The black beam*: hands cupped at his hip, a ball of black gathering in them, red and ink drawn into it, then his
+    evil kamehameha: a beam of black with a blood-red glow round it, followed slowly across the ground after whoever
+    it's on for 1.7 s. 6 every few ticks (keep moving across it); walls stop it.
+  - *The spirit bomb*: both hands up while a great ball of white light gathers over his head, light drawn in from all
+    over the city, growing for nearly five seconds ("The light is gathering... RUN!", a ring of how far it'll reach,
+    it starts to tug at you). Nothing touches him meanwhile. Then he throws it, slowly: it drags in everyone within 11,
+    its heart hits whoever it reaches for 26, and it bursts for 8. Built like MUGEN's black hole, but white.
+  - *Ki barrage*: a storm of ki blasts from both hands, two a beat, at all of you (5 each, bursting where they land).
+  - *Strike*: gone with the teleport, and out behind you with a punch.
+  - *Rush*: from one of you to the next, too fast to see, each line flickering gold a moment first: 12 and thrown.
+  - *Meteor dive*: up into the sky, a gold ring marks his spot, and down like a meteor: 18 in the middle, two golden
+    rings rolling out (jump them).
+  - *Rubble storm*: chunks of the city torn up out of the ground round him, hanging there, then hurled one by one.
+  - *Big bang*: too close? A gold ring marks 9 blocks round him, then a sphere of ki bursts out of him: 14 and thrown far.
+  - *Final beam* (under 25%, at most every 45 s): he stands, untouchable, a black ball growing in his hands for 3.5 s,
+    "Get behind something!", then the black beam sweeps all the way round him: 16 to whoever it finds in the open.
+    Only a wall (or a tree) between you and him saves you.
+- **The sky** (`SlothSky`, from `SlothSkyPayload`): vanilla's sunset in phase 1 (the dimension's clock); the black with
+  its red lights and grey haze, no clouds, the light dim, from the transformation until he's beaten.
+- **Ideas of mine added:** the sleeping entrance (Sloth), the walking backwards, holding each tome as he casts it, the
+  black lightning in his aura, the strike, the rush, the meteor dive, the rubble storm, the big bang, the final beam and
+  hiding from it behind the city's ruins.
+- **The edge:** anyone more than 44 out from the clearing's middle (for half a second), up a tower or down a hole is
+  dragged back by the city (4 damage).
+- **Magic mod:** he can't be put to sleep or carried off in a bubble, and status effects don't stick to him. His Rocks and
+  Boulders are the mod's own entities (MagicSpells.rock/boulder; the boulder is held over his head by him, then the
+  tome's own flight takes over), and the screen shakes with the mod's own camera shake. Rising Spikes, Impaling, the
+  Stone Cannon and Smashing are built like the mod's (the same dripstone spikes, timings and sounds), as he casts them.
+  Without the mod it all still works (his own boulders and rocks, no shake, a book in his hand). None of it breaks or
+  places a block.
+- **Damage:** the earth (spikes, impaling, snakes, hands, slams, the shockwaves) and his ki (beams, spirit bomb, big
+  bang) can't be blocked, armour doesn't help, Protection does; rocks, cannon spikes, rubble and ki blasts are
+  projectiles (a shield stops them); the cannon's blast is an explosion; his fists can be blocked.
+- **Any number of players:** health scales, a hand for each of you (six at most, seven as a Super Saiyan), impaling under
+  three past four, the arrival arc widens.
+- **The city is built once**, when the server starts (about half a minute the first time), like LalliLarge's Earth;
+  before each fight only the fighting ground is wiped and put back.
+- Tuning knobs: `RickyEntity` (health, damage taken and dealt, `MAX_HIT`, `KEEP_NEAR`/`KEEP_FAR` and the walking speeds,
+  `FLY_SPEED`, `TELEPORT_DODGE`, rests, `DESPERATE_AT`, attack weights and gaps in `chooseAttack`, each move's numbers
+  in its `tick...` method), `RickyHazards` (spikes, impaling, the cannon's beeps and blast, snakes, hands, shockwaves,
+  beams, the spirit bomb, rubble), `RickyTimeline` (song timings, the arrival, the transformation, `healthScale`),
+  `SlothArena` (positions, bounds, the city build), `SlothSky` (colours, the haze, the red lights).
+- Tests: `RickyGameTests` (the whole fight in the real city: the build, the wheel, asleep, sitting up, the dark
+  gathering, the stamp on the drop hurting nobody, the phase 1 clamp, the city dragging strays back from a tower top,
+  the transformation on Kills' drop, winning, nothing left behind; Rising Spikes charging two seconds then tossing;
+  Impaling; the Stone Cannon going off and breaking nothing; Smashing three times; Snake Spikes charging three seconds
+  then sinking away; the Hands rising at least 7 blocks and slamming; the Dashpunch throwing far; Rocks and Boulders;
+  the black beam; the final beam stopped only by a wall; the spirit bomb; the Super Saiyan moves breaking nothing; the
+  transformation by itself), `RickyTimelineTest`. The generic fight tests (FightGameTests) fight the stand-in boss on
+  Sloth, and queue with RICKY's whole fight for it.
 
 ## Structures
 

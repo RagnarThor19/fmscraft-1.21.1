@@ -59,13 +59,18 @@ final class WrathHazards {
     // ---- Fire Wave: a wall of flame sweeping across the pit. Too tall to jump: step out of its way ----
 
     static final class FireWave extends Hazard {
-        static final double HEIGHT = 2.6, BOW = 0.07;
+        static final double HEIGHT = 2.6, BOW = 0.07, SPACING = 0.7;
+        static final int SINK = 5;
         final Vec3d dir, side;
         final double speed, range, halfWidth;
         final float damage;
         final Set<UUID> hit = new HashSet<>();
+        /** The wall itself: a row of real flames, nearly three high, and the glowing seam it leaves under it. */
+        final List<DisplayEntity.BlockDisplayEntity> flames = new ArrayList<>();
+        final List<DisplayEntity.BlockDisplayEntity> seam = new ArrayList<>();
         Vec3d pos;
         double travelled;
+        int dying = -1;
 
         FireWave(Vec3d from, Vec3d dir, double speed, double range, double halfWidth, float damage) {
             this.pos = from;
@@ -82,21 +87,67 @@ final class WrathHazards {
             return across * across * BOW;
         }
 
+        int segments() {
+            return (int) Math.floor(2 * halfWidth / SPACING) + 1;
+        }
+
+        Vec3d segment(int i) {
+            double s = -halfWidth + i * SPACING;
+            return pos.add(side.multiply(s)).subtract(dir.multiply(bow(s)));
+        }
+
+        /** Each flame turned to follow the crescent. */
+        float segmentYaw(int i) {
+            double s = -halfWidth + i * SPACING;
+            return WrathFlames.yawAlong(side.add(dir.multiply(-2 * s * BOW)).normalize());
+        }
+
+        float tallness(int i, Random random) {
+            // Tallest in the middle, ragged along the top
+            double s = Math.abs(-halfWidth + i * SPACING) / halfWidth;
+            return (float) (HEIGHT * (1.1 - 0.25 * s * s) * (0.88 + random.nextDouble() * 0.24));
+        }
+
         @Override
         boolean tick(ServerWorld world, OrnamixEntity boss) {
+            age++;
+            if (dying >= 0) return ++dying < SINK;
             pos = pos.add(dir.multiply(speed));
             travelled += speed;
             BlockPos ahead = BlockPos.ofFloored(pos.add(dir.multiply(0.6)).add(0, 0.6, 0));
             if (travelled > range || !world.getBlockState(ahead).getCollisionShape(world, ahead).isEmpty()) {
-                world.spawnParticles(ParticleTypes.FLAME, pos.x, pos.y + 1.2, pos.z, 40, halfWidth * 0.4, 0.8, halfWidth * 0.4, 0.06);
+                // It breaks on the wall (or burns itself out): the flames fall back into the sand
+                world.spawnParticles(ParticleTypes.FLAME, pos.x, pos.y + 1.2, pos.z, 30, halfWidth * 0.4, 0.8, halfWidth * 0.4, 0.06);
                 world.spawnParticles(ParticleTypes.LARGE_SMOKE, pos.x, pos.y + 1.2, pos.z, 10, halfWidth * 0.3, 0.6, halfWidth * 0.3, 0.02);
-                return false;
+                world.playSound(null, pos.x, pos.y + 1, pos.z, SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundCategory.HOSTILE, 1.5f, 0.6f);
+                for (int i = 0; i < flames.size(); i++) WrathFlames.animate(flames.get(i), WrathFlames.shape(segmentYaw(i), 0, 0, 1.0f, 0.01f, 0.6f), SINK);
+                for (int i = 0; i < seam.size(); i++) WrathFlames.animate(seam.get(i), WrathFlames.shape(segmentYaw(i), 0, 0, 0.01f, 0.01f, 0.01f), SINK);
+                dying = 0;
+                return true;
             }
-            for (double s = -halfWidth; s <= halfWidth + 1e-6; s += 0.6) {
-                Vec3d p = pos.add(side.multiply(s)).subtract(dir.multiply(bow(s)));
-                world.spawnParticles(ParticleTypes.FLAME, p.x, p.y + HEIGHT * 0.45, p.z, 3, 0.08, HEIGHT * 0.3, 0.08, 0.01);
-                if (world.random.nextInt(4) == 0) world.spawnParticles(ParticleTypes.SMALL_FLAME, p.x, p.y + HEIGHT, p.z, 1, 0.1, 0.1, 0.1, 0.02);
-                if (world.random.nextInt(14) == 0) world.spawnParticles(ParticleTypes.LAVA, p.x, p.y + 0.4, p.z, 1, 0, 0, 0, 0);
+            if (flames.isEmpty()) {
+                for (int i = 0; i < segments(); i++) {
+                    Vec3d p = segment(i);
+                    flames.add(WrathFlames.spawn(world, p, WrathFlames.FIRE, WrathFlames.shape(segmentYaw(i), 0, 0, 1.0f, 0.2f, 0.8f)));
+                    seam.add(WrathFlames.spawn(world, p.add(0, 0.012, 0), WrathFlames.MAGMA, WrathFlames.shape(segmentYaw(i), 0, 0, 0.75f, 0.05f, 0.5f)));
+                }
+            } else {
+                for (int i = 0; i < flames.size(); i++) {
+                    Vec3d p = segment(i);
+                    DisplayEntity.BlockDisplayEntity f = flames.get(i), m = seam.get(i);
+                    if (f != null) f.setPosition(p.x, p.y, p.z);
+                    if (m != null) m.setPosition(p.x, p.y + 0.012, p.z);
+                }
+                // Up out of the sand on the next tick, then licking
+                if (age == 2 || age % 3 == 0) {
+                    for (int i = 0; i < flames.size(); i++) {
+                        WrathFlames.animate(flames.get(i), WrathFlames.shape(segmentYaw(i), 0, 0, 1.0f, tallness(i, world.random), 0.8f), 3);
+                    }
+                }
+            }
+            if (world.random.nextInt(3) == 0) {
+                Vec3d p = segment(world.random.nextInt(segments()));
+                world.spawnParticles(ParticleTypes.LAVA, p.x, p.y + 0.4, p.z, 1, 0, 0, 0, 0);
             }
             if (age % 4 == 0) world.playSound(null, pos.x, pos.y + 1, pos.z, SoundEvents.BLOCK_FIRE_AMBIENT, SoundCategory.HOSTILE, 2.0f, 0.6f);
             for (ServerPlayerEntity p : boss.fighters()) {
@@ -110,18 +161,29 @@ final class WrathHazards {
             }
             return true;
         }
+
+        @Override
+        void remove() {
+            WrathFlames.discard(flames);
+            WrathFlames.discard(seam);
+        }
     }
 
     // ---- Floor Wave: a low ring of fire rolling out along the floor. Jump it, or be rooted in flames ----
 
     static final class FloorRing extends Hazard {
+        /** Flames round the ring: each a block high, stretched along it, so the ring stays whole as it grows. */
+        static final int SEGMENTS = 64, SINK = 4;
+        static final float HEIGHT = 1.0f, DEPTH = 0.75f;
         final Vec3d center;
         final double speed, max;
         final float damage;
         final Set<UUID> hit = new HashSet<>();
+        final List<DisplayEntity.BlockDisplayEntity> flames = new ArrayList<>();
         double radius;
-        int delay;
+        int delay, rolling, dying = -1;
 
+        /** A ring with {@code damage} 0 is only a shockwave to look at: it hurts and roots nobody. */
         FloorRing(Vec3d center, double speed, double max, float damage, int delay) {
             this.center = center;
             this.speed = speed;
@@ -130,23 +192,37 @@ final class WrathHazards {
             this.delay = delay;
         }
 
+        private AffineTransformation ringShape(int i, double r, float height) {
+            float width = (float) Math.max(0.3, MathHelper.TAU * r / SEGMENTS * 1.15);
+            return WrathFlames.shape(i * MathHelper.TAU / SEGMENTS, (float) r, 0, DEPTH, height, width);
+        }
+
         @Override
         boolean tick(ServerWorld world, OrnamixEntity boss) {
             if (delay > 0) {
                 if (--delay == 0) world.playSound(null, center.x, center.y, center.z, SoundEvents.ENTITY_BLAZE_SHOOT, SoundCategory.HOSTILE, 2.0f, 0.5f);
                 return true;
             }
+            if (dying >= 0) return ++dying < SINK;
             radius += speed;
-            if (radius > max) return false;
-            int points = (int) Math.min(72, 10 + radius * 3);
-            double offset = world.random.nextDouble() * MathHelper.TAU;
-            for (int i = 0; i < points; i++) {
-                double a = offset + i * MathHelper.TAU / points;
-                double x = center.x + Math.cos(a) * radius, z = center.z + Math.sin(a) * radius;
-                world.spawnParticles(ParticleTypes.FLAME, x, center.y + 0.1, z, 1, 0.05, 0.06, 0.05, 0.015);
-                if (i % 4 == 0) world.spawnParticles(ParticleTypes.SMALL_FLAME, x, center.y + 0.35, z, 1, 0.05, 0.05, 0.05, 0.01);
-                if (i % 11 == 0) world.spawnParticles(ParticleTypes.LAVA, x, center.y + 0.2, z, 1, 0, 0, 0, 0);
+            rolling++;
+            if (rolling == 1) {
+                for (int i = 0; i < SEGMENTS; i++) flames.add(WrathFlames.spawn(world, center, WrathFlames.FIRE, ringShape(i, radius, HEIGHT)));
+            } else if (rolling == 2) {
+                // One push all the way out: the clients ease it there at the same speed it really rolls
+                int ticks = Math.max(1, (int) Math.ceil((max - radius) / speed));
+                for (int i = 0; i < flames.size(); i++) WrathFlames.animate(flames.get(i), ringShape(i, radius + ticks * speed, HEIGHT), ticks);
             }
+            if (radius > max) {
+                for (int i = 0; i < flames.size(); i++) WrathFlames.animate(flames.get(i), ringShape(i, max, 0.01f), SINK);
+                dying = 0;
+                return true;
+            }
+            if (rolling % 2 == 0) {
+                double a = world.random.nextDouble() * MathHelper.TAU;
+                world.spawnParticles(ParticleTypes.LAVA, center.x + Math.cos(a) * radius, center.y + 0.3, center.z + Math.sin(a) * radius, 1, 0, 0, 0, 0);
+            }
+            if (damage <= 0) return true;
             for (ServerPlayerEntity p : boss.fighters()) {
                 if (hit.contains(p.getUuid())) continue;
                 double d = flatDistance(p.getPos(), center), dy = p.getY() - center.y;
@@ -156,6 +232,11 @@ final class WrathHazards {
                 FlameRoot.root(p, FlameRoot.TICKS);
             }
             return true;
+        }
+
+        @Override
+        void remove() {
+            WrathFlames.discard(flames);
         }
     }
 

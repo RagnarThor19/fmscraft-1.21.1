@@ -20,6 +20,8 @@ import net.ragnar.fmscraft.boss.lust.MugenCloneEntity;
 import net.ragnar.fmscraft.boss.lust.MugenEntity;
 import net.ragnar.fmscraft.boss.pride.LeonardEntity;
 import net.ragnar.fmscraft.boss.pride.PrideIntro;
+import net.ragnar.fmscraft.boss.sloth.RickyEntity;
+import net.ragnar.fmscraft.boss.sloth.SlothIntro;
 import net.ragnar.fmscraft.boss.wrath.OrnamixEntity;
 import net.ragnar.fmscraft.boss.wrath.OrnamixFireballEntity;
 import net.ragnar.fmscraft.boss.wrath.WrathIntro;
@@ -152,8 +154,37 @@ public class ModBossEntities {
                     .disableSaving()
                     .build("leonard"));
 
-    /** Which boss each sin's fight spawns. Swap in the real boss here once it's built. */
+    /** Sloth. Player-sized; flies once he's a Super Saiyan. */
+    public static final EntityType<RickyEntity> RICKY = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "ricky"),
+            EntityType.Builder.create(RickyEntity::new, SpawnGroup.MONSTER)
+                    .dimensions(0.6f, 1.8f)
+                    .eyeHeight(1.62f)
+                    .makeFireImmune()
+                    .maxTrackingRange(16)
+                    .trackingTickInterval(1)
+                    .disableSaving()
+                    .build("ricky"));
+
+    /**
+     * Sins whose fights use the stand-in test boss (with no intro, on the plain platform) instead of their real one. For
+     * the generic fight tests, which need a boss that dies in one hit; every sin has its real boss now.
+     */
+    private static final java.util.Set<Sin> STAND_INS = java.util.EnumSet.noneOf(Sin.class);
+
+    /** For tests: {@code sin}'s fights use the stand-in boss (true) or its real one (false). */
+    public static void useStandIn(Sin sin, boolean standIn) {
+        if (standIn) STAND_INS.add(sin);
+        else STAND_INS.remove(sin);
+    }
+
+    public static boolean usesStandIn(Sin sin) {
+        return STAND_INS.contains(sin);
+    }
+
+    /** Which boss each sin's fight spawns. */
     public static EntityType<? extends SinBossEntity> forSin(Sin sin) {
+        if (usesStandIn(sin)) return TEST_BOSS;
         return switch (sin) {
             case GREED -> RAGGIMEL;
             case WRATH -> ORNAMIX;
@@ -161,12 +192,13 @@ public class ModBossEntities {
             case GLUTTONY -> LALLI;
             case LUST -> MUGEN;
             case PRIDE -> LEONARD;
-            case SLOTH -> TEST_BOSS;
+            case SLOTH -> RICKY;
         };
     }
 
     /** The cutscene that plays while a sin's portal is open, or null to just wait (with a countdown bar). */
     public static FightIntro introFor(Sin sin) {
+        if (usesStandIn(sin)) return null;
         return switch (sin) {
             case GREED -> GreedIntro.INSTANCE;
             case WRATH -> WrathIntro.INSTANCE;
@@ -174,7 +206,7 @@ public class ModBossEntities {
             case GLUTTONY -> GluttonyIntro.INSTANCE;
             case LUST -> LustIntro.INSTANCE;
             case PRIDE -> PrideIntro.INSTANCE;
-            default -> null;
+            case SLOTH -> SlothIntro.INSTANCE;
         };
     }
 
@@ -188,5 +220,6 @@ public class ModBossEntities {
         FabricDefaultAttributeRegistry.register(MUGEN, MugenEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(MUGEN_CLONE, MugenCloneEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(LEONARD, LeonardEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(RICKY, RickyEntity.createAttributes());
     }
 }

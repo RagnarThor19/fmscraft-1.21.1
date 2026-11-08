@@ -16,8 +16,8 @@ import java.util.List;
 
 /**
  * ORNAMIX's intro: the same 30 seconds as RAGGIMEL's (the wheel, timed by {@link GreedTimeline}), zooming in on Wrath
- * instead, with N***as in Paris fading in for the last 5 seconds. When it lifts he's already coming down out of the
- * sky (his entrance, in {@link OrnamixEntity}).
+ * instead, with N***as in Paris starting for the last 2 seconds. When it lifts he's kneeling in the middle of the pit
+ * over his planted sword (his entrance, timed to the song's drop: {@link OrnamixTimeline}).
  */
 public final class WrathIntro implements FightIntro {
     public static final WrathIntro INSTANCE = new WrathIntro();
@@ -34,8 +34,9 @@ public final class WrathIntro implements FightIntro {
 
     @Override
     public void tick(MinecraftServer server, FightSession session, List<ServerPlayerEntity> players, int elapsed) {
-        if (session.song() == null && elapsed >= GreedTimeline.musicStart(session.joinTicks)) {
-            BossFights.playSong(server, session, OrnamixEntity.PHASE_ONE, GreedTimeline.MUSIC_FADE);
+        // Two seconds before the fight, so its beat drops just as he slams down (OrnamixTimeline)
+        if (session.song() == null && elapsed >= Math.max(0, session.joinTicks - OrnamixTimeline.SONG_LEAD)) {
+            BossFights.playSong(server, session, OrnamixEntity.PHASE_ONE, OrnamixTimeline.SONG_LEAD_FADE);
         }
         if (elapsed == GreedTimeline.zoomStart(session.joinTicks)) {
             // The wheel starts turning towards Wrath

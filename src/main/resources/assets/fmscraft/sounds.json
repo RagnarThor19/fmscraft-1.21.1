@@ -127,5 +127,39 @@
         "stream": true
       }
     ]
+  },
+  "music.sloth.phase_one": {
+    "sounds": [
+      {
+        "name": "fmscraft:music/sloth_phase_one",
+        "stream": true
+      }
+    ]
+  },
+  "music.sloth.phase_two": {
+    "sounds": [
+      {
+        "name": "fmscraft:music/sloth_phase_two",
+        "stream": true
+      }
+    ]
+  },
+  "entity.ricky.powerup": {
+    "subtitle": "subtitles.fmscraft.entity.ricky.powerup",
+    "sounds": [
+      {
+        "name": "fmscraft:mob/ricky/powerup",
+        "attenuation_distance": 96
+      }
+    ]
+  },
+  "entity.ricky.teleport": {
+    "subtitle": "subtitles.fmscraft.entity.ricky.teleport",
+    "sounds": [
+      {
+        "name": "fmscraft:mob/ricky/teleport",
+        "attenuation_distance": 48
+      }
+    ]
   }
 }

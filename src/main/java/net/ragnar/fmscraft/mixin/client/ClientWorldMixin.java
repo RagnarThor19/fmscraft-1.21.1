@@ -8,6 +8,7 @@ import net.ragnar.fmscraft.client.GluttonySky;
 import net.ragnar.fmscraft.client.GreedSky;
 import net.ragnar.fmscraft.client.LustSky;
 import net.ragnar.fmscraft.client.PrideSky;
+import net.ragnar.fmscraft.client.SlothSky;
 import net.ragnar.fmscraft.client.WrathSky;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -19,7 +20,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * Over ORNAMIX's colosseum it's bright red, then almost black red in Ragemode, which dims the light too (WrathSky).
  * Round GUMMSS's eye the light is always dim (EnvySky). In space round LalliLarge's Earth the sky is black and the sun
  * shines full; over his snowfield it's a grey overcast and the light is dimmer (GluttonySky). Over MUGEN's compound
- * it's a violet night, then a blood-red eclipse, and the light is dim (LustSky).
+ * it's a violet night, then a blood-red eclipse, and the light is dim (LustSky). Over RICKY's city it's the sunset, then
+ * black, and the light goes dim (SlothSky).
  */
 @Mixin(ClientWorld.class)
 public abstract class ClientWorldMixin {
@@ -31,6 +33,7 @@ public abstract class ClientWorldMixin {
         else if (GluttonySky.snow()) cir.setReturnValue(GluttonySky.SNOW_SKY);
         else if (LustSky.active()) cir.setReturnValue(LustSky.skyColor(tickDelta));
         else if (PrideSky.active()) cir.setReturnValue(PrideSky.mix(PrideSky.DAY_SKY, PrideSky.STORM_SKY, tickDelta));
+        else if (SlothSky.active()) cir.setReturnValue(SlothSky.skyColor(cir.getReturnValue(), tickDelta));
     }
 
     @Inject(method = "getCloudsColor", at = @At("RETURN"), cancellable = true)
@@ -51,5 +54,6 @@ public abstract class ClientWorldMixin {
         if (GluttonySky.snow()) cir.setReturnValue(GluttonySky.SNOW_LIGHT);
         if (LustSky.active()) cir.setReturnValue(LustSky.light(tickDelta));
         if (PrideSky.active()) cir.setReturnValue(PrideSky.light(cir.getReturnValue(), tickDelta));
+        if (SlothSky.active()) cir.setReturnValue(SlothSky.light(cir.getReturnValue(), tickDelta));
     }
 }

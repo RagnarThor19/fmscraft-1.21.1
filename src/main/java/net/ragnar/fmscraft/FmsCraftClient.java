@@ -112,6 +112,7 @@ public class FmsCraftClient implements ClientModInitializer {
         // His shadow clones cast no shadow: the tell
         EntityRendererRegistry.register(ModBossEntities.MUGEN_CLONE, ctx -> new MugenRenderer<>(ctx, 0f));
         EntityRendererRegistry.register(ModBossEntities.LEONARD, net.ragnar.fmscraft.client.LeonardRenderer::new);
+        EntityRendererRegistry.register(ModBossEntities.RICKY, net.ragnar.fmscraft.client.RickyRenderer::new);
 
         EntityModelLayerRegistry.registerModelLayer(EnvyStatueModel.LAYER, EnvyStatueModel::getTexturedModelData);
         EntityRendererRegistry.register(ModEntities.ENVY_STATUE, EnvyStatueRenderer::new);
@@ -142,6 +143,8 @@ public class FmsCraftClient implements ClientModInitializer {
                 (payload, context) -> context.client().execute(() -> LustSky.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(net.ragnar.fmscraft.network.PrideSkyPayload.ID,
                 (payload, context) -> context.client().execute(() -> net.ragnar.fmscraft.client.PrideSky.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(net.ragnar.fmscraft.network.SlothSkyPayload.ID,
+                (payload, context) -> context.client().execute(() -> net.ragnar.fmscraft.client.SlothSky.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(MugenControlPayload.ID,
                 (payload, context) -> context.client().execute(() -> MugenControl.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(TomeWheelPayload.ID,
@@ -167,6 +170,7 @@ public class FmsCraftClient implements ClientModInitializer {
             GluttonySky.tick(client);
             LustSky.tick(client);
             net.ragnar.fmscraft.client.PrideSky.tick(client);
+            net.ragnar.fmscraft.client.SlothSky.tick(client);
             MugenControl.tick(client);
         });
 
@@ -183,6 +187,7 @@ public class FmsCraftClient implements ClientModInitializer {
             GluttonySky.clear();
             LustSky.clear();
             net.ragnar.fmscraft.client.PrideSky.clear();
+            net.ragnar.fmscraft.client.SlothSky.clear();
             MugenControl.clear();
         }));
     }

@@ -92,6 +92,26 @@ public class OrnamixGameTests implements FabricGameTest {
         return boss;
     }
 
+    /** On every display of his solid fire (WrathFlames.TAG). */
+    private static final String FLAME_TAG = "fmscraft.wrath_flame";
+
+    /** How many displays of his solid fire are within {@code radius} of {@code at}: burning flames, or the rest (magma, rock). */
+    private static int flames(ServerWorld world, Vec3d at, double radius, boolean burning) {
+        return world.getEntitiesByClass(DisplayEntity.BlockDisplayEntity.class, new Box(at, at).expand(radius),
+                e -> e.getCommandTags().contains(FLAME_TAG) && e.getBlockState().isOf(Blocks.FIRE) == burning).size();
+    }
+
+    /** How many of his hazards of one kind (by class name) are still going. */
+    private static int hazards(OrnamixEntity boss, String kind) {
+        try {
+            java.lang.reflect.Field field = OrnamixEntity.class.getDeclaredField("hazards");
+            field.setAccessible(true);
+            return (int) ((java.util.List<?>) field.get(boss)).stream().filter(h -> h.getClass().getSimpleName().equals(kind)).count();
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     /** Starts one of his attacks by name (the attacks are private to him). */
     private static void start(OrnamixEntity boss, String attack) {
         try {
@@ -158,7 +178,8 @@ public class OrnamixGameTests implements FabricGameTest {
             ctx.assertTrue(BossFights.session(Sin.WRATH).song() == OrnamixEntity.PHASE_ONE, "the phase 1 song should be playing");
         });
 
-        // The fight: ORNAMIX coming down out of the sky, untouchable until he's landed and roared
+        // The fight: ORNAMIX kneeling over his planted sword in the middle, the seams splitting out round him on the
+        // beats before the drop; untouchable until he's slammed down on it and roared
         ctx.runAtTick(JOIN + 10, () -> {
             FightSession session = BossFights.session(Sin.WRATH);
             ctx.assertTrue(session != null && session.stage() == FightSession.Stage.ACTIVE, "fight should be running");
@@ -166,16 +187,27 @@ public class OrnamixGameTests implements FabricGameTest {
             OrnamixEntity boss = (OrnamixEntity) arena.getEntity(session.bossId());
             ctx.assertFalse(Cinematics.isFrozen(player), "player should be free once the fight starts");
             ctx.assertEquals(boss.currentAction(), "ENTRANCE", "action");
-            ctx.assertTrue(boss.getY() > WrathArena.CENTER.y + 2, "still coming down, at " + boss.getY());
+            ctx.assertEquals(boss.poseState(), OrnamixEntity.POSE_KNEEL, "kneeling");
+            ctx.assertTrue(boss.getPos().distanceTo(WrathArena.CENTER) < 1, "in the middle of the pit, at " + boss.getPos());
             float health = boss.getHealth();
             boss.damage(arena.getDamageSources().magic(), 50f);
             ctx.assertEquals(boss.getHealth(), health, "health during his entrance");
         });
-
-        ctx.runAtTick(JOIN + OrnamixTimeline.ENTRANCE_FALL + 6, () -> {
+        ctx.runAtTick(JOIN + OrnamixTimeline.beatBeforeDrop(2) + 2, () -> {
             OrnamixEntity boss = (OrnamixEntity) arena.getEntity(BossFights.session(Sin.WRATH).bossId());
-            ctx.assertTrue(boss.getPos().distanceTo(WrathArena.CENTER) < 1, "he lands in the middle of the pit, at " + boss.getPos());
-            ctx.assertTrue(boss.isUntouchable(), "and kneels there, untouchable, before he rises");
+            ctx.assertTrue(flames(arena, boss.getPos(), 16, false) >= 16, "glowing seams split out round him, got " + flames(arena, boss.getPos(), 16, false));
+            ctx.assertEquals(flames(arena, boss.getPos(), 16, true), 0, "not burning yet");
+        });
+        ctx.runAtTick(JOIN + OrnamixTimeline.ENTRANCE_LEAP + 4, () -> {
+            OrnamixEntity boss = (OrnamixEntity) arena.getEntity(BossFights.session(Sin.WRATH).bossId());
+            ctx.assertTrue(boss.getY() > WrathArena.CENTER.y + 1.5, "he leaps a beat before the drop, at " + boss.getY());
+        });
+        ctx.runAtTick(JOIN + OrnamixTimeline.ENTRANCE_SLAM + 4, () -> {
+            OrnamixEntity boss = (OrnamixEntity) arena.getEntity(BossFights.session(Sin.WRATH).bossId());
+            ctx.assertTrue(boss.getPos().distanceTo(WrathArena.CENTER) < 1, "down in the middle on the drop, at " + boss.getPos());
+            ctx.assertTrue(boss.isUntouchable(), "still untouchable while he roars");
+            ctx.assertTrue(flames(arena, boss.getPos(), 16, true) >= 40, "the seams burst into walls of fire, got " + flames(arena, boss.getPos(), 16, true));
+            ctx.assertTrue(player.getHealth() == player.getMaxHealth(), "it hurts nobody");
         });
 
         int landed = JOIN + OrnamixTimeline.ENTRANCE_END + 10;
@@ -200,9 +232,24 @@ public class OrnamixGameTests implements FabricGameTest {
             OrnamixEntity boss = (OrnamixEntity) arena.getEntity(BossFights.session(Sin.WRATH).bossId());
             ctx.assertTrue(boss.isRaging(), "his eyes catch fire under the black");
             ctx.assertTrue(boss.getPos().distanceTo(WrathArena.CENTER) < 1.5, "he takes the middle of the pit");
+            ctx.assertEquals(boss.poseState(), OrnamixEntity.POSE_KNEEL, "kneeling");
+        });
+        // The black lifts on him; the seams spread with his heartbeat; then he rises through his voice line
+        ctx.runAtTick(landed + OrnamixTimeline.VOICE_AT - 5, () -> {
+            OrnamixEntity boss = (OrnamixEntity) arena.getEntity(BossFights.session(Sin.WRATH).bossId());
+            ctx.assertTrue(Cinematics.isFrozen(player), "everyone still held, watching");
+            ctx.assertTrue(flames(arena, boss.getPos(), 20, false) >= 20, "the seams have spread round him");
+        });
+        ctx.runAtTick(landed + OrnamixTimeline.REVEAL_AT - 10, () -> {
+            OrnamixEntity boss = (OrnamixEntity) arena.getEntity(BossFights.session(Sin.WRATH).bossId());
+            ctx.assertEquals(boss.poseState(), OrnamixEntity.POSE_ASCEND, "rising, arms spread");
+            ctx.assertTrue(boss.getY() > WrathArena.CENTER.y + 3, "high over the pit, at " + boss.getY());
+            ctx.assertTrue(flames(arena, boss.getPos(), 12, true) >= 4, "on a pillar of fire");
         });
         ctx.runAtTick(landed + OrnamixTimeline.REVEAL_AT + 5, () -> {
-            ctx.assertFalse(Cinematics.isFrozen(player), "free again when the black lifts");
+            OrnamixEntity boss = (OrnamixEntity) arena.getEntity(BossFights.session(Sin.WRATH).bossId());
+            ctx.assertTrue(boss.getY() < WrathArena.CENTER.y + 0.5, "down on the pit, at " + boss.getY());
+            ctx.assertFalse(Cinematics.isFrozen(player), "free again when he comes down");
             ctx.assertTrue(BossFights.session(Sin.WRATH).song() == OrnamixEntity.PHASE_TWO, "Return to Zero starts");
         });
 
@@ -215,6 +262,8 @@ public class OrnamixGameTests implements FabricGameTest {
             ctx.assertTrue(FmsWorldState.get(server).isDefeated(Sin.WRATH), "Wrath should be marked defeated");
         });
         ctx.runAtTick(landed + OrnamixTimeline.TRANSITION_END + 14, () -> {
+            ctx.assertEquals(flames(arena, WrathArena.CENTER, 60, false) + flames(arena, WrathArena.CENTER, 60, true), 0,
+                    "none of his fire is left behind");
             BossFights.forceEnd(server, Sin.WRATH);
             FmsWorldState.get(server).clearDefeated(Sin.WRATH);
             server.getPlayerManager().remove(player);
@@ -265,6 +314,8 @@ public class OrnamixGameTests implements FabricGameTest {
                 jumping.setOnGround(false);
             });
         }
+        ctx.runAtTick(28, () -> ctx.assertTrue(flames(world, boss.getPos(), 12, true) >= 40,
+                "rings of real fire roll out, got " + flames(world, boss.getPos(), 12, true)));
         ctx.runAtTick(60, () -> {
             ctx.assertTrue(FlameRoot.isRooted(grounded), "the wave should root a player standing on the floor");
             ctx.assertTrue(grounded.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED) == 0, "who can't move");
@@ -276,9 +327,75 @@ public class OrnamixGameTests implements FabricGameTest {
             // (Checked by its own modifier: a boss in another test going into phase 2 can freeze everyone near it)
             ctx.assertTrue(grounded.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED)
                     .getModifier(Identifier.of(FmsCraft.MOD_ID, "flame_root")) == null, "and they can move again");
+            ctx.assertEquals(hazards(boss, "FloorRing"), 0, "the rings have burnt out");
             boss.discard();
             world.getServer().getPlayerManager().remove(grounded);
             world.getServer().getPlayerManager().remove(jumping);
+            ctx.complete();
+        });
+    }
+
+    // Its own batch, so the only player he can aim it at is this one (test areas are walled in barriers: it breaks on them)
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200, batchId = "ornamix_wave")
+    public void theFireWaveIsAWallOfRealFire(TestContext ctx) {
+        floor(ctx, 8);
+        ServerWorld world = ctx.getWorld();
+        OrnamixEntity boss = spawn(ctx, new BlockPos(1, 1, 4));
+        ServerPlayerEntity player = survivalPlayer(world, Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(7, 1, 4))));
+        ctx.runAtTick(3, () -> start(boss, "FIRE_WAVE"));
+        // Raised sword, then the wall: flames nearly three high and the seam under them, moving off
+        double[] at = new double[1];
+        int[] first = {-1};
+        for (int tick = 5; tick < 40; tick++) {
+            int t = tick;
+            ctx.runAtTick(t, () -> {
+                var wall = world.getEntitiesByClass(DisplayEntity.BlockDisplayEntity.class, boss.getBoundingBox().expand(12),
+                        e -> e.getCommandTags().contains(FLAME_TAG) && e.getBlockState().isOf(Blocks.FIRE));
+                double away = wall.stream().mapToDouble(e -> e.getPos().distanceTo(boss.getPos())).average().orElse(0);
+                if (first[0] < 0 && !wall.isEmpty()) {
+                    first[0] = t;
+                    at[0] = away;
+                    ctx.assertTrue(wall.size() >= 9, "a wall of flames, got " + wall.size());
+                    ctx.assertTrue(flames(world, boss.getPos(), 8, false) >= 9, "and a glowing seam under it");
+                } else if (first[0] >= 0 && t == first[0] + 2) {
+                    ctx.assertTrue(away > at[0] + 1.2, "sweeping out across the pit, " + at[0] + " -> " + away);
+                }
+            });
+        }
+        ctx.runAtTick(40, () -> ctx.assertTrue(first[0] > 0, "the wave came"));
+        // It breaks on the wall and sinks back into the sand
+        // (He goes on to other attacks on his own song's beat: only the wave counts here)
+        ctx.runAtTick(70, () -> {
+            ctx.assertEquals(hazards(boss, "FireWave"), 0, "it's burnt out, its flames gone");
+            boss.discard();
+            world.getServer().getPlayerManager().remove(player);
+            ctx.complete();
+        });
+    }
+
+    // Its own batch: the wall rises 8 blocks out from him, over any test next door
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 300, batchId = "ornamix_inferno")
+    public void theInfernoIsAFirestormOfRealFire(TestContext ctx) {
+        floor(ctx, 16);
+        ServerWorld world = ctx.getWorld();
+        OrnamixEntity boss = spawn(ctx, new BlockPos(8, 1, 8));
+        Vec3d middle = Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(8, 1, 8)));
+        ctx.runAtTick(3, () -> start(boss, "INFERNO"));
+        // Hanging over it: the wall of fire round the circle
+        ctx.runAtTick(3 + 30, () -> {
+            ctx.assertTrue(boss.getY() > middle.y + 4, "up in the air, at " + boss.getY());
+            ctx.assertTrue(flames(world, middle, 10, true) >= 30, "a wall of fire round the circle, got " + flames(world, middle, 10, true));
+        });
+        // Down: the storm whirls (the wall, five arms of flame) and the ground inside glows
+        ctx.runAtTick(3 + 70, () -> {
+            ctx.assertEquals(boss.currentAction(), "INFERNO", "still spinning");
+            ctx.assertTrue(flames(world, middle, 10, true) >= 60, "the firestorm, got " + flames(world, middle, 10, true));
+            ctx.assertTrue(flames(world, middle, 10, false) >= 10, "the ground glowing");
+        });
+        // Dizzy, and the storm dies down to nothing
+        ctx.runAtTick(3 + 140, () -> {
+            ctx.assertEquals(hazards(boss, "Firestorm"), 0, "the storm's gone, and its fire with it");
+            boss.discard();
             ctx.complete();
         });
     }
@@ -347,7 +464,7 @@ public class OrnamixGameTests implements FabricGameTest {
             }
         });
         ctx.runAtTick(3 + fall - 3, () -> {
-            ctx.assertTrue(!world.getEntitiesByClass(DisplayEntity.BlockDisplayEntity.class, new Box(stand, stand).expand(80), e -> true).isEmpty(),
+            ctx.assertTrue(!world.getEntitiesByClass(DisplayEntity.BlockDisplayEntity.class, new Box(stand, stand).expand(80), e -> !e.getCommandTags().contains(FLAME_TAG)).isEmpty(),
                     "a burning rock coming down");
             ctx.assertFalse(player.isOnFire(), "not yet");
         });
@@ -360,7 +477,7 @@ public class OrnamixGameTests implements FabricGameTest {
             for (int x = 0; x < 16; x++) {
                 for (int z = 0; z < 16; z++) ctx.expectBlock(Blocks.STONE, new BlockPos(x, 0, z));
             }
-            ctx.assertTrue(world.getEntitiesByClass(DisplayEntity.BlockDisplayEntity.class, new Box(stand, stand).expand(80), e -> true).isEmpty(),
+            ctx.assertTrue(world.getEntitiesByClass(DisplayEntity.BlockDisplayEntity.class, new Box(stand, stand).expand(80), e -> !e.getCommandTags().contains(FLAME_TAG)).isEmpty(),
                     "the meteor and its debris are gone");
             boss.discard();
             world.getServer().getPlayerManager().remove(player);

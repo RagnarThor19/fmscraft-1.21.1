@@ -58,7 +58,16 @@ public final class MagicSpells {
     private static final double ZAP_VIEW = 96;
     public static final int ZAP_MISS = 0, ZAP_BLOCK = 1, ZAP_ENTITY = 2;
 
-    private static boolean looked, lookedFlip, lookedQuake, lookedHands, lookedZap;
+    public static final Identifier ROCK = Identifier.of(MagicTomes.MOD_ID, "rock");
+    public static final Identifier BOULDER = Identifier.of(MagicTomes.MOD_ID, "boulder");
+    private static final String BOULDER_CLASS = "net.ragnar.ragnarsmagicmod.boulders.BoulderEntity";
+    private static final String SHAKE_CLASS = "net.ragnar.ragnarsmagicmod.network.ShakePayload";
+    /** The Tome of Boulders' stages: held overhead by us (a stage the boulder itself does nothing in), then flying. */
+    private static final int BOULDER_HELD = 3, BOULDER_FLYING = 1;
+
+    private static boolean looked, lookedFlip, lookedQuake, lookedHands, lookedZap, lookedBoulder, lookedShake;
+    private static Method boulderStage, shakeAround;
+    private static java.lang.reflect.Field boulderOwner;
     private static Constructor<?> zapPayload;
     private static Constructor<?> quakeCharge, quakeShock, handsStart, handsGrab;
     private static Method isSleepy, wake, isFlipped, setFlipped;
@@ -231,6 +240,101 @@ public final class MagicSpells {
     /** The Tome of Zap's cast sound, or null without the mod. */
     public static net.minecraft.sound.SoundEvent zapSound() {
         return Registries.SOUND_EVENT.getOrEmpty(Identifier.of(MagicTomes.MOD_ID, "zap_cast")).orElse(null);
+    }
+
+    // ---- RICKY's earth tomes ----
+
+    /**
+     * A Tome of Rocks rock (the mod's own: its tumbling lump of stone, its hit and its spatter), thrown by {@code owner}
+     * from {@code from} at {@code velocity}. Null (nothing thrown) without the mod.
+     */
+    public static Entity rock(ServerWorld world, LivingEntity owner, Vec3d from, Vec3d velocity) {
+        Entity rock = entity(ROCK).map(type -> type.create(world)).orElse(null);
+        if (!(rock instanceof net.minecraft.entity.projectile.ProjectileEntity projectile)) return null;
+        projectile.setOwner(owner);
+        projectile.refreshPositionAndAngles(from.x, from.y, from.z, owner.getYaw(), owner.getPitch());
+        projectile.setVelocity(velocity);
+        world.spawnEntity(projectile);
+        return projectile;
+    }
+
+    /**
+     * A Tome of Boulders boulder (the mod's own: its rock model, its flight, its slam, its roll), hanging at {@code at}
+     * until {@link #throwBoulder}. It never hurts {@code ownerId}. Null without the mod (or its boulders).
+     */
+    public static Entity boulder(ServerWorld world, java.util.UUID ownerId, Vec3d at) {
+        lookUpBoulder();
+        if (boulderStage == null || boulderOwner == null) return null;
+        Entity boulder = entity(BOULDER).map(type -> type.create(world)).orElse(null);
+        if (boulder == null) return null;
+        try {
+            boulderOwner.set(boulder, ownerId);
+            boulderStage.invoke(boulder, BOULDER_HELD);
+        } catch (ReflectiveOperationException | ClassCastException e) {
+            boulderStage = null;
+            return null;
+        }
+        boulder.refreshPositionAndAngles(at.x, at.y, at.z, 0f, 0f);
+        boulder.setNoGravity(true);
+        world.spawnEntity(boulder);
+        return boulder;
+    }
+
+    /** The boulder from {@link #boulder} is hurled at {@code velocity}; from here it's the tome's own. */
+    public static boolean throwBoulder(Entity boulder, Vec3d velocity) {
+        lookUpBoulder();
+        if (boulderStage == null) return false;
+        try {
+            boulderStage.invoke(boulder, BOULDER_FLYING);
+        } catch (ReflectiveOperationException | ClassCastException e) {
+            boulderStage = null;
+            return false;
+        }
+        boulder.setNoGravity(false);
+        boulder.setVelocity(velocity);
+        boulder.velocityDirty = true;
+        return true;
+    }
+
+    /** The mod's camera shake for everyone near {@code at}: full within {@code radius}, fading out to twice that. */
+    public static boolean shake(ServerWorld world, Vec3d at, double radius, float strength, int ticks) {
+        lookUpShake();
+        if (shakeAround == null) return false;
+        try {
+            shakeAround.invoke(null, world, at, radius, strength, ticks);
+            return true;
+        } catch (ReflectiveOperationException e) {
+            shakeAround = null;
+            return false;
+        }
+    }
+
+    private static synchronized void lookUpBoulder() {
+        if (lookedBoulder) return;
+        lookedBoulder = true;
+        if (!FabricLoader.getInstance().isModLoaded(MagicTomes.MOD_ID)) return;
+        try {
+            Class<?> boulder = Class.forName(BOULDER_CLASS, true, MagicSpells.class.getClassLoader());
+            boulderStage = boulder.getDeclaredMethod("setStage", int.class);
+            boulderStage.setAccessible(true);
+            boulderOwner = boulder.getDeclaredField("ownerId");
+            boulderOwner.setAccessible(true);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            boulderStage = null;
+            FmsCraft.LOGGER.warn("Couldn't find Ragnars Magic Mod's Tome of Boulders ({}); RICKY's boulders are his own", e.toString());
+        }
+    }
+
+    private static synchronized void lookUpShake() {
+        if (lookedShake) return;
+        lookedShake = true;
+        if (!FabricLoader.getInstance().isModLoaded(MagicTomes.MOD_ID)) return;
+        try {
+            Class<?> shake = Class.forName(SHAKE_CLASS, true, MagicSpells.class.getClassLoader());
+            shakeAround = shake.getMethod("around", ServerWorld.class, Vec3d.class, double.class, float.class, int.class);
+        } catch (ReflectiveOperationException e) {
+            FmsCraft.LOGGER.warn("Couldn't find Ragnars Magic Mod's camera shake ({})", e.toString());
+        }
     }
 
     private static synchronized void lookUpZap() {

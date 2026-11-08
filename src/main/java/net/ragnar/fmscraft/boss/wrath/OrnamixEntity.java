@@ -76,8 +76,8 @@ import java.util.UUID;
  * Runs people down and cuts them (and sets them alight), sidesteps blows now and then, and between cuts picks one of:
  * <ul>
  *   <li><b>Stab and Leap</b>: a lunging stab at whoever is closest, then a leap back out of reach.</li>
- *   <li><b>Fire Wave</b>: raises his sword and cuts a crescent wall of flame across the pit. Too tall to jump: get
- *       out of its way.</li>
+ *   <li><b>Fire Wave</b>: raises his sword and cuts a crescent wall of real flames across the pit, a glowing seam
+ *       under it. Too tall to jump: get out of its way.</li>
  *   <li><b>Flame Spin</b>: a whirl of fire round him as he spins towards people, throwing them far.</li>
  *   <li><b>Flamethrower</b>: a cone of fire from his hand that turns after its target; outrun it round him.</li>
  *   <li><b>Ignite</b> (Ragnars Magic Mod's spell): a ring of fire bursts out to 10 blocks. A circle shows how far.</li>
@@ -86,12 +86,12 @@ import java.util.UUID;
  *   <li><b>Flurry</b>: rushes in and cuts again and again, very fast.</li>
  *   <li><b>Dash Stab</b>: crouches (a line of flame shows the way), then charges straight through. If he runs into
  *       the wall his sword sticks: he's stuck there and takes extra damage.</li>
- *   <li><b>Floor Waves</b>: slams his sword down and rings of fire roll out along the floor. Jump each one, or be
- *       stuck in the flames for 5 seconds, burning.</li>
+ *   <li><b>Floor Waves</b>: slams his sword down and rings of real fire, a block high, roll out along the floor.
+ *       Jump each one, or be stuck in the flames for 5 seconds, burning.</li>
  *   <li><b>Haymaker</b>: rushes someone and punches them clean across the pit.</li>
  * </ul>
  *
- * <h2>Ragemode: see {@link OrnamixTimeline}</h2>
+ * <h2>His entrance and Ragemode: see {@link OrnamixTimeline}</h2>
  *
  * <h2>Phase 2 (40% to 0%): Ragemode, Return to Zero</h2>
  * The sky goes almost black red, his eyes burn, the world blinks to the bass. Faster, shorter windups, harder hits, more
@@ -101,8 +101,9 @@ import java.util.UUID;
  *       crashes into each. It breaks nothing.</li>
  *   <li><b>Wither Skeletons</b> in armor climb out of the flames.</li>
  *   <li><b>Fireballs</b>: a stream of ghast fireballs. They break nothing; hit one back into him and it hurts.</li>
- *   <li><b>Inferno</b>: rises into the air over a huge circle of fire, then crashes down spinning in a firestorm that
- *       fills it. Afterwards he's dizzy and takes extra damage.</li>
+ *   <li><b>Inferno</b>: rises into the air while a wall of fire rises round a huge circle, then crashes down
+ *       spinning: the wall roars up, the ground inside glows and a whirling firestorm fills it. Afterwards he's dizzy
+ *       and takes extra damage.</li>
  * </ul>
  * Anyone who leaves the pit (over the wall, into the stands) is thrown back in by the flames after 2 seconds.
  */
@@ -133,7 +134,7 @@ public class OrnamixEntity extends SinBossEntity {
     // ---- Synced to the client for the model ----
     public static final int POSE_IDLE = 0, POSE_DRAW = 1, POSE_STAB = 2, POSE_RAISE = 3, POSE_CAST = 4, POSE_AIM = 5,
             POSE_BOW = 6, POSE_CROUCH = 7, POSE_SPIN_READY = 8, POSE_SPIN = 9, POSE_PUNCH_READY = 10, POSE_PUNCH = 11,
-            POSE_STUNNED = 12, POSE_KNEEL = 13, POSE_ROAR = 14, POSE_SLAM = 15, POSE_STUCK = 16;
+            POSE_STUNNED = 12, POSE_KNEEL = 13, POSE_ROAR = 14, POSE_SLAM = 15, POSE_STUCK = 16, POSE_ASCEND = 17;
     private static final TrackedData<Integer> POSE = DataTracker.registerData(OrnamixEntity.class, TrackedDataHandlerRegistry.INTEGER);
     private static final TrackedData<Boolean> RAGE = DataTracker.registerData(OrnamixEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
 
@@ -158,6 +159,14 @@ public class OrnamixEntity extends SinBossEntity {
     private UUID focus;
     private int focusTicks;
     private Vec3d dashDir = Vec3d.ZERO, spinCenter, entranceGround;
+    /** The pieces of his two cutscenes and the Inferno, while they're up (they're hazards too, ticking on their own). */
+    private WrathFlames.Cracks cracks;
+    private WrathFlames.Pillar pillar;
+    private WrathFlames.Shards shards;
+    private WrathFlames.Firestorm storm;
+    /** How far through a cutscene he is: which of its moments have happened. */
+    private int cutStage;
+    private int songClock;
     private float aimYaw;
     private final Set<UUID> struck = new HashSet<>();
     private final Map<UUID, Integer> lastHit = new HashMap<>();
@@ -409,6 +418,7 @@ public class OrnamixEntity extends SinBossEntity {
     @Override
     protected void tickPhase(int phase, int songTicks) {
         if (!(getWorld() instanceof ServerWorld world)) return;
+        songClock = songTicks;
         fighters = world.getPlayers(p -> p.isAlive() && !p.isSpectator() && !p.isCreative() && p.squaredDistanceTo(this) < 96 * 96);
         if (!scaled) scaleHealth(world);
         boolean inArena = Arenas.sinOf(world) == Sin.WRATH;
@@ -522,6 +532,7 @@ public class OrnamixEntity extends SinBossEntity {
         struck.clear();
         lastHit.clear();
         getNavigation().stop();
+        setNoGravity(false);
     }
 
     private void endAttack() {
@@ -576,56 +587,67 @@ public class OrnamixEntity extends SinBossEntity {
         return getPhase() == 2;
     }
 
-    // ---- Entrance: down out of the sky like a meteor ----
+    // ---- Entrance: kneeling over his planted sword, the pit splitting round him, then down on the drop ----
 
     private void tickEntrance(ServerWorld world) {
-        int t = actionTicks;
-        if (t == 1) {
+        boolean inArena = Arenas.sinOf(world) == Sin.WRATH;
+        if (actionTicks == 1) {
             untouchable = true;
-            setNoGravity(true);
-            double ground = groundBelow(getPos(), 80);
+            cutStage = 0;
+            double ground = groundBelow(getPos().add(0, 1, 0), 8);
             entranceGround = new Vec3d(getX(), Double.isNaN(ground) ? getY() : ground, getZ());
-            world.playSound(null, entranceGround.x, entranceGround.y, entranceGround.z, SoundEvents.ENTITY_BLAZE_SHOOT, SoundCategory.HOSTILE, 4.0f, 0.4f);
-        }
-        int fall = OrnamixTimeline.ENTRANCE_FALL;
-        if (t <= fall) {
-            double from = Math.max(0, WrathArena.BOSS_SPAWN.y - WrathArena.CENTER.y);
-            if (Arenas.sinOf(world) != Sin.WRATH) from = 0;
-            setVelocity(Vec3d.ZERO);
-            setPosition(entranceGround.x, entranceGround.y + OrnamixTimeline.entranceHeight(t, from), entranceGround.z);
+            // On the song's own clock (the intro started it), so the slam lands on its drop
+            if (inArena && songClock > 1) actionTicks = Math.max(1, songClock - OrnamixTimeline.SONG_LEAD);
+            if (inArena) {
+                cracks = new WrathFlames.Cracks(entranceGround, 8, random);
+                hazards.add(cracks);
+            }
             setPoseState(POSE_KNEEL);
-            Vec3d at = getPos().add(0, 1, 0);
-            if (from > 0) {
-                emit(world, ParticleTypes.FLAME, at, 18, 0.5, 0.9, 0.5, 0.04);
-                emit(world, ParticleTypes.LARGE_SMOKE, at.add(0, 1.5, 0), 5, 0.4, 1.2, 0.4, 0.02);
-                emit(world, ParticleTypes.LAVA, at, 2, 0.4, 0.4, 0.4, 0);
+        }
+        int t = actionTicks;
+        setNoGravity(true);
+        setVelocity(Vec3d.ZERO);
+        getNavigation().stop();
+        setPosition(entranceGround.x, entranceGround.y + OrnamixTimeline.leapHeight(t), entranceGround.z);
+        if (cutStage < OrnamixTimeline.CRACK_BEATS + 1 && t < OrnamixTimeline.ENTRANCE_LEAP) {
+            // Kneeling over the sword, facing them, embers rising off him
+            faceTowards(inArena ? WrathArena.PLAYER_SPAWN : nearestOr(getPos().add(0, 0, 1)));
+            if (t % 3 == 0) world.spawnParticles(ParticleTypes.SMALL_FLAME, getX(), getY() + 0.3, getZ(), 3, 0.5, 0.2, 0.5, 0.01);
+            // The seams split further out on each beat before the drop, the ground grinding
+            while (cutStage < OrnamixTimeline.CRACK_BEATS && t >= OrnamixTimeline.beatBeforeDrop(OrnamixTimeline.CRACK_BEATS + 1 - cutStage)) {
+                cutStage++;
+                if (cracks != null) cracks.grow(world, OrnamixTimeline.CRACK_LENGTH * cutStage / OrnamixTimeline.CRACK_BEATS, 5);
+                world.spawnParticles(ParticleTypes.LAVA, getX(), getY() + 0.2, getZ(), 4, 0.6, 0.1, 0.6, 0);
+                world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.HOSTILE, 3.0f, 0.5f + 0.1f * cutStage);
             }
-            if (t % 2 == 0) {
-                double r = 6 * (1 - t / (double) fall) + 1.5;
-                for (int i = 0; i < 24; i++) {
-                    double a = i * MathHelper.TAU / 24 + t * 0.1;
-                    world.spawnParticles(ParticleTypes.FLAME, entranceGround.x + Math.cos(a) * r, entranceGround.y + 0.1, entranceGround.z + Math.sin(a) * r, 1, 0, 0.02, 0, 0);
-                }
-            }
-            if (t % 6 == 0) world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_BLAZE_SHOOT, SoundCategory.HOSTILE, 3.0f, 0.5f);
-            if (t == fall) landWithABang(world);
             return;
         }
-        int kneel = fall + OrnamixTimeline.ENTRANCE_KNEEL;
-        if (t <= kneel) {
-            setPoseState(POSE_KNEEL);
-            world.spawnParticles(ParticleTypes.FLAME, getX(), getY() + 0.2, getZ(), 6, 1.2, 0.1, 1.2, 0.04);
-            world.spawnParticles(ParticleTypes.SMALL_FLAME, getX(), getY() + 1.0, getZ(), 3, 0.4, 0.6, 0.4, 0.02);
+        if (cutStage <= OrnamixTimeline.CRACK_BEATS) {
+            // A beat before the drop: rips the sword out of the sand and leaps, raising it
+            cutStage = OrnamixTimeline.CRACK_BEATS + 1;
+            setPoseState(POSE_RAISE);
+            world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, groundState()), getX(), getY() + 0.2, getZ(), 40, 0.8, 0.1, 0.8, 0.2);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_TRIDENT_RIPTIDE_3.value(), SoundCategory.HOSTILE, 2.5f, 0.7f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_BLAZE_SHOOT, SoundCategory.HOSTILE, 2.5f, 0.6f);
+        }
+        if (t < OrnamixTimeline.ENTRANCE_SLAM) {
+            Vec3d tip = getPos().add(0, getHeight() + 0.8, 0);
+            emit(world, ParticleTypes.FLAME, tip, 6, 0.2, 0.5, 0.2, 0.03);
             return;
         }
-        if (t == kneel + 1) {
-            setPoseState(POSE_ROAR);
-            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 4.0f, 0.7f);
-            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_BLAZE_AMBIENT, SoundCategory.HOSTILE, 3.0f, 0.5f);
-            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_FIRECHARGE_USE, SoundCategory.HOSTILE, 3.0f, 0.5f);
+        if (cutStage == OrnamixTimeline.CRACK_BEATS + 1) {
+            cutStage++;
+            slamDown(world, inArena, 14);
         }
-        firePillar(world, 1.0);
+        if (cutStage == OrnamixTimeline.CRACK_BEATS + 2 && t >= OrnamixTimeline.ENTRANCE_SLAM + 6) {
+            cutStage++;
+            roar(world);
+        }
+        if (cutStage > OrnamixTimeline.CRACK_BEATS + 2) firePillar(world, 0.6);
         if (t >= OrnamixTimeline.ENTRANCE_END) {
+            if (pillar != null) pillar.end(10);
+            pillar = null;
+            cracks = null;
             untouchable = false;
             setNoGravity(false);
             endAttack();
@@ -633,25 +655,47 @@ public class OrnamixEntity extends SinBossEntity {
         }
     }
 
-    /** Hits the ground: a blast of fire, a ring of flame rushing out, everyone near thrown back. Hurts nobody. */
-    private void landWithABang(ServerWorld world) {
-        setNoGravity(false);
-        setPosition(entranceGround.x, entranceGround.y, entranceGround.z);
+    private Vec3d nearestOr(Vec3d fallback) {
+        ServerPlayerEntity p = null;
+        for (ServerPlayerEntity f : fighters) if (p == null || f.squaredDistanceTo(this) < p.squaredDistanceTo(this)) p = f;
+        return p == null ? fallback : p.getPos();
+    }
+
+    /**
+     * Drives his sword into the sand: the seams burst into walls of flame, a ring of fire rolls out over the pit, a pillar
+     * of fire roars up round him, and everyone within {@code reach} is thrown back. Hurts nobody.
+     */
+    private void slamDown(ServerWorld world, boolean inArena, double reach) {
+        setPoseState(POSE_SLAM);
+        swingHand(Hand.MAIN_HAND);
         Vec3d c = getPos();
+        if (cracks != null) cracks.erupt(world);
+        if (inArena) {
+            hazards.add(new WrathHazards.FloorRing(c, 1.3, WrathArena.PIT_RADIUS - 2, 0, 0));
+            pillar = new WrathFlames.Pillar(world, c, 2.4f);
+            pillar.to(8f, 5);
+            hazards.add(pillar);
+        }
         emit(world, ParticleTypes.EXPLOSION_EMITTER, c.add(0, 0.5, 0), 2, 1, 0.2, 1, 0);
         emit(world, ParticleTypes.FLASH, c.add(0, 1, 0), 1, 0, 0, 0, 0);
-        emit(world, ParticleTypes.FLAME, c.add(0, 0.5, 0), 200, 1.5, 0.6, 1.5, 0.45);
-        emit(world, ParticleTypes.LAVA, c.add(0, 0.5, 0), 50, 2, 0.5, 2, 0);
+        emit(world, ParticleTypes.LAVA, c.add(0, 0.5, 0), 40, 2, 0.5, 2, 0);
         world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, groundState()), c.x, c.y + 0.2, c.z, 120, 2.5, 0.2, 2.5, 0.2);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.HOSTILE, 4.0f, 0.6f);
         world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 4.0f, 0.6f);
         world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.HOSTILE, 3.0f, 0.6f);
         world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_DRAGON_FIREBALL_EXPLODE, SoundCategory.HOSTILE, 3.0f, 0.6f);
-        hazards.add(new WrathHazards.Nova(c, 14, 12, 0));
         for (ServerPlayerEntity p : audience(world)) {
             double d = p.getPos().distanceTo(c);
             flash(p, (float) (0.7 * Math.max(0.3, 1 - d / 60)), 20);
-            if (d < 12 && !p.isCreative() && !p.isSpectator()) launch(p, p.getPos().subtract(c), 1.2 * (1 - d / 12) + 0.3, 0.45);
+            if (d < reach && !p.isCreative() && !p.isSpectator()) launch(p, p.getPos().subtract(c), 1.2 * (1 - d / reach) + 0.3, 0.45);
         }
+    }
+
+    private void roar(ServerWorld world) {
+        setPoseState(POSE_ROAR);
+        world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 4.0f, 0.7f);
+        world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_BLAZE_AMBIENT, SoundCategory.HOSTILE, 3.0f, 0.5f);
+        world.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_FIRECHARGE_USE, SoundCategory.HOSTILE, 3.0f, 0.5f);
     }
 
     /** A column of fire roaring up round him. */
@@ -1378,27 +1422,24 @@ public class OrnamixEntity extends SinBossEntity {
         if (t == 1) {
             spinCenter = getPos();
             setPoseState(POSE_SPIN_READY);
-            setVelocity(0, 0.9, 0);
-            hazards.add(new WrathHazards.Circle(spinCenter, radius, rise + hover + 4, ParticleTypes.FLAME));
-            hazards.add(new WrathHazards.Circle(spinCenter, radius - 0.6, rise + hover + 4, ParticleTypes.LAVA));
+            // A wall of real fire rises round the circle while he hangs over it
+            storm = new WrathFlames.Firestorm(world, spinCenter, radius, rise + hover);
+            hazards.add(storm);
             world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_BLAZE_AMBIENT, SoundCategory.HOSTILE, 3.0f, 0.4f);
             world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundCategory.HOSTILE, 2.5f, 0.5f);
             world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_WITHER_AMBIENT, SoundCategory.HOSTILE, 1.5f, 0.6f);
         }
-        if (t <= rise) {
-            world.spawnParticles(ParticleTypes.FLAME, getX(), getY(), getZ(), 6, 0.3, 0.2, 0.3, 0.03);
-            return;
-        }
         if (t <= rise + hover) {
-            // Hangs in the air, spinning up, the fire gathering
+            // Up into the air (eased to 6 blocks), then hanging there, spinning up, the fire gathering
+            double u = Math.min(1, t / (double) rise);
             setNoGravity(true);
             setVelocity(Vec3d.ZERO);
-            setPoseState(POSE_SPIN);
-            for (int i = 0; i < 4; i++) {
-                double a = t * 0.5 + i * MathHelper.TAU / 4;
-                double r = 2 + (t - rise) / (double) hover * (radius - 2);
-                world.spawnParticles(ParticleTypes.FLAME, spinCenter.x + Math.cos(a) * r, spinCenter.y + 0.5, spinCenter.z + Math.sin(a) * r, 1, 0, 0.2, 0, 0.02);
+            setPosition(spinCenter.x, spinCenter.y + 6 * (1 - (1 - u) * (1 - u)), spinCenter.z);
+            if (t <= rise) {
+                world.spawnParticles(ParticleTypes.FLAME, getX(), getY(), getZ(), 6, 0.3, 0.2, 0.3, 0.03);
+                return;
             }
+            setPoseState(POSE_SPIN);
             if (t % 5 == 0) world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_FIRE_AMBIENT, SoundCategory.HOSTILE, 3.0f, 0.5f);
             return;
         }
@@ -1409,6 +1450,7 @@ public class OrnamixEntity extends SinBossEntity {
         if (stageTicks < 0) {
             if (isOnGround() || t > rise + hover + 12) {
                 stageTicks = 0;
+                if (storm != null) storm.erupt(world);
                 emit(world, ParticleTypes.EXPLOSION_EMITTER, getPos().add(0, 0.5, 0), 1, 0, 0, 0, 0);
                 world.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.HOSTILE, 3.0f, 0.5f);
                 world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 3.0f, 0.6f);
@@ -1421,15 +1463,7 @@ public class OrnamixEntity extends SinBossEntity {
             setPoseState(POSE_SPIN);
             getNavigation().stop();
             setVelocity(0, getVelocity().y, 0);
-            // A firestorm filling the circle
-            for (int arm = 0; arm < 5; arm++) {
-                for (int k = 0; k < 6; k++) {
-                    double r = 1 + k * (radius - 1) / 5.0;
-                    double a = s * 0.45 + arm * MathHelper.TAU / 5 + r * 0.25;
-                    double h = (s * 0.3 + k) % 6;
-                    emit(world, ParticleTypes.FLAME, new Vec3d(getX() + Math.cos(a) * r, getY() + 0.2 + h, getZ() + Math.sin(a) * r), 1, 0.1, 0.2, 0.1, 0.02);
-                }
-            }
+            // The firestorm whirls round him (WrathFlames.Firestorm); embers and smoke over it
             if (s % 3 == 0) emit(world, ParticleTypes.LAVA, getPos().add(0, 1, 0), 3, radius * 0.4, 1, radius * 0.4, 0);
             if (s % 4 == 0) emit(world, ParticleTypes.LARGE_SMOKE, getPos().add(0, 5, 0), 3, radius * 0.4, 1, radius * 0.4, 0.02);
             if (s % 5 == 0) world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.HOSTILE, 2.5f, 0.5f);
@@ -1446,7 +1480,9 @@ public class OrnamixEntity extends SinBossEntity {
             }
             return;
         }
-        // Spun himself dizzy
+        // Spun himself dizzy; the storm dies down
+        if (storm != null) storm.die();
+        storm = null;
         expose(40, POSE_STUNNED);
     }
 
@@ -1457,6 +1493,7 @@ public class OrnamixEntity extends SinBossEntity {
         if (!(getWorld() instanceof ServerWorld world)) return;
         action = Action.TRANSITION;
         actionTicks = 0;
+        cutStage = 0;
         untouchable = true;
         setNoGravity(false);
         setPoseState(POSE_IDLE);
@@ -1475,6 +1512,10 @@ public class OrnamixEntity extends SinBossEntity {
     private void clearAttacks(ServerWorld world) {
         for (WrathHazards.Hazard h : hazards) h.remove();
         hazards.clear();
+        cracks = null;
+        pillar = null;
+        shards = null;
+        storm = null;
         for (UUID id : summons) {
             Entity skeleton = world.getEntity(id);
             if (skeleton != null) {
@@ -1490,63 +1531,103 @@ public class OrnamixEntity extends SinBossEntity {
 
     private void tickTransition(ServerWorld world) {
         int t = actionTicks;
-        setVelocity(0, getVelocity().y, 0);
+        boolean inArena = Arenas.sinOf(world) == Sin.WRATH;
         List<ServerPlayerEntity> audience = audience(world);
-        // In the dark: a heartbeat, and the fires growing louder all round
-        if (t < OrnamixTimeline.VOICE_AT) {
-            if (t % 20 == 0) for (ServerPlayerEntity p : audience) p.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.MASTER, 1.0f, 0.55f);
-            if (t > 20 && t % 4 == 0) {
-                float loud = Math.min(1f, (t - 20) / 70f);
-                for (ServerPlayerEntity p : audience) p.playSoundToPlayer(SoundEvents.BLOCK_FIRE_AMBIENT, SoundCategory.MASTER, 0.3f + loud, 0.5f + random.nextFloat() * 0.3f);
-            }
-            SoundEvent eerie = switch (t) {
-                case 14 -> SoundEvents.AMBIENT_BASALT_DELTAS_MOOD.value();
-                case 34 -> SoundEvents.ENTITY_GHAST_HURT;
-                case 52 -> SoundEvents.AMBIENT_NETHER_WASTES_MOOD.value();
-                case 70 -> SoundEvents.ENTITY_BLAZE_AMBIENT;
-                case 86 -> SoundEvents.ENTITY_WARDEN_ROAR;
-                default -> null;
-            };
-            if (eerie != null) for (ServerPlayerEntity p : audience) p.playSoundToPlayer(eerie, SoundCategory.MASTER, t == 86 ? 0.5f : 1.0f, 0.5f);
-        }
         if (t == OrnamixTimeline.RESHAPE_AT) {
-            // Under the black: the sky turns, his eyes catch fire, and he takes the middle of the pit
+            // Under the black: the sky turns, his eyes catch fire, and he takes the middle of the pit, kneeling
             dataTracker.set(RAGE, true);
             getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED).setBaseValue(SPEED_TWO);
             getAttributeInstance(EntityAttributes.GENERIC_ATTACK_DAMAGE).setBaseValue(dealt(10));
-            if (Arenas.sinOf(world) == Sin.WRATH) {
+            if (inArena) {
                 Vec3d c = WrathArena.CENTER;
                 requestTeleport(c.x, c.y, c.z);
+                faceTowards(nearestOr(WrathArena.PLAYER_SPAWN));
+            }
+            entranceGround = inArena ? WrathArena.CENTER : getPos();
+            setPoseState(POSE_KNEEL);
+            if (inArena) {
+                cracks = new WrathFlames.Cracks(entranceGround, 10, random);
+                hazards.add(cracks);
             }
             for (ServerPlayerEntity p : audience) sky(p, 2);
         }
+        if (t < OrnamixTimeline.RESHAPE_AT) {
+            setVelocity(0, getVelocity().y, 0);
+            return;
+        }
+        setNoGravity(true);
+        setVelocity(Vec3d.ZERO);
+        setPosition(entranceGround.x, entranceGround.y + OrnamixTimeline.riseHeight(t), entranceGround.z);
+
+        if (t == OrnamixTimeline.LIFT_AT) {
+            // The black lifts on him kneeling in the middle, his sword driven into the sand
+            for (ServerPlayerEntity p : audience) Cinematics.screen(p, BossScreenPayload.CLEAR, 0, OrnamixTimeline.LIFT_TICKS);
+        }
+        if (t < OrnamixTimeline.VOICE_AT) {
+            // A heartbeat, and with each beat the seams spread and a pulse of fire rolls out from him
+            if ((t - OrnamixTimeline.LIFT_AT) % OrnamixTimeline.HEARTBEAT == 8 && t > OrnamixTimeline.LIFT_AT) {
+                int beat = ++cutStage;
+                for (ServerPlayerEntity p : audience) p.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.MASTER, 1.0f, 0.55f);
+                if (cracks != null) cracks.grow(world, 4f + beat * 3.2f, 6);
+                if (inArena) hazards.add(new WrathHazards.FloorRing(entranceGround, 0.9, 8 + beat * 4, 0, 0));
+                world.spawnParticles(ParticleTypes.LAVA, getX(), getY() + 0.2, getZ(), 6, 0.6, 0.1, 0.6, 0);
+            }
+            if (t > 30 && t % 4 == 0) {
+                float loud = Math.min(1f, (t - 30) / 60f);
+                for (ServerPlayerEntity p : audience) p.playSoundToPlayer(SoundEvents.BLOCK_FIRE_AMBIENT, SoundCategory.MASTER, 0.3f + loud, 0.5f + random.nextFloat() * 0.3f);
+            }
+            if (t == 50) for (ServerPlayerEntity p : audience) p.playSoundToPlayer(SoundEvents.AMBIENT_BASALT_DELTAS_MOOD.value(), SoundCategory.MASTER, 1.0f, 0.5f);
+            if (t == 86) for (ServerPlayerEntity p : audience) p.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_ROAR, SoundCategory.MASTER, 0.5f, 0.5f);
+            if (t % 3 == 0) world.spawnParticles(ParticleTypes.SMALL_FLAME, getX(), getY() + 0.3, getZ(), 3, 0.5, 0.2, 0.5, 0.01);
+            return;
+        }
         if (t == OrnamixTimeline.VOICE_AT) {
+            // "Ragemode": he rises on a pillar of fire, arms spread, the pit torn up and whirling round him
             for (ServerPlayerEntity p : audience) p.playSoundToPlayer(ModSounds.ORNAMIX_RAGEMODE, SoundCategory.VOICE, 1.0f, 1.0f);
+            setPoseState(POSE_ASCEND);
+            if (inArena) {
+                pillar = new WrathFlames.Pillar(world, entranceGround, 1.6f);
+                pillar.to((float) OrnamixTimeline.RISE_HEIGHT + 0.6f, OrnamixTimeline.VOICE_TICKS - OrnamixTimeline.SLAM_TICKS);
+                hazards.add(pillar);
+                shards = new WrathFlames.Shards(world, entranceGround, 16, OrnamixTimeline.VOICE_TICKS - OrnamixTimeline.SLAM_TICKS);
+                hazards.add(shards);
+            }
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_BLAZE_SHOOT, SoundCategory.HOSTILE, 3.0f, 0.4f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundCategory.HOSTILE, 3.0f, 0.4f);
+        }
+        if (t < OrnamixTimeline.REVEAL_AT) {
+            int voice = t - OrnamixTimeline.VOICE_AT;
+            if (voice % 10 == 0) world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_FIRE_AMBIENT, SoundCategory.HOSTILE, 3.0f, 0.4f + voice / 200f);
+            if (voice % 14 == 7) world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_BLAZE_BURN, SoundCategory.HOSTILE, 2.5f, 0.5f);
+            emit(world, ParticleTypes.FLAME, getPos().add(0, 1, 0), 3, 0.4, 0.8, 0.4, 0.03);
+            if (t == OrnamixTimeline.REVEAL_AT - OrnamixTimeline.SLAM_TICKS) {
+                setPoseState(POSE_RAISE);
+                world.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_TRIDENT_RIPTIDE_3.value(), SoundCategory.HOSTILE, 3.0f, 0.6f);
+            }
+            return;
         }
         if (t == OrnamixTimeline.REVEAL_AT) {
+            // Down like a hammer: the chunks flung away, the seams erupting, everyone thrown back. The song starts
+            if (pillar != null) pillar.end(6);
+            pillar = null;
+            if (shards != null) shards.fling(world);
+            shards = null;
+            slamDown(world, inArena, 16);
             for (ServerPlayerEntity p : audience) {
-                Cinematics.screen(p, BossScreenPayload.CLEAR, 0, OrnamixTimeline.REVEAL_TICKS);
+                Cinematics.screen(p, BossScreenPayload.CLEAR, 0, 1);
                 Cinematics.unfreeze(p);
-                flash(p, 0.6f, 25);
             }
-            setPoseState(POSE_ROAR);
-            Vec3d c = getPos();
-            emit(world, ParticleTypes.EXPLOSION_EMITTER, c.add(0, 1, 0), 2, 0.5, 0.5, 0.5, 0);
-            emit(world, ParticleTypes.FLAME, c.add(0, 1, 0), 220, 1.2, 1.5, 1.2, 0.5);
-            hazards.add(new WrathHazards.Nova(c, 16, 14, 0));
-            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 4.0f, 0.5f);
-            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 4.0f, 0.5f);
-            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.WEATHER, 10000f, 0.6f);
-            // The blast throws everyone back from him; it doesn't hurt
-            for (ServerPlayerEntity p : fighters) {
-                double d = p.getPos().distanceTo(c);
-                if (d < 14) launch(p, p.getPos().subtract(c), 1.4 * (1 - d / 14) + 0.3, 0.5);
-            }
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.WEATHER, 10000f, 0.6f);
             playSong(PHASE_TWO, OrnamixTimeline.SONG_FADE);
         }
+        if (t == OrnamixTimeline.REVEAL_AT + 6) roar(world);
         if (t > OrnamixTimeline.REVEAL_AT) firePillar(world, 1.6);
         if (t >= OrnamixTimeline.TRANSITION_END) {
+            if (pillar != null) pillar.end(10);
+            pillar = null;
+            cracks = null;
             untouchable = false;
+            setNoGravity(false);
             endAttack();
             rest = 16;
         }
@@ -1565,7 +1646,7 @@ public class OrnamixEntity extends SinBossEntity {
 
     /** Always burning: flames curling up round him, embers, smoke; far more of it in Ragemode. */
     private void tickAura(ServerWorld world) {
-        if (action == Action.TRANSITION && actionTicks < OrnamixTimeline.REVEAL_AT) return;
+        if (action == Action.TRANSITION && actionTicks < OrnamixTimeline.LIFT_AT) return;
         boolean rage = isRaging();
         double w = getWidth() * 0.5, h = getHeight();
         world.spawnParticles(ParticleTypes.FLAME, getX(), getY() + h * 0.5, getZ(), rage ? 3 : 1, w, h * 0.35, w, 0.01);
@@ -1586,8 +1667,8 @@ public class OrnamixEntity extends SinBossEntity {
 
     /** The colosseum burns: embers and ash on the air, and in Ragemode far thicker, with geysers of flame from the sand. */
     private void tickAmbience(ServerWorld world) {
-        boolean rage = isRaging() && action != Action.TRANSITION;
-        if (action == Action.TRANSITION && actionTicks < OrnamixTimeline.REVEAL_AT) return;
+        boolean rage = isRaging();
+        if (action == Action.TRANSITION && actionTicks < OrnamixTimeline.LIFT_AT) return;
         if (age % (rage ? 3 : 6) == 0) {
             for (ServerPlayerEntity p : fighters) {
                 world.spawnParticles(ParticleTypes.ASH, p.getX(), p.getY() + 3, p.getZ(), rage ? 8 : 4, 10, 3, 10, 0);

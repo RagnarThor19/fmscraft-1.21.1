@@ -61,6 +61,13 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add("message.fmscraft.leonard_caught", "The lightning carries you back to the plaza.");
         builder.add("message.fmscraft.leonard_grid", "Stand on the squares that aren't lit!");
         builder.add("message.fmscraft.munch_beam", "Munch is looking at you...");
+        builder.add(ModBossEntities.RICKY, "RICKY");
+        builder.add("subtitles.fmscraft.entity.ricky.powerup", "RICKY powers up");
+        builder.add("subtitles.fmscraft.entity.ricky.teleport", "RICKY teleports");
+        builder.add("message.fmscraft.ricky_caught", "The city won't let you go. RICKY drags you back.");
+        builder.add("message.fmscraft.ricky_spirit_bomb", "The light is gathering... RUN!");
+        builder.add("message.fmscraft.ricky_final_beam", "Get behind something!");
+        builder.add("message.fmscraft.ricky_hand", "Something stirs under your feet...");
         builder.add(ModItems.KUNAI, "Kunai");
         builder.add(ModBlocks.VOID_SPIKE, "Void Spike");
         builder.add("message.fmscraft.mugen_bound", "The shadow holds you fast!");

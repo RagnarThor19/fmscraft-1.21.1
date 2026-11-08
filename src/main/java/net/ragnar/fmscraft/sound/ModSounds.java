@@ -49,6 +49,17 @@ public class ModSounds {
     public static final SoundEvent PRIDE_PHASE_ONE = register("music.pride.phase_one");
     public static final SoundEvent PRIDE_PHASE_TWO = register("music.pride.phase_two");
 
+    /**
+     * RICKY's themes: Ken Carson - overseas (Instrumental); then Chief Keef - Kills (slowed, reverb, bass boosted), whose
+     * slow intro is his Super Saiyan transformation, the drop at 17.05 s the moment it bursts.
+     */
+    public static final SoundEvent SLOTH_PHASE_ONE = register("music.sloth.phase_one");
+    public static final SoundEvent SLOTH_PHASE_TWO = register("music.sloth.phase_two");
+    /** RICKY going Super Saiyan: the anime power-up, timed to end on Kills' drop. */
+    public static final SoundEvent RICKY_POWERUP = register("entity.ricky.powerup");
+    /** RICKY's instant transmission. */
+    public static final SoundEvent RICKY_TELEPORT = register("entity.ricky.teleport");
+
     private static SoundEvent register(String name) {
         Identifier id = Identifier.of(FmsCraft.MOD_ID, name);
         return Registry.register(Registries.SOUND_EVENT, id, SoundEvent.of(id));

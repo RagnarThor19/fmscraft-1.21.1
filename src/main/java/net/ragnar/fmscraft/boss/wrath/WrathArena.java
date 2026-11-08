@@ -25,8 +25,8 @@ public final class WrathArena {
     /** Players arrive on the south side of the pit, facing north towards the middle. */
     public static final Vec3d PLAYER_SPAWN = new Vec3d(0.5, FLOOR_Y, 30.5);
     public static final float PLAYER_YAW = 180f;
-    /** He starts high over the middle and comes down like a meteor (see {@link OrnamixTimeline#ENTRANCE_FALL}). */
-    public static final Vec3d BOSS_SPAWN = CENTER.add(0, 34, 0);
+    /** He starts kneeling in the middle, his sword planted in the sand (his entrance: {@link OrnamixTimeline}). */
+    public static final Vec3d BOSS_SPAWN = CENTER;
     /** Bottom-left of the exit portal, by the north wall. An empty frame stands there all fight. */
     public static final BlockPos EXIT_PORTAL = new BlockPos(0, FLOOR_Y, -35);
 
