@@ -31,13 +31,11 @@ public final class GreedArena {
     public static final Vec3d BOSS_SPAWN = CENTER.add(0, 13, 0);
     /** Where he comes back down after the phase change. */
     public static final Vec3d LANDING = CENTER;
-    /** Where he hangs over the island's middle shrine, west of the plain, firing lasers before phase 2 starts properly. */
-    public static final Vec3d PERCH = at(109.5, 133, 24.5);
     /**
-     * Bottom-left of the exit portal, on the north edge of the plain. An empty frame stands there all fight
-     * (deepslate tiles, gold corners); the portal fills it when he's beaten.
+     * Bottom-left of the exit portal. He's always beaten in the manor (phase 1 can't be skipped), so it's there, on the
+     * path south of the garden (GreedManor): an empty frame (deepslate tiles, gold corners) the portal fills.
      */
-    public static final BlockPos EXIT_PORTAL = CORNER.add(130, 111, 18);
+    public static final BlockPos EXIT_PORTAL = GreedManor.EXIT_PORTAL;
     /** Below this, you've fallen off the island. */
     public static final int VOID_Y = CORNER.getY() - 8;
 

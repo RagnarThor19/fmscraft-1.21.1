@@ -84,14 +84,17 @@ import java.util.UUID;
  *
  * <h2>Phase change: see {@link GreedTimeline}</h2>
  *
- * <h2>Phase 2 (70% to 0%): night, Panzerknacker, 3 blocks tall</h2>
+ * <h2>Phase 2 (70% to 0%): the Roswall manor (GreedManor) under a navy sky full of black holes, Panzerknacker, 3 blocks tall</h2>
  * Faster, hits harder, attacks more often, and below 30% goes into a frenzy (more of everything). Picks from:
  * <ul>
  *   <li><b>Laser</b>: a thin beam follows its target for 1.5 s, freezes, then fires. Break line of sight (pillars,
  *       trees) or step aside. Prefers anyone stuck in a bubble.</li>
  *   <li><b>Laser Sweep</b>: a beam along the ground spins all the way round him: jump it.</li>
  *   <li><b>Bubble Prison</b>: a bubble for every player, lifting them high. Pop each other out.</li>
- *   <li><b>Greed's Due</b>: a gold circle marks where every player stands; coins rain into it 1.5 s later.</li>
+ *   <li><b>Anvil Slam</b>: an anvil appears high over each player, shaking harder and harder over its shadow (it
+ *       follows you a moment, then locks), and slams down. Step out from under it.</li>
+ *   <li><b>Cloud Ride</b>: leaps into the sky onto a cloud and flies round over everyone for 7 s, raking the ground
+ *       with water bolts like a minigun, then drops off it with a heavy crash and a ring of water.</li>
  *   <li><b>Blink Strike</b>: teleports behind three players in turn (portal particles warn where) and strikes.</li>
  *   <li><b>Tidal Slam</b>: leaps and lands with three shockwave rings to jump.</li>
  *   <li><b>Dart Fan</b> and a double <b>Dash Punch</b>.</li>
@@ -110,7 +113,7 @@ public class RaggimelEntity extends SinBossEntity {
     public static final float FRENZY_AT = 0.3f;
     /** Damage he takes is multiplied by this per phase (on top of his armor), more while stunned, and capped per hit. */
     public static final float DAMAGE_TAKEN_ONE = 0.75f, DAMAGE_TAKEN_TWO = 0.85f, STUNNED_BONUS = 1.5f, MAX_HIT = 30f;
-    /** Every hit he deals (melee, darts, beams, rings, marks, slams) is multiplied by this, then rounded up. */
+    /** Every hit he deals (melee, darts, beams, rings, anvils, bolts, slams) is multiplied by this, then rounded up. */
     public static final float DAMAGE_DEALT = 1.35f;
     public static final float PHASE_TWO_SCALE = 1.5f;
     /** Ticks between attacks (he walks and punches in between). */
@@ -143,8 +146,8 @@ public class RaggimelEntity extends SinBossEntity {
     enum Action {
         ENTRANCE, CHASE, FALLING, STUNNED,
         BUBBLE_RIDE, BUBBLE_VOLLEY, DARTS, DASH, SPLASH,
-        TRANSITION, PERCH, LEAP,
-        LASER, SWEEP, COIN_STORM, BLINK, TIDAL_SLAM, WATER_SPROUT, DIVE, GIANT_SLAM, CHEST_RAIN
+        TRANSITION,
+        LASER, SWEEP, ANVIL_SLAM, BLINK, TIDAL_SLAM, WATER_SPROUT, DIVE, GIANT_SLAM, CHEST_RAIN, CLOUD_RIDE
     }
 
     private Action action = Action.ENTRANCE;
@@ -163,7 +166,13 @@ public class RaggimelEntity extends SinBossEntity {
     private final Map<UUID, Integer> lastPicked = new HashMap<>();
     private final List<Beam> beams = new ArrayList<>();
     private final List<Ring> rings = new ArrayList<>();
-    private final List<Mark> marks = new ArrayList<>();
+    /** His water (and anvils, and the cloud): solid pieces that tick on their own until they're done (GreedWater). */
+    private final List<GreedWater.Piece> water = new ArrayList<>();
+    private GreedWater.Spout spout;
+    private GreedWater.Cloud cloud;
+    /** Where the phase change and the Cloud Ride are happening: the ground under him, where he flies round. */
+    private Vec3d tideBase, rideFrom, flyCenter, dropFrom, dropTo;
+    private final Map<UUID, Integer> strayTicks = new HashMap<>();
     private final List<Sprout> sprouts = new ArrayList<>();
     /** Players a Water Sprout shot up: no fall damage until they're down. */
     private final Set<UUID> floating = new HashSet<>();
@@ -283,7 +292,7 @@ public class RaggimelEntity extends SinBossEntity {
 
     private void setBubbled(boolean bubbled) {
         dataTracker.set(BUBBLED, bubbled);
-        setNoGravity(bubbled || action == Action.PERCH || action == Action.LEAP);
+        setNoGravity(bubbled || action == Action.TRANSITION || action == Action.CLOUD_RIDE);
     }
 
     // ---- Taking damage ----
@@ -319,7 +328,7 @@ public class RaggimelEntity extends SinBossEntity {
 
     @Override
     public boolean isPushable() {
-        return action != Action.PERCH && action != Action.LEAP && action != Action.DIVE;
+        return action != Action.TRANSITION && action != Action.CLOUD_RIDE && action != Action.DIVE;
     }
 
     @Override
@@ -370,26 +379,26 @@ public class RaggimelEntity extends SinBossEntity {
             case DASH -> tickDash(world);
             case SPLASH -> tickSplash(world);
             case TRANSITION -> tickTransition(world);
-            case PERCH -> tickPerch(world);
-            case LEAP -> tickLeap(world);
             case LASER -> tickLaser(world);
             case SWEEP -> tickSweep(world);
-            case COIN_STORM -> tickCoinStorm(world);
+            case ANVIL_SLAM -> tickAnvilSlam(world);
             case BLINK -> tickBlink(world);
             case TIDAL_SLAM -> tickTidalSlam(world);
             case WATER_SPROUT -> tickWaterSprout(world);
             case DIVE -> tickDive(world);
             case GIANT_SLAM -> tickGiantSlam(world);
             case CHEST_RAIN -> tickChestRain(world);
+            case CLOUD_RIDE -> tickCloudRide(world);
         }
         tickBeams(world);
         tickRings(world);
-        tickMarks(world);
+        tickWater(world);
         tickSprouts(world);
         tickChests(world);
         if (inArena) {
             tickAmbience(world, phase);
             tickVoid(world);
+            if (phase == 2 && action != Action.TRANSITION) keepInGarden(world);
         }
     }
 
@@ -401,7 +410,7 @@ public class RaggimelEntity extends SinBossEntity {
         }
         if (phase == 2 && beat % 8 == 0 && Arenas.sinOf(world) == Sin.GREED) {
             // The island pulses with the song
-            Vec3d c = GreedArena.CENTER;
+            Vec3d c = arenaCenter();
             rings.add(new Ring(c, 26, 0.9, 0, Ring.PULSE, 0));
             world.playSound(null, c.x, c.y + 4, c.z, SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.AMBIENT, 2.0f, 0.5f);
         }
@@ -426,7 +435,8 @@ public class RaggimelEntity extends SinBossEntity {
             offer(options, weights, Action.LASER, 3, 0);
             offer(options, weights, Action.SWEEP, 2, 300);
             offer(options, weights, Action.BUBBLE_VOLLEY, 2, 360);
-            offer(options, weights, Action.COIN_STORM, 2, 240);
+            offer(options, weights, Action.ANVIL_SLAM, 2, 240);
+            offer(options, weights, Action.CLOUD_RIDE, 2, 480);
             offer(options, weights, Action.BLINK, 2, 200);
             offer(options, weights, Action.TIDAL_SLAM, 2, 200);
             offer(options, weights, Action.DARTS, 2, 0);
@@ -802,15 +812,18 @@ public class RaggimelEntity extends SinBossEntity {
         actionTicks = 0;
         untouchable = true;
         setBubbled(false);
-        setPoseState(POSE_IDLE);
+        setPoseState(POSE_CAST);
         getNavigation().stop();
         clearAttacks(world);
         stopSong();
+        double ground = groundBelow(getPos().add(0, 1, 0), 20);
+        tideBase = new Vec3d(getX(), Double.isNaN(ground) ? getY() : ground, getZ());
+        setNoGravity(true);
         for (ServerPlayerEntity p : audience(world)) {
+            // Held where they stand, but free to look round: this one's to watch
             Cinematics.freeze(p);
-            Cinematics.screen(p, BossScreenPayload.BLACK, 0, GreedTimeline.BLACKOUT_FADE);
-            p.playSoundToPlayer(SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.MASTER, 1.0f, 0.5f);
-            p.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.MASTER, 1.0f, 0.6f);
+            p.playSoundToPlayer(SoundEvents.BLOCK_CONDUIT_ACTIVATE, SoundCategory.MASTER, 1.0f, 0.6f);
+            p.playSoundToPlayer(SoundEvents.AMBIENT_UNDERWATER_ENTER, SoundCategory.MASTER, 1.0f, 0.6f);
         }
     }
 
@@ -822,8 +835,11 @@ public class RaggimelEntity extends SinBossEntity {
     private void clearAttacks(ServerWorld world) {
         beams.clear();
         rings.clear();
-        marks.clear();
         sprouts.clear();
+        for (GreedWater.Piece piece : water) piece.remove();
+        water.clear();
+        spout = null;
+        cloud = null;
         clearChests();
         setInvisible(false);
         shrinkBack();
@@ -835,93 +851,151 @@ public class RaggimelEntity extends SinBossEntity {
 
     private void tickTransition(ServerWorld world) {
         int t = actionTicks;
-        setVelocity(0, getVelocity().y, 0);
+        boolean arena = Arenas.sinOf(world) == Sin.GREED;
         List<ServerPlayerEntity> audience = audience(world);
-        // Five seconds of dark and something wrong
-        if (t < GreedTimeline.VOICE_AT) {
-            if (t % 20 == 0) for (ServerPlayerEntity p : audience) p.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.MASTER, 1.0f, 0.6f);
-            SoundEvent eerie = switch (t) {
-                case 18 -> SoundEvents.AMBIENT_CAVE.value();
-                case 40 -> SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value();
-                case 62 -> SoundEvents.ENTITY_WARDEN_NEARBY_CLOSEST;
-                case 82 -> SoundEvents.BLOCK_SCULK_SHRIEKER_SHRIEK;
-                default -> null;
-            };
-            if (eerie != null) for (ServerPlayerEntity p : audience) p.playSoundToPlayer(eerie, SoundCategory.MASTER, t == 82 ? 0.4f : 1.0f, 0.5f);
+        setVelocity(Vec3d.ZERO);
+        getNavigation().stop();
+        if (tideBase == null) tideBase = getPos();
+        if (t < GreedTimeline.SONG_AT) setPosition(tideBase.x, tideBase.y + GreedTimeline.spoutLift(t), tideBase.z);
+
+        if (t == 1) {
+            // He lifts his staff and the sea answers: a waterspout rising whirling round him
+            spout = new GreedWater.Spout(world, tideBase, 2.4f);
+            spout.grow(GreedTimeline.SPOUT_HEIGHT, GreedTimeline.SPOUT_TICKS);
+            water.add(spout);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_ELDER_GUARDIAN_AMBIENT, SoundCategory.HOSTILE, 4.0f, 0.5f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_TRIDENT_RIPTIDE_3.value(), SoundCategory.HOSTILE, 4.0f, 0.5f);
+        }
+        if (t == GreedTimeline.SKY_AT) {
+            for (ServerPlayerEntity p : audience) GreedIntro.sky(p, 2);
         }
         if (t == GreedTimeline.VOICE_AT) {
             for (ServerPlayerEntity p : audience) p.playSoundToPlayer(ModSounds.RAGGIMEL_VOICELINE, SoundCategory.VOICE, 1.0f, 1.0f);
         }
+        if (t < GreedTimeline.WAVE_HIT) {
+            // Rain coming down on everyone, thunder rolling in from far off
+            if (t % 3 == 0) {
+                for (ServerPlayerEntity p : audience) {
+                    world.spawnParticles(p, ParticleTypes.FALLING_WATER, true, p.getX(), p.getY() + 8, p.getZ(), 30, 10, 2, 10, 0);
+                    world.spawnParticles(p, ParticleTypes.SPLASH, true, p.getX(), p.getY() + 0.1, p.getZ(), 12, 8, 0, 8, 0);
+                }
+            }
+            if (t == 40 || t == 78) {
+                for (ServerPlayerEntity p : audience) p.playSoundToPlayer(SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.WEATHER, 0.6f, 0.5f);
+            }
+            if (t % 20 == 0) {
+                for (ServerPlayerEntity p : audience) p.playSoundToPlayer(SoundEvents.WEATHER_RAIN, SoundCategory.WEATHER, 1.0f, 0.7f);
+            }
+        }
+        if (t == GreedTimeline.WAVE_AT) {
+            // Behind him a wall of water rises and rolls over the island towards everyone
+            Vec3d toward = Vec3d.ZERO;
+            double far = 0;
+            for (ServerPlayerEntity p : audience) {
+                Vec3d d = p.getPos().subtract(tideBase).multiply(1, 0, 1);
+                toward = toward.add(d);
+                far = Math.max(far, d.length());
+            }
+            Vec3d dir = toward.lengthSquared() > 1e-4 ? toward.normalize() : new Vec3d(-1, 0, 0);
+            far = MathHelper.clamp(far, 6, 45);
+            int travel = GreedTimeline.WAVE_HIT - GreedTimeline.WAVE_AT;
+            Vec3d from = tideBase.subtract(dir.multiply(24));
+            water.add(new GreedWater.Wave(world, from, dir, 64, (24 + far) / travel, travel + 12));
+            world.playSound(null, from.x, from.y, from.z, SoundEvents.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.HOSTILE, 6.0f, 0.4f);
+            for (ServerPlayerEntity p : audience) p.playSoundToPlayer(SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundCategory.MASTER, 1.0f, 0.5f);
+        }
+        if (t == GreedTimeline.WAVE_HIT) {
+            // It breaks over everyone: under the water
+            for (ServerPlayerEntity p : audience) {
+                Cinematics.screen(p, BossScreenPayload.DEEP, 0, GreedTimeline.UNDER_FADE);
+                p.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.MASTER, 1.0f, 0.6f);
+                p.playSoundToPlayer(SoundEvents.AMBIENT_UNDERWATER_ENTER, SoundCategory.MASTER, 1.0f, 0.8f);
+            }
+        }
+        if (t > GreedTimeline.WAVE_HIT && t < GreedTimeline.SURFACE_AT && t % 12 == 0) {
+            for (ServerPlayerEntity p : audience) {
+                p.playSoundToPlayer(SoundEvents.AMBIENT_UNDERWATER_LOOP_ADDITIONS_RARE, SoundCategory.MASTER, 1.0f, 0.8f);
+                p.playSoundToPlayer(SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundCategory.MASTER, 0.8f, 0.6f + random.nextFloat() * 0.3f);
+            }
+        }
         if (t == GreedTimeline.RESHAPE_AT) {
-            // Under the black: he grows, takes his perch, and night falls
+            // Under the water: he grows, and the tide carries everyone to the manor
+            for (GreedWater.Piece piece : water) piece.remove();
+            water.clear();
             getAttributeInstance(EntityAttributes.GENERIC_SCALE).setBaseValue(PHASE_TWO_SCALE);
             getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED).setBaseValue(0.32);
             getAttributeInstance(EntityAttributes.GENERIC_ATTACK_DAMAGE).setBaseValue(boosted(9));
             equipStack(EquipmentSlot.MAINHAND, MagicSpells.item(MagicSpells.NETHERITE_STAFF));
-            Vec3d perch = Arenas.sinOf(world) == Sin.GREED ? GreedArena.PERCH : getPos().add(0, 10, 0);
-            setNoGravity(true);
-            requestTeleport(perch.x, perch.y, perch.z);
-            for (ServerPlayerEntity p : audience) GreedIntro.sky(p, 2);
+            if (arena) {
+                GreedManor.prepare(world);
+                List<Vec3d> spots = GreedManor.arrivals(audience.size());
+                for (int i = 0; i < audience.size(); i++) {
+                    ServerPlayerEntity p = audience.get(i);
+                    Vec3d at = spots.get(i);
+                    p.teleport(world, at.x, at.y, at.z, GreedManor.yawToCenter(at), -8f);
+                    p.setVelocity(Vec3d.ZERO);
+                    p.fallDistance = 0;
+                }
+                tideBase = GreedManor.CENTER.subtract(0, 1, 0).add(0, 1, 0);
+                requestTeleport(tideBase.x, tideBase.y + GreedTimeline.spoutLift(t), tideBase.z);
+            }
+            setYaw(0);
+            setBodyYaw(0);
+            setHeadYaw(0);
+            spout = new GreedWater.Spout(world, tideBase, 2.8f);
+            spout.grow(13f, 12);
+            water.add(spout);
         }
-        if (t == GreedTimeline.REVEAL_AT) {
-            for (ServerPlayerEntity p : audience) Cinematics.screen(p, BossScreenPayload.CLEAR, 0, GreedTimeline.REVEAL_TICKS);
-        }
-        if (t == GreedTimeline.SONG_AT) {
+        if (t == GreedTimeline.SURFACE_AT) {
+            // The water lifts on the manor garden: he's high in the spout between the fountains
             for (ServerPlayerEntity p : audience) {
-                Cinematics.unfreeze(p);
-                Cinematics.flash(p, 0.7f, 25);
-            }
-            strikeCosmetic(world, getPos().add(3, 0, 2));
-            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.WEATHER, 10000f, 0.7f);
-            playSong(PHASE_TWO, GreedTimeline.SONG_FADE);
-            action = Action.PERCH;
-            actionTicks = 0;
-            setNoGravity(true);
-        }
-    }
-
-    private void tickPerch(ServerWorld world) {
-        int t = actionTicks;
-        Vec3d perch = Arenas.sinOf(world) == Sin.GREED ? GreedArena.PERCH : getPos();
-        setVelocity(Vec3d.ZERO);
-        setPosition(perch.x, perch.y + Math.sin(t * 0.08) * 0.4, perch.z);
-        setPoseState(beams.isEmpty() ? POSE_CAST : POSE_AIM);
-        if (t % 3 == 0) world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, getX(), getY() + getHeight() / 2, getZ(), 4, 0.6, 1.0, 0.6, 0.1);
-        if (t >= 10 && t % 50 == 10 && t < GreedTimeline.PERCH_TICKS - 40) {
-            Set<UUID> chosen = new HashSet<>();
-            for (int i = 0; i < 2; i++) {
-                ServerPlayerEntity target = pick(chosen);
-                if (target == null) break;
-                chosen.add(target.getUuid());
-                fireLaser(world, target, 90, 7f);
-                getLookControl().lookAt(target, 90f, 90f);
+                Cinematics.screen(p, BossScreenPayload.CLEAR, 0, GreedTimeline.SURFACE_TICKS);
+                p.playSoundToPlayer(SoundEvents.AMBIENT_UNDERWATER_EXIT, SoundCategory.MASTER, 1.0f, 0.7f);
+                p.playSoundToPlayer(SoundEvents.ENTITY_PLAYER_SPLASH, SoundCategory.MASTER, 1.0f, 0.8f);
             }
         }
-        if (t >= GreedTimeline.PERCH_TICKS) {
-            action = Action.LEAP;
-            actionTicks = 0;
-            noClip = true;
+        if (t >= GreedTimeline.SURFACE_AT && t < GreedTimeline.SONG_AT && t % 4 == 0) {
+            world.spawnParticles(ParticleTypes.SPLASH, tideBase.x, tideBase.y + 0.2, tideBase.z, 20, 3, 0.1, 3, 0.3);
+        }
+        if (t == GreedTimeline.SONG_AT - 8) {
             setPoseState(POSE_SLAM);
             world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 4.0f, 0.7f);
         }
-    }
-
-    private void tickLeap(ServerWorld world) {
-        int t = actionTicks;
-        boolean arena = Arenas.sinOf(world) == Sin.GREED;
-        Vec3d from = arena ? GreedArena.PERCH : getPos(), to = arena ? GreedArena.LANDING : getPos();
-        double u = Math.min(1.0, t / (double) GreedTimeline.LEAP_TICKS);
-        Vec3d at = from.lerp(to, u).add(0, GreedTimeline.leapHeight(t), 0);
-        setVelocity(Vec3d.ZERO);
-        setPosition(at.x, at.y, at.z);
-        world.spawnParticles(ParticleTypes.SOUL_FIRE_FLAME, getX(), getY() + 1, getZ(), 4, 0.4, 0.6, 0.4, 0.01);
-        if (t >= GreedTimeline.LEAP_TICKS) {
-            noClip = false;
-            setNoGravity(false);
+        if (t == GreedTimeline.SONG_AT) {
+            // The spout bursts and he comes down with a crash: a ring of water rolls out, the song starts
+            setPosition(tideBase.x, tideBase.y, tideBase.z);
+            setPoseState(POSE_SMASH);
+            if (spout != null) spout.end();
+            spout = null;
+            water.add(new GreedWater.Ring(tideBase, 1.1, 30, 1.8f));
+            water.add(new GreedWater.Ring(tideBase, 0.75, 22, 1.1f));
+            water.add(new GreedWater.Column(world, tideBase, 3.4f, 9f, 0, 2, 4));
+            world.spawnParticles(ParticleTypes.SPLASH, tideBase.x, tideBase.y + 1, tideBase.z, 300, 3, 1.5, 3, 0.8);
+            world.spawnParticles(ParticleTypes.CLOUD, tideBase.x, tideBase.y + 0.5, tideBase.z, 60, 3, 0.4, 3, 0.15);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 4.0f, 0.6f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.HOSTILE, 5.0f, 0.5f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.HOSTILE, 4.0f, 0.5f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.WEATHER, 10000f, 0.7f);
+            strikeCosmetic(world, tideBase.add(4, 0, -3));
+            for (ServerPlayerEntity p : audience) {
+                Cinematics.unfreeze(p);
+                Cinematics.flash(p, 0.6f, 20);
+                double d = p.getPos().distanceTo(tideBase);
+                if (d < 12 && !p.isCreative() && !p.isSpectator()) {
+                    Vec3d away = p.getPos().subtract(tideBase).multiply(1, 0, 1);
+                    away = away.lengthSquared() > 1e-4 ? away.normalize() : new Vec3d(0, 0, 1);
+                    p.setVelocity(away.x * (1.3 - d / 12), 0.5, away.z * (1.3 - d / 12));
+                    p.velocityModified = true;
+                }
+            }
+            MagicSpells.shake(world, tideBase, 40, 1.0f, 20);
+            playSong(PHASE_TWO, GreedTimeline.SONG_FADE);
+        }
+        if (t >= GreedTimeline.TRANSITION_END) {
             untouchable = false;
-            tidalImpact(world);
+            setNoGravity(false);
             endAttack();
-            rest = 40;
+            rest = 30;
         }
     }
 
@@ -986,22 +1060,38 @@ public class RaggimelEntity extends SinBossEntity {
         if (t >= Beam.SWEEP_CHARGE + Beam.SWEEP_TICKS + 4) endAttack();
     }
 
-    private void tickCoinStorm(ServerWorld world) {
+    /** Anvil Slam: an anvil shaking over each of you, its shadow under you, then down. */
+    private void tickAnvilSlam(ServerWorld world) {
         int t = actionTicks;
         setPoseState(POSE_CAST);
         getNavigation().stop();
-        if (t == 1) {
+        setVelocity(0, getVelocity().y, 0);
+        if (t == 1 || frenzy && t == 40) {
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_ANVIL_USE, SoundCategory.HOSTILE, 2.0f, 0.5f);
             world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_EVOKER_PREPARE_SUMMON, SoundCategory.HOSTILE, 2.0f, 1.2f);
-            world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_CHAIN_PLACE, SoundCategory.HOSTILE, 2.0f, 0.6f);
-        }
-        if (t == 10 || frenzy && t == 50) {
             for (ServerPlayerEntity p : fighters) {
-                marks.add(new Mark(p.getPos(), 8f));
-                p.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_BELL.value(), SoundCategory.HOSTILE, 1.0f, 1.2f);
+                water.add(new GreedWater.Anvil(world, p, 11f));
+                p.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_BELL.value(), SoundCategory.HOSTILE, 1.0f, 0.8f);
             }
         }
         world.spawnParticles(GOLD, getX(), getY() + getHeight() + 0.3, getZ(), 3, 0.5, 0.2, 0.5, 0);
-        if (t >= (frenzy ? 60 : 22)) endAttack();
+        if (t >= (frenzy ? 70 : 30)) endAttack();
+    }
+
+    /** An anvil's down: whoever's under it is crushed (a helmet helps) and dazed a moment. */
+    void anvilLands(ServerWorld world, GreedWater.Anvil anvil) {
+        Vec3d at = anvil.landing();
+        for (ServerPlayerEntity p : fighters) {
+            double dx = p.getX() - at.x, dz = p.getZ() - at.z, dy = p.getY() - at.y;
+            if (dx * dx + dz * dz > GreedWater.Anvil.RADIUS * GreedWater.Anvil.RADIUS || dy < -1.5 || dy > 3) continue;
+            p.timeUntilRegen = 0;
+            p.damage(getDamageSources().fallingAnvil(this), boosted(anvil.damage));
+            p.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.SLOWNESS, 30, 2));
+            p.setVelocity(p.getVelocity().multiply(0.2, 0, 0.2).add(0, -0.3, 0));
+            p.velocityModified = true;
+            Cinematics.flash(p, 0.35f, 8);
+        }
+        MagicSpells.shake(world, at, 10, 0.5f, 8);
     }
 
     private void tickBlink(ServerWorld world) {
@@ -1099,6 +1189,8 @@ public class RaggimelEntity extends SinBossEntity {
         static final double ON_TOP = 1.3, NEAR = 3.2;
         final Vec3d at;
         int age;
+        /** The water itself: the ripple, then the column shooting up and falling back. */
+        GreedWater.Column column;
 
         Sprout(Vec3d at) {
             this.at = at;
@@ -1137,13 +1229,13 @@ public class RaggimelEntity extends SinBossEntity {
             Sprout s = it.next();
             s.age++;
             Vec3d at = s.at;
+            if (s.column == null) {
+                // The ground ripples and bubbles where it'll burst; then a column of water shoots up out of it, foam
+                // boiling on top, and falls back (GreedWater.Column)
+                s.column = new GreedWater.Column(world, at, 2.2f, 8.5f, Sprout.CHARGE - s.age, 3, Sprout.GUSH - 8);
+                water.add(s.column);
+            }
             if (s.age < Sprout.CHARGE) {
-                // The ground bubbling where it's about to burst
-                for (int i = 0; i < 6; i++) {
-                    double a = i * MathHelper.TAU / 6 + s.age * 0.4;
-                    world.spawnParticles(ParticleTypes.SPLASH, at.x + Math.cos(a) * 1.1, at.y + 0.1, at.z + Math.sin(a) * 1.1, 1, 0, 0.05, 0, 0);
-                }
-                world.spawnParticles(ParticleTypes.BUBBLE_POP, at.x, at.y + 0.2, at.z, 3, 0.4, 0.05, 0.4, 0.02);
                 world.spawnParticles(ParticleTypes.FISHING, at.x, at.y + 0.1, at.z, 2, 0.5, 0, 0.5, 0.02);
                 if (s.age == 1) world.playSound(null, at.x, at.y, at.z, SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundCategory.HOSTILE, 2.0f, 0.8f);
                 continue;
@@ -1160,19 +1252,7 @@ public class RaggimelEntity extends SinBossEntity {
                     p.fallDistance = 0;
                     floating.add(p.getUuid());
                 }
-                world.spawnParticles(ParticleTypes.SPLASH, at.x, at.y + 0.5, at.z, 80, 0.6, 0.4, 0.6, 0.5);
-                world.playSound(null, at.x, at.y, at.z, SoundEvents.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.HOSTILE, 2.0f, 0.8f);
-                world.playSound(null, at.x, at.y, at.z, SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_INSIDE, SoundCategory.HOSTILE, 2.0f, 0.7f);
             }
-            // The column of water shooting up out of the ground, then falling back
-            int g = s.age - Sprout.CHARGE;
-            double height = Math.min(10, g * 1.4);
-            for (int i = 0; i < 8; i++) {
-                double y = at.y + random.nextDouble() * height;
-                world.spawnParticles(i % 3 == 0 ? ParticleTypes.CLOUD : ParticleTypes.SPLASH, at.x, y, at.z, 2, 0.35, 0.2, 0.35, 0.05);
-            }
-            world.spawnParticles(ParticleTypes.FALLING_WATER, at.x, at.y + height, at.z, 6, 0.8, 0.2, 0.8, 0);
-            world.spawnParticles(ParticleTypes.BUBBLE_POP, at.x, at.y + 0.3, at.z, 4, 0.5, 0.1, 0.5, 0.05);
             if (s.age >= Sprout.CHARGE + Sprout.GUSH) it.remove();
         }
         // Shot up by the water, not hurt by the fall back down
@@ -1294,6 +1374,8 @@ public class RaggimelEntity extends SinBossEntity {
 
     private static final int GIANT_SHAKE = 22, GIANT_GROW = 20, GIANT_HOLD = 10, GIANT_AFTER = 16;
     private static final float GIANT_GROWTH = 4f;
+    /** How far round the spot the Giant Slam hits, in his own (pre-slam) sizes: 7.5 blocks in phase 2. */
+    public static final float GIANT_REACH = 5f;
 
     private void tickGiantSlam(ServerWorld world) {
         int t = actionTicks, grown = GIANT_SHAKE + GIANT_GROW, slam = grown + GIANT_HOLD;
@@ -1319,7 +1401,7 @@ public class RaggimelEntity extends SinBossEntity {
             if (t == 12) world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_WOLF_SHAKE, SoundCategory.HOSTILE, 2.5f, 0.5f);
             return;
         }
-        float reach = giantBase * 3.7f, radius = giantBase * 3f;
+        float reach = giantBase * 4.5f, radius = giantBase * GIANT_REACH;
         if (t == GIANT_SHAKE) {
             // Where the staff will come down: set now, right in front of him
             if (target != null) faceYaw(yawTo(target.getPos()));
@@ -1363,6 +1445,7 @@ public class RaggimelEntity extends SinBossEntity {
                 p.velocityModified = true;
             }
             rings.add(new Ring(c, radius + 6, 0.8, 0, Ring.WATER, 0));
+            water.add(new GreedWater.Ring(c, 1.0, radius + 4, 1.6f));
             rings.add(new Ring(c, radius + 3, 0.55, 0, Ring.PULSE, 3));
             world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, c.x, c.y + 0.5, c.z, 1, 0, 0, 0, 0);
             world.spawnParticles(ParticleTypes.SPLASH, c.x, c.y + 0.4, c.z, 250, radius * 0.6, 0.4, radius * 0.6, 0.6);
@@ -1784,57 +1867,206 @@ public class RaggimelEntity extends SinBossEntity {
         chestRain = 0;
     }
 
-    // ---- Greed's Due (gold circles) ----
+    // ---- His water, anvils and cloud ----
 
-    static final class Mark {
-        static final int WARN = 32;
-        static final double RADIUS = 2.6;
-        final Vec3d center;
-        final float damage;
-        int age;
-
-        Mark(Vec3d center, float damage) {
-            this.center = center;
-            this.damage = damage;
+    private void tickWater(ServerWorld world) {
+        for (GreedWater.Piece piece : new ArrayList<>(water)) {
+            if (!piece.tick(world, this)) {
+                piece.remove();
+                water.remove(piece);
+            }
         }
     }
 
-    private void tickMarks(ServerWorld world) {
-        Iterator<Mark> it = marks.iterator();
-        while (it.hasNext()) {
-            Mark m = it.next();
-            m.age++;
-            if (m.age < Mark.WARN) {
-                if (m.age % 2 == 0) {
-                    for (int i = 0; i < 18; i++) {
-                        double a = i * MathHelper.TAU / 18 + m.age * 0.05;
-                        world.spawnParticles(GOLD, m.center.x + Math.cos(a) * Mark.RADIUS, m.center.y + 0.15, m.center.z + Math.sin(a) * Mark.RADIUS, 1, 0, 0, 0, 0);
-                    }
-                }
-                if (m.age % 4 == 0) {
-                    world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.FALLING_DUST, Blocks.GOLD_BLOCK.getDefaultState()),
-                            m.center.x, m.center.y + 6, m.center.z, 4, 1.2, 0.5, 1.2, 0);
-                }
-                if (m.age % 10 == 0) {
-                    world.playSound(null, m.center.x, m.center.y, m.center.z, SoundEvents.BLOCK_CHAIN_STEP, SoundCategory.HOSTILE, 1.0f, 1.5f + m.age / 40f);
-                }
+    List<ServerPlayerEntity> fighterList() {
+        return fighters;
+    }
+
+    ServerPlayerEntity fighterById(UUID id) {
+        return fighter(id);
+    }
+
+    /** The top of the ground under {@code at}, looking down from a little over {@code near} (or {@code near} if none). */
+    double groundUnder(Vec3d at, double near) {
+        double g = groundBelow(new Vec3d(at.x, near + 2, at.z), 8);
+        return Double.isNaN(g) ? near : g;
+    }
+
+    /** A water bolt from the cloud found someone: a projectile hit (a shield stops it), and a little shove. */
+    void boltHit(ServerPlayerEntity p, GreedWater.Bolt bolt) {
+        // (Exactly what the bolt says, not boosted: 6 a bolt)
+        if (p.damage(getDamageSources().mobProjectile(this, this), bolt.damage)) {
+            Vec3d push = bolt.vel.multiply(1, 0, 1);
+            if (push.lengthSquared() > 1e-4) {
+                push = push.normalize().multiply(0.25);
+                p.addVelocity(push.x, 0.05, push.z);
+                p.velocityModified = true;
+            }
+        }
+    }
+
+    // ---- Cloud Ride: up onto a cloud, round over everyone raking the ground with water, then down with a crash ----
+
+    public static final int RIDE_CROUCH = 6, RIDE_LEAP = 12, RIDE_FLY = 140, RIDE_DROP = 7;
+    public static final double RIDE_HEIGHT = 11;
+    /** What each of the Cloud Ride's water bolts does (dealt as is). */
+    public static final float BOLT_DAMAGE = 6f;
+
+    private void tickCloudRide(ServerWorld world) {
+        int t = actionTicks;
+        if (t == 1) {
+            setPoseState(POSE_CROUCH);
+            getNavigation().stop();
+            rideFrom = getPos();
+            Vec3d middle = Vec3d.ZERO;
+            for (ServerPlayerEntity p : fighters) middle = middle.add(p.getPos());
+            flyCenter = fighters.isEmpty() ? getPos() : middle.multiply(1.0 / fighters.size());
+            flyCenter = new Vec3d(flyCenter.x, rideFrom.y, flyCenter.z);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_BREEZE_CHARGE, SoundCategory.HOSTILE, 2.5f, 0.6f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_TRIDENT_RIPTIDE_2.value(), SoundCategory.HOSTILE, 2.0f, 0.7f);
+        }
+        if (t < RIDE_CROUCH) {
+            setVelocity(0, getVelocity().y, 0);
+            world.spawnParticles(ParticleTypes.SPLASH, getX(), getY() + 0.1, getZ(), 8, 0.6, 0, 0.6, 0.1);
+            return;
+        }
+        setNoGravity(true);
+        setVelocity(Vec3d.ZERO);
+        int leap = t - RIDE_CROUCH;
+        if (leap <= RIDE_LEAP) {
+            // Up into the sky; the cloud gathers under his feet on the way
+            if (leap == 0) {
+                setPoseState(POSE_SLAM);
+                world.spawnParticles(ParticleTypes.SPLASH, getX(), getY() + 0.2, getZ(), 80, 1.0, 0.2, 1.0, 0.5);
+                world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_BREEZE_JUMP, SoundCategory.HOSTILE, 3.0f, 0.6f);
+                world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.HOSTILE, 2.0f, 0.8f);
+            }
+            double u = leap / (double) RIDE_LEAP;
+            setPosition(rideFrom.x, rideFrom.y + RIDE_HEIGHT * (1 - (1 - u) * (1 - u)), rideFrom.z);
+            if (leap == 5) {
+                cloud = new GreedWater.Cloud(world, this);
+                water.add(cloud);
+            }
+            return;
+        }
+        int fly = leap - RIDE_LEAP;
+        if (fly <= RIDE_FLY) {
+            // Round and round over everyone, bobbing, the staff pointed down, water pouring out of it like a minigun
+            double a = fly * MathHelper.TAU / 110.0 + (rideFrom.x + rideFrom.z) * 0.1;
+            double r = 9 + 3 * Math.sin(fly * 0.045);
+            Vec3d want = flyCenter.add(Math.cos(a) * r, RIDE_HEIGHT + 1.2 * Math.sin(fly * 0.13), Math.sin(a) * r);
+            Vec3d now = getPos().lerp(want, fly < 10 ? 0.15 : 0.3);
+            setPosition(now.x, now.y, now.z);
+            setPoseState(POSE_AIM);
+            if (fly % 24 == 1 || fighter(focus) == null) {
+                ServerPlayerEntity next = pick(null);
+                focus = next == null ? null : next.getUuid();
+            }
+            ServerPlayerEntity target = fighter(focus);
+            if (target != null) {
+                getLookControl().lookAt(target, 90f, 90f);
+                float yaw = yawTo(target.getPos());
+                setYaw(yaw);
+                setBodyYaw(yaw);
+                setHeadYaw(yaw);
+                if (fly % 2 == 0) shootBolt(world, target, fly);
+            }
+            if (fly % 12 == 0) world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_INSIDE, SoundCategory.HOSTILE, 2.0f, 1.4f);
+            return;
+        }
+        int drop = fly - RIDE_FLY;
+        if (drop == 1) {
+            // Off the cloud and straight down
+            if (cloud != null) cloud.burst(world);
+            cloud = null;
+            setPoseState(POSE_SMASH);
+            dropFrom = getPos();
+            double ground = groundBelow(getPos(), 40);
+            Vec3d under = new Vec3d(getX(), Double.isNaN(ground) ? rideFrom.y : ground, getZ());
+            Vec3d spot = standingSpot(under);
+            dropTo = spot != null ? spot : rideFrom;
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_TRIDENT_RIPTIDE_3.value(), SoundCategory.HOSTILE, 3.0f, 0.5f);
+        }
+        if (drop <= RIDE_DROP) {
+            double u = drop / (double) RIDE_DROP;
+            Vec3d at = dropFrom.lerp(dropTo, u * u);
+            setPosition(at.x, at.y, at.z);
+            if (drop == RIDE_DROP) rideCrash(world);
+            return;
+        }
+        if (drop >= RIDE_DROP + 16) {
+            setNoGravity(false);
+            endAttack();
+        }
+    }
+
+    private void shootBolt(ServerWorld world, ServerPlayerEntity target, int fly) {
+        Vec3d from = getPos().add(0, getHeight() * 0.55, 0).add(Vec3d.fromPolar(0, getYaw()).multiply(0.9));
+        Vec3d aim = target.getBoundingBox().getCenter().add(target.getVelocity().multiply(6));
+        Vec3d spread = new Vec3d(random.nextGaussian(), random.nextGaussian() * 0.4, random.nextGaussian()).multiply(0.9);
+        Vec3d vel = aim.add(spread).subtract(from).normalize().multiply(1.5);
+        water.add(new GreedWater.Bolt(world, from, vel, BOLT_DAMAGE));
+        world.playSound(null, from.x, from.y, from.z, SoundEvents.ITEM_TRIDENT_THROW.value(), SoundCategory.HOSTILE, 1.4f, 1.5f + random.nextFloat() * 0.4f);
+        if (fly % 6 == 0) world.playSound(null, from.x, from.y, from.z, SoundEvents.ENTITY_DOLPHIN_SPLASH, SoundCategory.HOSTILE, 1.2f, 1.6f);
+        world.spawnParticles(ParticleTypes.SPLASH, from.x, from.y, from.z, 6, 0.2, 0.2, 0.2, 0.2);
+    }
+
+    /** Down off the cloud with a heavy crash: whoever's near is hurt and thrown, and a ring of water rolls out. */
+    private void rideCrash(ServerWorld world) {
+        Vec3d c = getPos();
+        for (ServerPlayerEntity p : fighters) {
+            double d = p.getPos().distanceTo(c);
+            if (d > 5 || Math.abs(p.getY() - c.y) > 3) continue;
+            p.timeUntilRegen = 0;
+            p.damage(getDamageSources().mobAttack(this), boosted(12f));
+            Vec3d away = p.getPos().subtract(c).multiply(1, 0, 1);
+            away = away.lengthSquared() > 1e-4 ? away.normalize() : new Vec3d(1, 0, 0);
+            p.setVelocity(away.x * 1.4, 0.6, away.z * 1.4);
+            p.velocityModified = true;
+        }
+        water.add(new GreedWater.Ring(c, 0.9, 16, 1.3f));
+        rings.add(new Ring(c, 15, 0.45, 6f, Ring.WATER, 2));
+        world.spawnParticles(ParticleTypes.EXPLOSION_EMITTER, c.x, c.y + 0.5, c.z, 1, 0, 0, 0, 0);
+        world.spawnParticles(ParticleTypes.SPLASH, c.x, c.y + 0.5, c.z, 200, 2.5, 0.6, 2.5, 0.6);
+        world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, groundState()), c.x, c.y + 0.2, c.z, 100, 2.5, 0.2, 2.5, 0.2);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.HOSTILE, 4.0f, 0.5f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 3.0f, 0.6f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.HOSTILE, 2.0f, 0.4f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.HOSTILE, 3.0f, 0.6f);
+        for (ServerPlayerEntity p : audience(world)) if (p.squaredDistanceTo(c) < 30 * 30) Cinematics.flash(p, 0.35f, 10);
+        MagicSpells.shake(world, c, 24, 0.9f, 14);
+    }
+
+    // ---- Where the fight is ----
+
+    /** The middle of the fight: the island's plain in phase 1, the manor's garden once the tide's carried everyone there. */
+    private Vec3d arenaCenter() {
+        return GreedManor.contains(getPos()) ? GreedManor.CENTER : GreedArena.CENTER;
+    }
+
+    /** Below this at {@code pos} you've fallen off (the island or the manor's grounds). */
+    private static double voidY(Vec3d pos) {
+        return pos.x > GreedManor.CORNER.getX() - 60 ? GreedManor.VOID_Y : GreedArena.VOID_Y;
+    }
+
+    /** In the manor the fight is the garden and the lawns: wander off for 2 s and the water brings you back. */
+    private void keepInGarden(ServerWorld world) {
+        if (!GreedManor.contains(getPos())) return;
+        for (ServerPlayerEntity p : fighters) {
+            if (GreedManor.inBounds(p.getPos()) || p.getY() < GreedManor.FLOOR_Y - 4) {
+                strayTicks.remove(p.getUuid());
                 continue;
             }
-            // The coins come down
-            world.spawnParticles(new ItemStackParticleEffect(ParticleTypes.ITEM, new ItemStack(Items.GOLD_NUGGET)),
-                    m.center.x, m.center.y + 3, m.center.z, 50, 1.4, 1.5, 1.4, 0.15);
-            world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, Blocks.GOLD_BLOCK.getDefaultState()),
-                    m.center.x, m.center.y + 0.2, m.center.z, 40, 1.2, 0.1, 1.2, 0.2);
-            world.spawnParticles(ParticleTypes.CRIT, m.center.x, m.center.y + 0.5, m.center.z, 20, 1.2, 0.3, 1.2, 0.3);
-            world.playSound(null, m.center.x, m.center.y, m.center.z, SoundEvents.BLOCK_ANVIL_LAND, SoundCategory.HOSTILE, 1.2f, 1.5f);
-            world.playSound(null, m.center.x, m.center.y, m.center.z, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.HOSTILE, 2.0f, 0.6f);
-            for (ServerPlayerEntity p : fighters) {
-                double dx = p.getX() - m.center.x, dz = p.getZ() - m.center.z, dy = p.getY() - m.center.y;
-                if (dx * dx + dz * dz <= Mark.RADIUS * Mark.RADIUS && dy > -2 && dy < 3) {
-                    p.damage(getDamageSources().mobAttack(this), boosted(m.damage));
-                }
-            }
-            it.remove();
+            int out = strayTicks.merge(p.getUuid(), 1, Integer::sum);
+            if (out == 10) p.playSoundToPlayer(SoundEvents.AMBIENT_UNDERWATER_ENTER, SoundCategory.HOSTILE, 1.0f, 1.2f);
+            if (out < 40) continue;
+            strayTicks.remove(p.getUuid());
+            Vec3d back = GreedManor.returnSpot(p.getPos());
+            world.spawnParticles(ParticleTypes.SPLASH, p.getX(), p.getY() + 1, p.getZ(), 60, 0.4, 0.8, 0.4, 0.3);
+            p.teleport(world, back.x, back.y, back.z, p.getYaw(), p.getPitch());
+            p.fallDistance = 0;
+            world.spawnParticles(ParticleTypes.SPLASH, back.x, back.y + 1, back.z, 60, 0.4, 0.8, 0.4, 0.3);
+            world.playSound(null, back.x, back.y, back.z, SoundEvents.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.HOSTILE, 1.5f, 0.8f);
         }
     }
 
@@ -1867,9 +2099,10 @@ public class RaggimelEntity extends SinBossEntity {
         if (--nextLightning <= 0) {
             nextLightning = frenzy ? 60 + random.nextInt(80) : 120 + random.nextInt(140);
             double a = random.nextDouble() * MathHelper.TAU, d = 22 + random.nextDouble() * 40;
-            Vec3d at = GreedArena.CENTER.add(Math.cos(a) * d, 0, Math.sin(a) * d);
+            Vec3d middle = arenaCenter();
+            Vec3d at = middle.add(Math.cos(a) * d, 0, Math.sin(a) * d);
             double ground = groundBelow(at.add(0, 30, 0), 80);
-            at = new Vec3d(at.x, Double.isNaN(ground) ? GreedArena.CENTER.y - 25 : ground, at.z);
+            at = new Vec3d(at.x, Double.isNaN(ground) ? middle.y - 25 : ground, at.z);
             strikeCosmetic(world, at);
         }
         // Frenzy starts below 30%
@@ -1895,11 +2128,11 @@ public class RaggimelEntity extends SinBossEntity {
 
     /** The island is all there is: fall off and you're gone (and so is he, back to the ring). */
     private void tickVoid(ServerWorld world) {
-        for (ServerPlayerEntity p : world.getPlayers(p -> p.isAlive() && !p.isSpectator() && p.getY() < GreedArena.VOID_Y)) {
+        for (ServerPlayerEntity p : world.getPlayers(p -> p.isAlive() && !p.isSpectator() && p.getY() < voidY(p.getPos()))) {
             p.damage(world.getDamageSources().outOfWorld(), Float.MAX_VALUE);
         }
-        if (getY() < GreedArena.VOID_Y) {
-            Vec3d back = GreedArena.LANDING;
+        if (getY() < voidY(getPos())) {
+            Vec3d back = getPhase() == 2 && getX() > GreedManor.CORNER.getX() - 60 ? GreedManor.CENTER : GreedArena.LANDING;
             requestTeleport(back.x, back.y, back.z);
             setVelocity(Vec3d.ZERO);
         }
@@ -1922,15 +2155,31 @@ public class RaggimelEntity extends SinBossEntity {
         super.onDeath(source);
     }
 
+    @Override
+    public void remove(RemovalReason reason) {
+        // Taken away (the attempt ended, a test is done with him): his solid water, anvils, cloud and chests go with him
+        if (!getWorld().isClient && reason.shouldDestroy()) {
+            for (GreedWater.Piece piece : water) piece.remove();
+            water.clear();
+            spout = null;
+            cloud = null;
+            clearChests();
+        }
+        super.remove(reason);
+    }
+
     // ---- Helpers ----
 
-    /** Top of the first solid block at or below {@code pos}, looking at most {@code depth} blocks down; NaN over the void. */
+    /**
+     * Top of the first solid block at or below {@code pos}, looking at most {@code depth} blocks down; NaN over the void.
+     * Barriers aren't ground (there are none in his arenas; they wall in the game tests).
+     */
     private double groundBelow(Vec3d pos, int depth) {
         BlockPos.Mutable at = BlockPos.ofFloored(pos).mutableCopy();
         for (int i = 0; i < depth; i++) {
             BlockState state = getWorld().getBlockState(at);
             VoxelShape shape = state.getCollisionShape(getWorld(), at);
-            if (!shape.isEmpty()) return at.getY() + shape.getMax(Direction.Axis.Y);
+            if (!shape.isEmpty() && !state.isOf(Blocks.BARRIER)) return at.getY() + shape.getMax(Direction.Axis.Y);
             at.move(Direction.DOWN);
         }
         return Double.NaN;

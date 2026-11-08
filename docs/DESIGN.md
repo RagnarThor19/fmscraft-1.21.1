@@ -135,8 +135,15 @@ Song (phase 1): Milky - Just The Way You Are, 130 BPM, first beat 0.75 s (music.
 Song (phase 2): Lennsko - Panzerknacker (slowed), measured ~172 BPM, attacks on every other beat (86) (music.greed.phase_two)
 Arena: the floating island (structure/arena/greed.nbt, tools/structures/greed_arena.py). The fight is on the flat
        plain west of the amethyst shrine at its east end: players arrive at x -40, z 0, he comes down at x -30, z 0,
-       where an empty deepslate-and-gold frame on the north edge fills with the exit portal when he's beaten.
        Pillars and trees block lasers. Falling off kills you. Own dimension type (greed_arena): always noon.
+Arena (phase 2): the Roswall manor and its gardens (a litematic by granolax_1, structure/arena/greed_manor.nbt,
+       tools/structures/greed_manor.py: blocks 1.21.1 lacks swapped, barriers dropped, leaves persistent, a skirt of
+       earth and stone under the edge), floating in the same sky far east of the island (x 1400, ground at y 40). The
+       fight is in the formal garden in front of the house: between its two round fountains, on the stone path down the
+       middle, the lawns and hedges south of it. Players surface 15 blocks south of him; the empty deepslate-and-gold
+       exit frame stands on the path south of the garden (he's always beaten here). Wander more than 52 from the middle
+       for 2 s and the water sets you back; fall off the grounds and you're gone. Built once at server start (about 25 s
+       the first time); nothing in a fight breaks it. Positions: GreedManor.
 Health / armor: 1000 HP, 10 armor, 6 toughness; takes x0.75 damage in phase 1, x0.85 in phase 2, x1.5 while
        stunned, at most 30 per hit, and phase 1 can't be skipped by one big hit. Aimed at 3-4 minutes for 5-7 players.
 ```
@@ -158,34 +165,54 @@ Health / armor: 1000 HP, 10 armor, 6 toughness; takes x0.75 damage in phase 1, x
   x1.35) as a falling block (a helmet helps, a shield doesn't) and knocks you down; then it falls on through the island
   with a thud and a spill of gold and is gone. He walks and punches the whole time but starts nothing else until the rain
   is over. Chests are block displays: nothing is placed or broken.
-- **Phase change (at 70%):** everything goes black, everyone freezes, music cuts; heartbeat and cave sounds for
-  5 s, then `greed_switch_voiceline`. Under the black he grows to 3 blocks, moves to a perch over the island's
-  middle shrine 50 blocks west and night falls (dark blue sky, stars, no sun, dimmer light, closer fog). As the
-  voice line ends the black lifts, lightning strikes, Panzerknacker fades in, and he fires lasers from the perch
-  for 12 s (break line of sight) before leaping back into the ring with a three-ring slam. Timings: `GreedTimeline`.
-- **Phase 2 (70-0%), scary:** faster, punches for 9, rests less. Picks from *Laser* (a thin beam follows you for
+- **Phase change (at 70%), the tide:** everyone is held where they stand (free to look round), the music cuts. He
+  lifts his staff and the sea answers: **a waterspout rises whirling round him** (glassy walls of water, rings of foam
+  climbing it), lifting him, rain coming down, thunder far off, while the sky drains to navy and **black holes open in
+  it**, and `greed_switch_voiceline` plays. Then **a wall of water rises behind him and rolls over the island**, foam on
+  its crest, and as it reaches everyone the screen goes under: deep blue, light rippling, bubbles rising. Under the water
+  he grows to 3 blocks and the tide carries everyone to the Roswall manor. The water lifts on its garden: he's high in a
+  waterspout between the fountains. As the voice line ends the spout bursts and he crashes down: rings of water roll
+  out, a column of spray, lightning, everyone thrown back (it hurts nobody), Panzerknacker starts and everyone can
+  move. 12 s in all. Timings: `GreedTimeline`.
+- **Phase 2 (70-0%), in the manor:** faster, punches for 9, rests less. Picks from *Laser* (a thin beam follows you for
   1.5 s, freezes white, fires; prefers anyone stuck in a bubble), *Laser Sweep* (a beam along the ground spins all
   the way round him: jump it), *Bubble Prison* (one bubble per player, lifting 7.5 blocks for 5.5 s: pop each other
-  out), *Greed's Due* (a gold circle under every player, coins crash into it 1.6 s later), *Blink Strike* (portal
+  out), *Anvil Slam* (an anvil appears 9 blocks over each of you, its shadow under you; it follows you a
+  moment, shaking harder and harder, locks, and slams down: 11 as a falling anvil (a helmet helps) and dazed; step out
+  from under it once it's locked; a second round in frenzy; it sinks into the ground after), *Cloud Ride* (crouches,
+  leaps 11 blocks into the sky and a cloud gathers under his feet (the Tome of Clouds' cloud, built big enough for him);
+  for 7 s he flies round over everyone, bobbing, staff pointed down, raking you with water bolts like a minigun, two a
+  second at one of you after another (6 each, bursting where they land; a shield stops them); then off the cloud and
+  straight down with a heavy crash: 12 within 5 and thrown, a ring of water rolling out and a ring to jump), *Blink Strike* (portal
   particles show where he'll appear behind three players in turn), *Tidal Slam* (three soul-fire rings to jump),
   *Dart Fan* (seven darts), a double *Dash Punch*, *Water Sprout* (drives his staff into the ground; ten spots round him
-  bubble for half a second, then water bursts up out of them: whoever is on one is shot high into the air, whoever is
+  ripple and bubble for half a second, then real columns of water shoot up out of them, 8 blocks high, foam boiling on
+  top, and fall back: whoever is on one is shot high into the air, whoever is
   near it not so high; it hurts nobody, not even the fall back down) and *Dive* (crouches, dives into the ground with a
   splash and is gone, unseen and untouchable, a wake running under the ground after one of you; the ground churns
   where he'll come up, set a moment before, then he bursts up out of it, hitting hard, and comes down hard again, a
   ring of water rolling out) and *Giant Slam* (shakes his head like a wet dog, then grows to four times his size while the spot in
-  front of him is ringed in water and gold, and brings his staff down on it: whoever is in the ring takes a heavy hit
-  and is thrown far; then he poofs back down to his size and carries on). Below 30% he goes into a frenzy: a roar and a flash, two
-  lasers at once, a second wave of coins, four blink strikes, shorter rests, more lightning.
-- **The night:** snowflakes, glow specks and souls drifting around everyone, sparks off him, the shrine pulsing a
-  ring of light every 8 beats, cosmetic lightning striking the island and the void (with a flash on screen).
-  When he dies the night lifts again.
+  front of him is ringed in water and gold, and brings his staff down on it: whoever is in the ring (7.5 blocks round
+  it as a giant in phase 2) takes a heavy hit and is thrown far, and a ring of water rolls out past it; then he poofs back down to his size and carries on). Below 30% he goes into a frenzy: a roar and a flash, two
+  lasers at once, a second round of anvils, four blink strikes, shorter rests, more lightning.
+- **The night (GreedSky):** a navy sky with seventeen black holes hanging in it, big and small: each a disc of pure
+  black with a thin bright edge, a tilted ring of pale light whirling round it, the navy darkened round it; faint stars
+  turning behind. Snowflakes, glow specks and souls drifting around everyone, sparks off him, a ring of light pulsing
+  out across the garden every 8 beats, cosmetic lightning striking round it (with a flash on screen). When he dies the
+  night lifts again.
+- **Solid water:** the spouts, the wave, the sprouts' columns, the rings of water, the bolts, the anvils and the cloud
+  are block displays (ice, stained glass, snow, the anvil: `GreedWater`; a fluid can't be shown in one), tagged
+  `fmscraft.greed_water`; each goes when it's done, or with him.
 - **Magic mod:** he holds its diamond staff (netherite in phase 2), can't be put to sleep or carried off in a
   player's bubble (he wakes / bursts it at once), and status effects don't stick to him. Without the mod his darts
   are plain arrows. The mod's built jar has to include Sleep Darts for those to work.
 - Tuning knobs: `RaggimelEntity` (health, damage taken, `MAX_HIT`, rests, attack weights and gaps in
-  `chooseAttack`), `GreedTimeline` (cutscene timings), `GreedArena` (positions).
-- Tests: `RaggimelGameTests` (the whole fight flow in the real arena, the phase 1 clamp, bubbles, magic bubbles,
+  `chooseAttack`, the Cloud Ride's `RIDE_*`), `GreedTimeline` (cutscene timings), `GreedArena` and `GreedManor`
+  (positions), `GreedWater` (how the water looks and moves, the anvil's timings), `GreedSky` (the colours, the holes).
+- Tests: `RaggimelGameTests` (the whole fight flow in the real arena: the manor built, the tide (the spout, the
+  wave), everyone carried to the manor and held, him grown, the burst freeing everyone, hurting nobody, the song,
+  falling off the grounds; the phase 1 clamp, bubbles, magic bubbles, the sprout's ripple and column, the Anvil Slam
+  crushing whoever stays under and missing whoever steps out, the Cloud Ride flying, raining bolts and crashing down,
   Chest Rain landing on a player while he walks and every chest gone after),
   `GreedTimelineTest`.
 

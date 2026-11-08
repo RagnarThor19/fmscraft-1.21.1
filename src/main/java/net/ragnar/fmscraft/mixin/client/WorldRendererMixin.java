@@ -25,8 +25,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * RAGGIMEL's night: no sun and no daylit dome, only vanilla's stars, turning slowly, over the dark blue the fog
- * clears the screen to (BackgroundRendererMixin). ORNAMIX's Ragemode: no sky at all, just the black red the fog clears
+ * RAGGIMEL's night: no sun and no daylit dome, faint stars turning slowly and his black holes (GreedSky), over the navy
+ * the fog clears the screen to (BackgroundRendererMixin). ORNAMIX's Ragemode: no sky at all, just the black red the fog clears
  * the screen to. GUMMSS's void: no sky either, only the deep green fog over the black. LalliLarge's space: the stars and
  * the sun on black, turning on Apple Pie's strums; his snowfield: a grey overcast and no clouds (GluttonySky). MUGEN's
  * compound: stars and the full moon over a violet night, or the red eclipse, and black in his Blackout (LustSky).
@@ -48,6 +48,8 @@ public abstract class WorldRendererMixin {
         if (PrideSky.active() && PrideSky.vanillaSky(tickDelta)) PrideSky.renderBanks(matrix4f, tickDelta);
         // RICKY's red lights coming out over the sunset as it drains away
         if (SlothSky.active() && SlothSky.vanillaSky(tickDelta)) SlothSky.renderLights(matrix4f, tickDelta);
+        // RAGGIMEL's black holes opening over the day sky as the tide comes
+        if (GreedSky.active() && GreedSky.night(tickDelta) < 0.5f) GreedSky.renderHoles(matrix4f, tickDelta);
     }
 
     @Inject(method = "renderSky", at = @At("HEAD"), cancellable = true)
@@ -96,7 +98,7 @@ public abstract class WorldRendererMixin {
         RenderSystem.enableBlend();
         RenderSystem.blendFuncSeparate(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE,
                 GlStateManager.SrcFactor.ONE, GlStateManager.DstFactor.ZERO);
-        float stars = 0.75f * night;
+        float stars = 0.35f * night;
         RenderSystem.setShaderColor(stars, stars, stars, stars);
         BackgroundRenderer.clearFog();
         starsBuffer.bind();
@@ -107,6 +109,7 @@ public abstract class WorldRendererMixin {
         RenderSystem.disableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.depthMask(true);
+        GreedSky.renderHoles(matrix4f, tickDelta);
     }
 
     /** No clouds round LalliLarge: in space they'd cut through the Earth, and the snowfield's sky is one grey overcast. */

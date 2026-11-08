@@ -23,10 +23,10 @@ public final class BossScreen {
     private static final float ENVY_X = 0.595f, ENVY_Y = 0.805f, GLUTTONY_X = 0.400f, GLUTTONY_Y = 0.797f;
     private static final float LUST_X = 0.709f, LUST_Y = 0.569f, PRIDE_X = 0.500f, PRIDE_Y = 0.166f;
     private static final float SLOTH_X = 0.338f, SLOTH_Y = 0.274f;
-    private static final int WHITE_COLOR = 0xF2F8FF;
+    private static final int WHITE_COLOR = 0xF2F8FF, DEEP_TOP = 0x1F5F9E, DEEP_BOTTOM = 0x061535;
     private static final int FLASH_COLOR = 0xE6F4FF, FIRE_COLOR = 0xFF6A1E;
 
-    private enum Mode { NONE, INTRO, BLACK, WHITE }
+    private enum Mode { NONE, INTRO, BLACK, WHITE, DEEP }
 
     private static Mode mode = Mode.NONE;
     private static float cover, prevCover, coverStep;
@@ -75,8 +75,8 @@ public final class BossScreen {
                 cover = prevCover = 1;
                 covering = true;
             }
-            case BossScreenPayload.BLACK, BossScreenPayload.WHITE -> {
-                Mode to = screen.equals(BossScreenPayload.WHITE) ? Mode.WHITE : Mode.BLACK;
+            case BossScreenPayload.BLACK, BossScreenPayload.WHITE, BossScreenPayload.DEEP -> {
+                Mode to = screen.equals(BossScreenPayload.WHITE) ? Mode.WHITE : screen.equals(BossScreenPayload.DEEP) ? Mode.DEEP : Mode.BLACK;
                 if (mode != to) cover = prevCover = 0;
                 mode = to;
                 covering = true;
@@ -128,12 +128,36 @@ public final class BossScreen {
         if (mode != Mode.NONE) {
             float alpha = MathHelper.lerp(delta, prevCover, cover);
             if (alpha > 0) {
-                ctx.fill(0, 0, w, h, ((int) (alpha * 255) << 24) | (mode == Mode.WHITE ? WHITE_COLOR : 0));
+                if (mode == Mode.DEEP) drawDeep(ctx, w, h, alpha, introTicks + delta);
+                else ctx.fill(0, 0, w, h, ((int) (alpha * 255) << 24) | (mode == Mode.WHITE ? WHITE_COLOR : 0));
                 if (mode == Mode.INTRO) drawWheel(ctx, w, h, alpha, introStart + introTicks + delta);
             }
         }
         float f = MathHelper.lerp(delta, prevFlash, flash);
         if (f > 0.01f) ctx.fill(0, 0, w, h, ((int) (Math.min(1f, f) * 255) << 24) | flashColor);
+    }
+
+    /**
+     * Under the water (RAGGIMEL's tide): deep blue, lighter towards the surface, bands of light rippling across it and
+     * bubbles rising.
+     */
+    private static void drawDeep(DrawContext ctx, int w, int h, float alpha, float time) {
+        int a = (int) (alpha * 255) << 24;
+        ctx.fillGradient(0, 0, w, h, a | DEEP_TOP, a | DEEP_BOTTOM);
+        int bands = 7;
+        for (int i = 0; i < bands; i++) {
+            float y = (i + 0.5f) / bands * h * 0.6f + MathHelper.sin(time * 0.07f + i * 1.7f) * 6;
+            int bandAlpha = (int) (alpha * (40 + 25 * MathHelper.sin(time * 0.11f + i))) << 24;
+            int x0 = (int) (MathHelper.sin(time * 0.05f + i) * w * 0.1f - w * 0.1f);
+            ctx.fill(x0, (int) y, x0 + (int) (w * 1.2f), (int) y + 2 + i % 2, bandAlpha | 0x8FD4FF);
+        }
+        net.minecraft.util.math.random.Random random = net.minecraft.util.math.random.Random.create(4242L);
+        for (int i = 0; i < 40; i++) {
+            float speed = 0.6f + random.nextFloat() * 1.4f, size = 1 + random.nextInt(3);
+            float x = random.nextFloat() * w + MathHelper.sin(time * 0.1f + i) * 4;
+            float y = h - ((random.nextFloat() * h + time * speed * 3) % (h + 10));
+            ctx.fill((int) x, (int) y, (int) (x + size), (int) (y + size), ((int) (alpha * 140) << 24) | 0xCFEFFF);
+        }
     }
 
     /** The wheel, covering the screen, zoomed in on the sin as far as the intro has got. */

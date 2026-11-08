@@ -21,7 +21,8 @@ import net.ragnar.fmscraft.sin.Sin;
  * While the intro or black screen is up, the client also stops the mouse turning the camera.
  */
 public record BossScreenPayload(String screen, int elapsed, int duration) implements CustomPayload {
-    public static final String INTRO = "intro", BLACK = "black", WHITE = "white", CLEAR = "clear", FLASH = "flash", FLASH_FIRE = "flash_fire";
+    public static final String INTRO = "intro", BLACK = "black", WHITE = "white", CLEAR = "clear", FLASH = "flash", FLASH_FIRE = "flash_fire",
+            DEEP = "deep";
 
     public static final Id<BossScreenPayload> ID = new Id<>(Identifier.of(FmsCraft.MOD_ID, "boss_screen"));
     public static final PacketCodec<RegistryByteBuf, BossScreenPayload> CODEC = PacketCodec.tuple(

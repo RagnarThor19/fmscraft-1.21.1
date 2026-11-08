@@ -39,19 +39,25 @@ class GreedTimelineTest {
 
     @Test
     void phaseChangeRunsInOrder() {
-        assertTrue(GreedTimeline.BLACKOUT_FADE < GreedTimeline.VOICE_AT, "black before the voice");
-        assertEquals(5 * 20, GreedTimeline.VOICE_AT, "the voice line after about 5 s of dark");
-        assertTrue(GreedTimeline.VOICE_AT < GreedTimeline.RESHAPE_AT && GreedTimeline.RESHAPE_AT < GreedTimeline.REVEAL_AT,
-                "he changes while it's still black");
-        assertTrue(GreedTimeline.REVEAL_AT + GreedTimeline.REVEAL_TICKS >= GreedTimeline.SONG_AT,
-                "the black is (nearly) gone when the song comes in");
-        assertTrue(GreedTimeline.SONG_AT >= GreedTimeline.VOICE_AT + 200, "the 10 s voice line finishes first");
+        assertTrue(GreedTimeline.SKY_AT < GreedTimeline.WAVE_AT, "the sky turns before the wave");
+        assertTrue(GreedTimeline.WAVE_AT < GreedTimeline.WAVE_HIT && GreedTimeline.WAVE_HIT < GreedTimeline.RESHAPE_AT,
+                "the wave reaches everyone, then (under the water) they're carried off");
+        assertTrue(GreedTimeline.RESHAPE_AT < GreedTimeline.SURFACE_AT, "carried off before the water lifts");
+        assertTrue(GreedTimeline.SURFACE_AT + GreedTimeline.SURFACE_TICKS <= GreedTimeline.SONG_AT, "the garden is in view before the burst");
+        assertTrue(GreedTimeline.SONG_AT >= GreedTimeline.VOICE_AT + GreedTimeline.VOICE_TICKS, "the 10 s voice line finishes first");
+        assertTrue(GreedTimeline.TRANSITION_END > GreedTimeline.SONG_AT);
     }
 
     @Test
-    void leapStartsAndEndsOnTheGround() {
-        assertEquals(0, GreedTimeline.leapHeight(0), 1e-9);
-        assertEquals(0, GreedTimeline.leapHeight(GreedTimeline.LEAP_TICKS), 1e-9);
-        assertTrue(GreedTimeline.leapHeight(GreedTimeline.LEAP_TICKS / 2) > 15, "a big arc");
+    void theSpoutLiftsHimSmoothlyThenFlingsHimUp() {
+        assertEquals(0, GreedTimeline.spoutLift(0), 1e-9);
+        double last = 0;
+        for (int t = 1; t < GreedTimeline.SONG_AT; t++) {
+            double h = GreedTimeline.spoutLift(t);
+            assertTrue(h >= last - 1e-9, "only ever up, at " + t);
+            last = h;
+        }
+        assertEquals(GreedTimeline.SPOUT_LIFT, GreedTimeline.spoutLift(GreedTimeline.SPOUT_TICKS), 1e-9);
+        assertEquals(0, GreedTimeline.spoutLift(GreedTimeline.SONG_AT), 1e-9, "down on the burst");
     }
 }

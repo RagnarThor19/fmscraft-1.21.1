@@ -8,10 +8,14 @@ package net.ragnar.fmscraft.boss.greed;
  * Greed; 5 seconds before the fight Just The Way You Are starts fading in; at 0 the wheel fades away and RAGGIMEL
  * comes floating down in his bubble.
  *
- * <h2>Phase change (at 70% health)</h2>
- * Black, frozen, eerie sounds for 5 s; then the voice line (10 s), under which he grows to 3 blocks and moves to his
- * perch over the island's middle shrine and the sky turns to night. The black lifts as the voice line ends, the second
- * song fades in, and he fires lasers from the perch for 12 s before leaping back into the ring.
+ * <h2>Phase change (at 70% health): the tide</h2>
+ * Everyone is held where they stand (they can look round), the music cuts. RAGGIMEL lifts his staff and the sea answers:
+ * a waterspout rises whirling round him, the sky goes navy and black holes open in it, and his voice line (10 s) plays.
+ * A wall of water rises behind him and rolls over the island; as it reaches everyone the screen goes under, deep blue.
+ * Under the water he grows to 3 blocks and the tide carries everyone to the Roswall manor (GreedManor). The deep blue
+ * lifts on its garden under the same sky: he's high in a waterspout between the fountains. As the voice line ends the
+ * spout bursts, he comes down with a crash, a ring of water rolls out, Panzerknacker starts and everyone can move.
+ *
  */
 public final class GreedTimeline {
     // ---- Intro, counted from the portal opening ----
@@ -25,19 +29,31 @@ public final class GreedTimeline {
     public static final int INTRO_REVEAL = 30;
 
     // ---- Phase change, counted from the moment it starts ----
-    public static final int BLACKOUT_FADE = 6;
-    public static final int VOICE_AT = 100;
-    /** Under the black: he grows, moves to his perch, the sky turns. */
-    public static final int RESHAPE_AT = 120;
-    public static final int REVEAL_AT = 290;
-    public static final int REVEAL_TICKS = 40;
-    /** The voice line is 10 s; the second song comes in as it ends, and everyone can move again. */
-    public static final int SONG_AT = 305;
-    public static final int SONG_FADE = 100;
-    /** Lasers from the perch, then the leap back into the ring. */
-    public static final int PERCH_TICKS = 240;
-    public static final int LEAP_TICKS = 40;
-    public static final int TRANSITION_END = SONG_AT + PERCH_TICKS + LEAP_TICKS;
+    /** The sky turns navy (black holes opening in it) over {@link #SKY_TICKS}. */
+    public static final int SKY_AT = 10;
+    public static final int SKY_TICKS = 60;
+    /** The voice line (10 s) starts as the spout rises. */
+    public static final int VOICE_AT = 20;
+    public static final int VOICE_TICKS = 200;
+    /** The waterspout round him grows this tall over this long. */
+    public static final int SPOUT_TICKS = 110;
+    public static final float SPOUT_HEIGHT = 16f;
+    /** How high he's lifted in it. */
+    public static final double SPOUT_LIFT = 4;
+    /** The wave rises behind him, and reaches everyone at {@link #WAVE_HIT}: the screen goes under. */
+    public static final int WAVE_AT = 96;
+    public static final int WAVE_HIT = 150;
+    public static final int UNDER_FADE = 6;
+    /** Under the water: he grows, and everyone's carried to the manor. */
+    public static final int RESHAPE_AT = WAVE_HIT + 10;
+    /** The deep blue lifts on the manor garden. */
+    public static final int SURFACE_AT = 186;
+    public static final int SURFACE_TICKS = 30;
+    /** As the voice line ends the spout bursts and he crashes down; the second song starts and everyone can move. */
+    public static final int SONG_AT = VOICE_AT + VOICE_TICKS + 4;
+    public static final int SONG_FADE = 40;
+    /** He stands in the spray a moment before he comes for anyone; he can't be hurt until then. */
+    public static final int TRANSITION_END = SONG_AT + 24;
 
     private GreedTimeline() {
     }
@@ -60,9 +76,13 @@ public final class GreedTimeline {
         return Math.max(0, duration - MUSIC_LEAD);
     }
 
-    /** Height of RAGGIMEL's leap back into the ring, {@code t} ticks into it: a smooth arc, 0 at both ends. */
-    public static double leapHeight(int t) {
-        double u = Math.max(0, Math.min(1, t / (double) LEAP_TICKS));
-        return 18 * Math.sin(Math.PI * u);
+    /** How high he's lifted in the spout {@code t} ticks into the phase change (on the island, then over the garden). */
+    public static double spoutLift(int t) {
+        if (t <= 0 || t >= SONG_AT) return 0;
+        double u = Math.min(1, t / (double) SPOUT_TICKS);
+        double lift = SPOUT_LIFT * u * u * (3 - 2 * u);
+        // The last few ticks before the burst he's flung up a little more
+        if (t > SONG_AT - 8) lift += (t - (SONG_AT - 8)) * 0.4;
+        return lift;
     }
 }

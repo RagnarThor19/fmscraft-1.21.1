@@ -21,6 +21,8 @@ import net.minecraft.world.GameMode;
 import net.ragnar.fmscraft.boss.ModBossEntities;
 import net.ragnar.fmscraft.boss.greed.GreedArena;
 import net.ragnar.fmscraft.boss.greed.GreedBubbleEntity;
+import net.ragnar.fmscraft.boss.greed.GreedManor;
+import net.ragnar.fmscraft.boss.greed.GreedTimeline;
 import net.ragnar.fmscraft.boss.greed.RaggimelEntity;
 import net.ragnar.fmscraft.compat.MagicSpells;
 import net.ragnar.fmscraft.compat.MagicTomes;
@@ -67,6 +69,11 @@ public class RaggimelGameTests implements FabricGameTest {
         for (int cx = -3; cx <= 2; cx++) {
             for (int cz = -3; cz <= 2; cz++) arena.setChunkForced(cx, cz, force);
         }
+        // And the manor's garden, where the tide carries everyone
+        int mx = (int) GreedManor.CENTER.x >> 4, mz = (int) GreedManor.CENTER.z >> 4;
+        for (int cx = mx - 2; cx <= mx + 2; cx++) {
+            for (int cz = mz - 2; cz <= mz + 2; cz++) arena.setChunkForced(cx, cz, force);
+        }
     }
 
     private static void floor(TestContext ctx) {
@@ -84,7 +91,7 @@ public class RaggimelGameTests implements FabricGameTest {
         return boss;
     }
 
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 400)
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 700)
     public void greedFightPlaysTheIntroThenRaggimel(TestContext ctx) {
         ServerWorld world = ctx.getWorld();
         MinecraftServer server = world.getServer();
@@ -112,7 +119,14 @@ public class RaggimelGameTests implements FabricGameTest {
             for (int w = 0; w < 2; w++) {
                 for (int h = 0; h < 3; h++) ctx.assertTrue(arena.getBlockState(portal.add(w, h, 0)).isAir(), "the frame starts empty");
             }
-            ctx.assertTrue(arena.getBlockState(BlockPos.ofFloored(GreedArena.PERCH)).isAir(), "the perch is in the open air");
+            // The manor, built when the server started, with ground where everyone surfaces and where he comes up
+            ctx.assertTrue(GreedManor.built(arena), "the manor is there");
+            for (Vec3d spot : GreedManor.arrivals(3)) {
+                BlockPos feet = BlockPos.ofFloored(spot);
+                ctx.assertTrue(arena.getBlockState(feet.down()).isSolidBlock(arena, feet.down()), "manor ground under " + spot);
+                ctx.assertTrue(arena.getBlockState(feet).isAir() && arena.getBlockState(feet.up()).isAir(), "room to stand at " + spot);
+            }
+            ctx.assertTrue(arena.getBlockState(BlockPos.ofFloored(GreedManor.CENTER).down()).isOf(Blocks.STONE_BRICKS), "the path between the fountains");
         });
 
         // Waiting in the intro: frozen in the arena, the first song already started
@@ -131,8 +145,9 @@ public class RaggimelGameTests implements FabricGameTest {
             ctx.assertFalse(Cinematics.isFrozen(player), "player should be free once the fight starts");
         });
 
-        // At 70% the phase change starts: he can't be hurt and everyone is frozen in the dark
-        ctx.runAtTick(JOIN + 15, () -> {
+        // At 70% the phase change starts: he can't be hurt and everyone is held where they stand, watching
+        int phase = JOIN + 15;
+        ctx.runAtTick(phase, () -> {
             RaggimelEntity boss = (RaggimelEntity) arena.getEntity(BossFights.session(Sin.GREED).bossId());
             boss.setHealth(boss.getMaxHealth() * 0.69f);
         });
@@ -140,23 +155,151 @@ public class RaggimelGameTests implements FabricGameTest {
             RaggimelEntity boss = (RaggimelEntity) arena.getEntity(BossFights.session(Sin.GREED).bossId());
             ctx.assertEquals(boss.getPhase(), 2, "phase");
             ctx.assertTrue(boss.isUntouchable(), "he can't be hurt during the phase change");
-            ctx.assertTrue(Cinematics.isFrozen(player), "players freeze in the dark");
+            ctx.assertTrue(Cinematics.isFrozen(player), "players are held");
             float health = boss.getHealth();
             boss.damage(arena.getDamageSources().playerAttack(player), 50f);
             ctx.assertEquals(boss.getHealth(), health, "health during the phase change");
             ctx.assertTrue(BossFights.session(Sin.GREED).song() == null, "the music stops");
         });
 
-        // Falling off the island kills you (and ends the attempt)
-        ctx.runAtTick(JOIN + 30, () -> {
-            player.teleport(arena, GreedArena.PLAYER_SPAWN.x, GreedArena.VOID_Y - 5, GreedArena.PLAYER_SPAWN.z, 0, 0);
+        // The tide: the spout rising round him, the wave rolling in, everyone under, carried to the manor
+        ctx.runAtTick(phase + GreedTimeline.WAVE_AT - 10, () -> {
+            RaggimelEntity boss = (RaggimelEntity) arena.getEntity(BossFights.session(Sin.GREED).bossId());
+            ctx.assertTrue(water(arena, boss.getPos(), 6) >= 30, "a waterspout round him, " + water(arena, boss.getPos(), 6));
+        });
+        ctx.runAtTick(phase + GreedTimeline.WAVE_AT + 10, () -> {
+            RaggimelEntity boss = (RaggimelEntity) arena.getEntity(BossFights.session(Sin.GREED).bossId());
+            ctx.assertTrue(water(arena, boss.getPos(), 60) >= 30 + 40, "and a wall of water rolling over the island");
+        });
+        ctx.runAtTick(phase + GreedTimeline.RESHAPE_AT + 4, () -> {
+            RaggimelEntity boss = (RaggimelEntity) arena.getEntity(BossFights.session(Sin.GREED).bossId());
+            ctx.assertTrue(GreedManor.contains(player.getPos()), "carried to the manor, at " + player.getPos());
+            ctx.assertTrue(player.getPos().distanceTo(GreedManor.PLAYER_ARC) < 3, "surfacing south of him");
+            ctx.assertTrue(Cinematics.isFrozen(player), "still held while it plays");
+            ctx.assertTrue(boss != null && GreedManor.contains(boss.getPos()), "and him with them");
+            ctx.assertTrue(boss.getScale() > 1.4f, "grown");
+        });
+        ctx.runAtTick(phase + GreedTimeline.SONG_AT + 4, () -> {
+            RaggimelEntity boss = (RaggimelEntity) arena.getEntity(BossFights.session(Sin.GREED).bossId());
+            ctx.assertFalse(Cinematics.isFrozen(player), "free when the spout bursts");
+            ctx.assertTrue(BossFights.session(Sin.GREED).song() == RaggimelEntity.PHASE_TWO, "Panzerknacker starts");
+            ctx.assertTrue(Math.abs(boss.getY() - GreedManor.CENTER.y) < 1, "down on the garden, at " + boss.getY());
+            ctx.assertEquals(player.getHealth(), player.getMaxHealth(), "none of it hurts");
+        });
+        ctx.runAtTick(phase + GreedTimeline.TRANSITION_END + 4, () -> {
+            RaggimelEntity boss = (RaggimelEntity) arena.getEntity(BossFights.session(Sin.GREED).bossId());
+            ctx.assertFalse(boss.isUntouchable(), "the fight is on again");
+        });
+
+        // Falling off the manor's grounds kills you (and ends the attempt)
+        int fall = phase + GreedTimeline.TRANSITION_END + 10;
+        ctx.runAtTick(fall, () -> {
+            player.teleport(arena, GreedManor.CENTER.x, GreedManor.VOID_Y - 5, GreedManor.CENTER.z, 0, 0);
             player.onTeleportationDone();
         });
-        ctx.runAtTick(JOIN + 34, () -> {
+        ctx.runAtTick(fall + 4, () -> {
             ctx.assertTrue(BossFights.session(Sin.GREED) == null, "falling into the void should end the fight");
             ctx.assertFalse(Cinematics.isFrozen(player), "nobody stays frozen after a fight ends");
             server.getPlayerManager().remove(player);
             forceRing(arena, false);
+            ctx.complete();
+        });
+    }
+
+    /** His solid water (GreedWater.TAG) within {@code radius} of {@code at}. */
+    private static int water(ServerWorld world, Vec3d at, double radius) {
+        return world.getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
+                new net.minecraft.util.math.Box(at, at).expand(radius), e -> e.getCommandTags().contains("fmscraft.greed_water")).size();
+    }
+
+    private static void start(RaggimelEntity boss, String attack) {
+        try {
+            Class<?> action = Class.forName(RaggimelEntity.class.getName() + "$Action");
+            java.lang.reflect.Method method = RaggimelEntity.class.getDeclaredMethod("startAttack", action);
+            method.setAccessible(true);
+            method.invoke(boss, Enum.valueOf(action.asSubclass(Enum.class), attack));
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** Anvil Slam: an anvil shaking over you, then down on you; step out and it misses. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200, batchId = "raggimel_anvil")
+    public void anvilSlamComesDownOnWhoeverStaysUnder(TestContext ctx) {
+        floor(ctx);
+        ServerWorld world = ctx.getWorld();
+        RaggimelEntity boss = spawn(ctx, new BlockPos(1, 1, 1));
+        ServerPlayerEntity stays = survivalPlayer(world, Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(6, 1, 2))));
+        ServerPlayerEntity steps = survivalPlayer(world, Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(2, 1, 6))));
+        ctx.runAtTick(5, () -> start(boss, "ANVIL_SLAM"));
+        ctx.runAtTick(5 + 12, () -> {
+            var anvils = world.getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
+                    new net.minecraft.util.math.Box(stays.getPos(), stays.getPos()).expand(3, 12, 3), e -> e.getBlockState().isOf(Blocks.ANVIL));
+            ctx.assertTrue(!anvils.isEmpty() && anvils.get(0).getY() > stays.getY() + 6, "an anvil hanging high over them");
+        });
+        // The anvil follows a moment, then locks: one of them steps out from under it before that
+        ctx.runAtTick(5 + 24, () -> {
+            Vec3d out = steps.getPos().add(3.5, 0, 0);
+            steps.teleport(world, out.x, out.y, out.z, 0, 0);
+            steps.onTeleportationDone();
+        });
+        ctx.runAtTick(5 + 1 + 28 + 3 + 3, () -> {
+            ctx.assertTrue(stays.hasStatusEffect(net.minecraft.entity.effect.StatusEffects.SLOWNESS), "crushed under it, dazed");
+            ctx.assertFalse(steps.hasStatusEffect(net.minecraft.entity.effect.StatusEffects.SLOWNESS), "but not who stepped out");
+        });
+        ctx.runAtTick(5 + 1 + 28 + 3 + 30, () -> {
+            ctx.assertEquals(water(world, stays.getPos(), 12), 0, "the anvils sink into the ground and are gone");
+            boss.discard();
+            world.getServer().getPlayerManager().remove(stays);
+            world.getServer().getPlayerManager().remove(steps);
+            ctx.complete();
+        });
+    }
+
+    /** Cloud Ride: up onto a cloud, round over everyone raking the ground with water bolts, then down with a crash. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 300, batchId = "raggimel_cloud")
+    public void cloudRideFliesRainsWaterAndCrashesDown(TestContext ctx) {
+        floor(ctx);
+        ServerWorld world = ctx.getWorld();
+        RaggimelEntity boss = spawn(ctx, new BlockPos(3, 1, 3));
+        Vec3d stand = Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(5, 1, 5)));
+        ServerPlayerEntity player = survivalPlayer(world, stand);
+        double ground = boss.getY();
+        // He circles out past the test area: keep the chunks round it ticking (mock players load none)
+        int cx = (int) Math.floor(stand.x) >> 4, cz = (int) Math.floor(stand.z) >> 4;
+        for (int x = cx - 2; x <= cx + 2; x++) for (int z = cz - 2; z <= cz + 2; z++) world.setChunkForced(x, z, true);
+        ctx.runAtTick(5, () -> start(boss, "CLOUD_RIDE"));
+        int flying = 5 + RaggimelEntity.RIDE_CROUCH + RaggimelEntity.RIDE_LEAP + 20;
+        ctx.runAtTick(flying, () -> {
+            ctx.assertEquals(boss.currentAction(), "CLOUD_RIDE", "riding");
+            ctx.assertTrue(boss.getY() > ground + 8, "up in the sky, at " + (boss.getY() - ground));
+            ctx.assertTrue(boss.getPassengerList().size() >= 9, "on a cloud riding along under him, " + boss.getPassengerList().size() + " puffs");
+            ctx.assertTrue(boss.getPassengerList().stream().allMatch(e -> e.getCommandTags().contains("fmscraft.greed_water")), "of his own");
+        });
+        int[] bolts = {0};
+        for (int t = flying; t < flying + 40; t++) {
+            ctx.runAtTick(t, () -> bolts[0] = Math.max(bolts[0], world.getEntitiesByClass(
+                    net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class, new net.minecraft.util.math.Box(stand, stand).expand(30),
+                    e -> e.getBlockState().isOf(Blocks.BLUE_ICE)).size()));
+        }
+        ctx.runAtTick(flying + 40, () -> ctx.assertTrue(bolts[0] >= 3, "water bolts pouring down, " + bolts[0] + " at once"));
+        // (Circling out past the test area he can pass through chunks that aren't ticking, mock players keeping none
+        // loaded: wait for the ride to end rather than counting ticks)
+        boolean[] down = {false};
+        for (int t = flying + 41; t < 290; t++) {
+            ctx.runAtTick(t, () -> {
+                if (down[0] || boss.currentAction().equals("CLOUD_RIDE")) return;
+                down[0] = true;
+                ctx.assertTrue(Math.abs(boss.getY() - ground) < 1.5, "down with a crash, at " + (boss.getY() - ground));
+                ctx.assertTrue(boss.getPassengerList().isEmpty(), "off the cloud");
+                ctx.assertFalse(boss.hasNoGravity(), "back on his feet");
+            });
+        }
+        ctx.runAtTick(290, () -> {
+            for (int x = cx - 2; x <= cx + 2; x++) for (int z = cz - 2; z <= cz + 2; z++) world.setChunkForced(x, z, false);
+            ctx.assertTrue(down[0], "the ride ended");
+            boss.discard();
+            world.getServer().getPlayerManager().remove(player);
             ctx.complete();
         });
     }
@@ -292,7 +435,11 @@ public class RaggimelGameTests implements FabricGameTest {
         ServerPlayerEntity far = survivalPlayer(ctx.getWorld(), Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(5, 1, 0))));
         // Just the one sprout, right under the first player (the attack's own ten land at random)
         ctx.runAtTick(5, () -> boss.sproutAt(spot));
+        ctx.runAtTick(5 + 4, () -> ctx.assertTrue(water(ctx.getWorld(), spot, 2) >= 1, "the ground rippling where it'll burst"));
         ctx.runAtTick(5 + 12, () -> {
+            ctx.assertTrue(ctx.getWorld().getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
+                    new net.minecraft.util.math.Box(spot, spot).expand(2), e -> e.getBlockState().isOf(Blocks.ICE)).size() >= 2,
+                    "a column of water shooting up");
             ctx.assertTrue(on.getVelocity().y > 1.5, "on top: shot high, " + on.getVelocity().y);
             ctx.assertTrue(near.getVelocity().y > 0.5 && near.getVelocity().y < on.getVelocity().y, "near it: not so high, " + near.getVelocity().y);
             ctx.assertTrue(far.getVelocity().y < 0.1, "further off: nothing, " + far.getVelocity().y);

@@ -131,6 +131,8 @@ public final class Arenas {
         } else {
             buildDefault(world, flags);
         }
+        // RAGGIMEL's second arena, the manor, far out from his island (built once; anything left lying about cleared)
+        if (sin == Sin.GREED && !ModBossEntities.usesStandIn(sin)) net.ragnar.fmscraft.boss.greed.GreedManor.prepare(world);
         if (layout.exitFrame() != null) buildExitFrame(world, layout, flags);
     }
 
