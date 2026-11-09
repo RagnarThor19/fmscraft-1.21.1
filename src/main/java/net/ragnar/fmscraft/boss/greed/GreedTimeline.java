@@ -18,6 +18,16 @@ package net.ragnar.fmscraft.boss.greed;
  *
  */
 public final class GreedTimeline {
+    /**
+     * RAGGIMEL's health, as a share of RaggimelEntity.MAX_HEALTH, for {@code players} in the fight: full for 5-7, down
+     * to 60% alone, and 8% more for each player past 7 (124% for 10), at most double. The same as every other sin.
+     */
+    public static float healthScale(int players) {
+        if (players <= 0) return 1f;
+        if (players <= 7) return Math.min(1f, 0.5f + 0.1f * players);
+        return Math.min(2f, 1f + 0.08f * (players - 7));
+    }
+
     // ---- Intro, counted from the portal opening ----
     /** How long the zoom into Greed takes. It ends {@link #ZOOM_HOLD} ticks before the fight. */
     public static final int ZOOM_TICKS = 220;

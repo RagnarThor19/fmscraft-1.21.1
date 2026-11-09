@@ -109,6 +109,7 @@ public class FmsCraftClient implements ClientModInitializer {
         });
         // His Mirror Images cast no shadow: the tell
         EntityRendererRegistry.register(ModBossEntities.GUMMSS_ILLUSION, ctx -> new GummssRenderer<>(ctx, 0f));
+        EntityRendererRegistry.register(ModBossEntities.GUMMSS_COLOSSUS, ctx -> new GummssRenderer<>(ctx, 0f));
         EntityRendererRegistry.register(ModBossEntities.LALLI, LalliRenderer::new);
         EntityRendererRegistry.register(ModBossEntities.MUGEN, ctx -> new MugenRenderer<>(ctx, 0.5f));
         // His shadow clones cast no shadow: the tell

@@ -171,7 +171,8 @@ public class GummssRenderer<T extends HostileEntity & GummssLook> extends BipedE
 
     private static boolean casting(int pose) {
         return pose == GummssLook.POSE_CAST || pose == GummssLook.POSE_SKY || pose == GummssLook.POSE_STARE
-                || pose == GummssLook.POSE_FALL || pose == GummssLook.POSE_LAND || pose == GummssLook.POSE_LIFT;
+                || pose == GummssLook.POSE_FALL || pose == GummssLook.POSE_LAND || pose == GummssLook.POSE_LIFT
+                || pose == GummssLook.POSE_COVET;
     }
 
     private static final class CastingEyes<T extends HostileEntity & GummssLook> extends EyesFeatureRenderer<T, GummssModel<T>> {

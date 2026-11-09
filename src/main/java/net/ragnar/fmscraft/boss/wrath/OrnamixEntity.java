@@ -51,8 +51,10 @@ import net.ragnar.fmscraft.boss.BossSong;
 import net.ragnar.fmscraft.boss.SinBossEntity;
 import net.ragnar.fmscraft.compat.MagicSpells;
 import net.ragnar.fmscraft.fight.Arenas;
+import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fight.Cinematics;
 import net.ragnar.fmscraft.network.BossScreenPayload;
+import net.ragnar.fmscraft.network.GreedPushPayload;
 import net.ragnar.fmscraft.network.WrathSkyPayload;
 import net.ragnar.fmscraft.sin.Sin;
 import net.ragnar.fmscraft.sound.ModSounds;
@@ -72,7 +74,7 @@ import java.util.UUID;
  * fights with a burning iron sword, always wreathed in fire. Two phases, each on its own song, attacks starting on the
  * beat.
  *
- * <h2>Phase 1 (100% to 40%): the red sky, N***as in Paris</h2>
+ * <h2>Phase 1 (100% to 50%): the red sky, N***as in Paris</h2>
  * Runs people down and cuts them (and sets them alight), sidesteps blows now and then, and between cuts picks one of:
  * <ul>
  *   <li><b>Stab and Leap</b>: a lunging stab at whoever is closest, then a leap back out of reach.</li>
@@ -93,7 +95,7 @@ import java.util.UUID;
  *
  * <h2>His entrance and Ragemode: see {@link OrnamixTimeline}</h2>
  *
- * <h2>Phase 2 (40% to 0%): Ragemode, Return to Zero</h2>
+ * <h2>Phase 2 (50% to 0%): Ragemode, Return to Zero</h2>
  * The sky goes almost black red, his eyes burn, the world blinks to the bass. Faster, shorter windups, harder hits, more
  * dodging. Everything from phase 1 (bigger: three fire waves, more rings, two dashes, two punches...) and:
  * <ul>
@@ -104,8 +106,18 @@ import java.util.UUID;
  *   <li><b>Inferno</b>: rises into the air while a wall of fire rises round a huge circle, then crashes down
  *       spinning: the wall roars up, the ground inside glows and a whirling firestorm fills it. Afterwards he's dizzy
  *       and takes extra damage.</li>
+ *   <li><b>Twin Twisters</b>: gone in a burst of flame, then he's hanging over the middle of the pit, flailing, while
+ *       two tornadoes of fire rise at either end of it ({@link FireTwister}); he drops back down and they roam.</li>
+ *   <li><b>Burning Boulder</b> (the Tome of Boulders, made worse): gone, and at the far end of the pit, arms raised
+ *       while a meteor's worth of burning rock gathers over him; he throws it down and it rolls across the pit until
+ *       it hits the wall ({@link FlamingBoulder}).</li>
  * </ul>
  * Anyone who leaves the pit (over the wall, into the stands) is thrown back in by the flames after 2 seconds.
+ *
+ * <h2>His death: Burnout ({@link OrnamixDeath})</h2>
+ * The blow that would kill him leaves him at the last of his health instead, and he burns out: the sword planted, him
+ * kneeling, the fire going out of him and the pit, then ash on the wind. Then he dies, and the portal and the wheel
+ * follow a couple of seconds later. (Killed outright, by a command, he just dies.)
  */
 public class OrnamixEntity extends SinBossEntity {
     public static final BossSong PHASE_ONE = new BossSong("fmscraft:music.wrath.phase_one", 140, 1);
@@ -116,7 +128,7 @@ public class OrnamixEntity extends SinBossEntity {
     // ---- Tuning knobs ----
     /** Full health, for 5-7 players; {@link OrnamixTimeline#healthScale} takes it down for smaller groups. */
     public static final float MAX_HEALTH = 900;
-    public static final float RAGE_AT = 0.4f;
+    public static final float RAGE_AT = 0.5f;
     /** Damage he takes is multiplied by this per phase (on top of his armor), more while exposed, and capped per hit. */
     public static final float DAMAGE_TAKEN_ONE = 0.8f, DAMAGE_TAKEN_TWO = 0.9f, EXPOSED_BONUS = 1.5f, MAX_HIT = 30f;
     /** Every hit he deals is multiplied by this (and again by {@link #RAGE_DAMAGE} in Ragemode), then rounded up. */
@@ -134,7 +146,8 @@ public class OrnamixEntity extends SinBossEntity {
     // ---- Synced to the client for the model ----
     public static final int POSE_IDLE = 0, POSE_DRAW = 1, POSE_STAB = 2, POSE_RAISE = 3, POSE_CAST = 4, POSE_AIM = 5,
             POSE_BOW = 6, POSE_CROUCH = 7, POSE_SPIN_READY = 8, POSE_SPIN = 9, POSE_PUNCH_READY = 10, POSE_PUNCH = 11,
-            POSE_STUNNED = 12, POSE_KNEEL = 13, POSE_ROAR = 14, POSE_SLAM = 15, POSE_STUCK = 16, POSE_ASCEND = 17;
+            POSE_STUNNED = 12, POSE_KNEEL = 13, POSE_ROAR = 14, POSE_SLAM = 15, POSE_STUCK = 16, POSE_ASCEND = 17,
+            POSE_FLAIL = 18, POSE_DYING = 19, POSE_REACH = 20;
     private static final TrackedData<Integer> POSE = DataTracker.registerData(OrnamixEntity.class, TrackedDataHandlerRegistry.INTEGER);
     private static final TrackedData<Boolean> RAGE = DataTracker.registerData(OrnamixEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
 
@@ -144,7 +157,7 @@ public class OrnamixEntity extends SinBossEntity {
     enum Action {
         ENTRANCE, CHASE, EXPOSED, TRANSITION,
         STAB_HOP, FIRE_WAVE, FLAME_SPIN, FLAMETHROWER, IGNITE, SUN, ARROWS, FLURRY, DASH_STAB, FLOOR_WAVE, HAYMAKER,
-        METEOR, SUMMON, FIREBALLS, INFERNO
+        METEOR, SUMMON, FIREBALLS, INFERNO, TWIN_TWISTERS, BOULDER, DYING
     }
 
     private Action action = Action.ENTRANCE;
@@ -328,6 +341,7 @@ public class OrnamixEntity extends SinBossEntity {
         if (source.isOf(DamageTypes.OUT_OF_WORLD) || source.isOf(DamageTypes.GENERIC_KILL)) return super.damage(source, amount);
         Entity attacker = source.getAttacker();
         if (attacker == this || attacker != null && attacker.getCommandTags().contains(SUMMON_TAG)) return false;
+        if (action == Action.DYING) return false;
         if (untouchable) {
             if (attacker instanceof PlayerEntity) {
                 getWorld().playSound(null, getX(), getEyeY(), getZ(), SoundEvents.BLOCK_FIRE_EXTINGUISH, SoundCategory.HOSTILE, 1.0f, 1.6f);
@@ -340,7 +354,26 @@ public class OrnamixEntity extends SinBossEntity {
         amount = Math.min(amount, MAX_HIT);
         // Phase 1 can't be skipped by one big hit
         if (getPhase() == 1) amount = Math.min(amount, getHealth() - getMaxHealth() * RAGE_AT + 0.01f);
-        return super.damage(source, Math.max(0.01f, amount));
+        if (getPhase() == 1) return super.damage(source, Math.max(0.01f, amount));
+        // The blow that would kill him leaves him at the last of his health, and he burns out (setHealth)
+        boolean hurt;
+        lethalGuard = true;
+        try {
+            hurt = super.damage(source, Math.max(0.01f, amount));
+        } finally {
+            lethalGuard = false;
+        }
+        if (pendingDeath && getWorld() instanceof ServerWorld world) startDying(world);
+        return hurt;
+    }
+
+    @Override
+    public void setHealth(float health) {
+        if (lethalGuard && health <= 0 && action != Action.DYING) {
+            health = 1f;
+            pendingDeath = true;
+        }
+        super.setHealth(health);
     }
 
     /** One of his own fireballs, hit back into him by {@code player}. */
@@ -384,7 +417,8 @@ public class OrnamixEntity extends SinBossEntity {
 
     @Override
     public boolean isPushable() {
-        return action != Action.ENTRANCE && action != Action.TRANSITION && action != Action.INFERNO;
+        return action != Action.ENTRANCE && action != Action.TRANSITION && action != Action.INFERNO && action != Action.TWIN_TWISTERS && action != Action.BOULDER
+                && action != Action.DYING;
     }
 
     @Override
@@ -447,9 +481,13 @@ public class OrnamixEntity extends SinBossEntity {
             case SUMMON -> tickSummon(world);
             case FIREBALLS -> tickFireballs(world);
             case INFERNO -> tickInferno(world);
+            case TWIN_TWISTERS -> tickTwinTwisters(world);
+            case BOULDER -> tickBoulder(world);
+            case DYING -> tickDying(world);
         }
         tickHazards(world);
         summons.removeIf(id -> !(world.getEntity(id) instanceof WitherSkeletonEntity s) || !s.isAlive());
+        if (action == Action.DYING) return;
         tickAura(world);
         if (inArena) {
             tickAmbience(world);
@@ -504,6 +542,8 @@ public class OrnamixEntity extends SinBossEntity {
             if (summons.size() < 3) offer(options, weights, Action.SUMMON, 2, 600);
             offer(options, weights, Action.FIREBALLS, 3, 220);
             offer(options, weights, Action.INFERNO, 2, 460);
+            if (twisters.isEmpty()) offer(options, weights, Action.TWIN_TWISTERS, 2, 600);
+            offer(options, weights, Action.BOULDER, 2, 400);
         }
         if (options.isEmpty()) return Action.DASH_STAB;
         int total = weights.stream().mapToInt(Integer::intValue).sum(), roll = random.nextInt(total);
@@ -1486,6 +1526,442 @@ public class OrnamixEntity extends SinBossEntity {
         expose(40, POSE_STUNNED);
     }
 
+    // ---- Twin Twisters: gone, then hanging over the middle of the pit, flailing, calling up two tornadoes of fire ----
+
+    /** Ticks: gone, the cast (5 s, flailing over the middle), how long the tornadoes roam, the longest he can fall. */
+    public static final int TWISTERS_VANISH = 10, TWISTERS_CAST = 100, TWISTERS_ROAM = 240, TWISTERS_FALL = 30;
+    /** How high over the middle he hangs, and how far out towards the wall (of the pit's radius) the two of them rise. */
+    public static final double TWISTERS_HOVER = 9, TWISTERS_SPREAD = 0.6;
+    /** How hard a tornado throws you, sideways and up; what it does to you (before {@link #dealt}), and the burning. */
+    public static final double TWISTER_FLING = 2.8, TWISTER_LIFT = 1.25;
+    public static final float TWISTER_DAMAGE = 9f, TWISTER_BURN = 6f;
+    private static final double TWISTERS_SPEED = 0.27;
+    private final List<FireTwister> twisters = new ArrayList<>();
+    private final Map<UUID, Vec3d> lastPush = new HashMap<>();
+    private Vec3d twisterCenter;
+    private int twisterFlings;
+    private Vec3d lastFling = Vec3d.ZERO;
+
+    /** For tests: how many fire tornadoes are up, how many times one has thrown someone, and how hard the last throw was. */
+    public int twisterCount() {
+        return twisters.size();
+    }
+
+    public int twisterFlings() {
+        return twisterFlings;
+    }
+
+    public Vec3d lastTwisterFling() {
+        return lastFling;
+    }
+
+    /** For tests: the last nudge a tornado gave {@code p} (zero if none). */
+    public Vec3d lastPush(PlayerEntity p) {
+        return lastPush.getOrDefault(p.getUuid(), Vec3d.ZERO);
+    }
+
+    /** Where the tornadoes stand (their feet), for tests. */
+    public List<Vec3d> twisterSpots() {
+        List<Vec3d> spots = new ArrayList<>();
+        for (FireTwister t : twisters) spots.add(t.foot());
+        return spots;
+    }
+
+    private void tickTwinTwisters(ServerWorld world) {
+        int t = actionTicks;
+        boolean inArena = Arenas.sinOf(world) == Sin.WRATH;
+        double hover = inArena ? TWISTERS_HOVER : 4;
+        getNavigation().stop();
+        if (t == 1) {
+            // Gone, in a burst of flame
+            untouchable = true;
+            Vec3d c = getPos().add(0, 1, 0);
+            emit(world, ParticleTypes.FLAME, c, 70, 0.4, 0.9, 0.4, 0.14);
+            emit(world, ParticleTypes.LARGE_SMOKE, c, 25, 0.4, 0.8, 0.4, 0.05);
+            emit(world, ParticleTypes.LAVA, c, 10, 0.3, 0.5, 0.3, 0);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_BLAZE_SHOOT, SoundCategory.HOSTILE, 3.0f, 0.5f);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ITEM_FIRECHARGE_USE, SoundCategory.HOSTILE, 3.0f, 0.6f);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.HOSTILE, 2.5f, 0.6f);
+            setInvisible(true);
+            setNoGravity(true);
+            setVelocity(Vec3d.ZERO);
+            twisterCenter = inArena ? WrathArena.CENTER : getPos();
+            setPoseState(POSE_FLAIL);
+        }
+        if (twisterCenter == null) {
+            endTwinTwisters();
+            return;
+        }
+        if (t < TWISTERS_VANISH) {
+            setVelocity(Vec3d.ZERO);
+            return;
+        }
+        if (t == TWISTERS_VANISH) {
+            // ...and there he is, hanging over the middle of the pit
+            Vec3d at = twisterCenter.add(0, hover, 0);
+            requestTeleport(at.x, at.y, at.z);
+            faceTowards(nearestOr(twisterCenter.add(0, 0, 1)));
+            setInvisible(false);
+            Vec3d c = at.add(0, 1, 0);
+            emit(world, ParticleTypes.FLASH, c, 1, 0, 0, 0, 0);
+            emit(world, ParticleTypes.FLAME, c, 90, 0.6, 1.0, 0.6, 0.2);
+            emit(world, ParticleTypes.LARGE_SMOKE, c, 30, 0.5, 0.8, 0.5, 0.06);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_BLAZE_SHOOT, SoundCategory.HOSTILE, 4.0f, 0.4f);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_WITHER_SHOOT, SoundCategory.HOSTILE, 2.5f, 0.5f);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_BLAZE_AMBIENT, SoundCategory.HOSTILE, 4.0f, 0.4f);
+            // At either end of the pit, across from each other, two rings of fire open on the sand
+            double spread = inArena ? WrathArena.PIT_RADIUS * TWISTERS_SPREAD : 3, leash = inArena ? WrathArena.PIT_RADIUS - 6 : 3;
+            double a = random.nextDouble() * MathHelper.TAU;
+            for (int i = 0; i < 2; i++, a += Math.PI) {
+                Vec3d spot = twisterCenter.add(Math.cos(a) * spread, 0, Math.sin(a) * spread);
+                double ground = groundBelow(spot.add(0, 3, 0), 10);
+                FireTwister twister = new FireTwister(world, new Vec3d(spot.x, Double.isNaN(ground) ? twisterCenter.y : ground, spot.z),
+                        TWISTERS_CAST, twisterCenter, leash);
+                twisters.add(twister);
+                hazards.add(twister);
+            }
+        }
+        int c = t - TWISTERS_VANISH;
+        if (c <= TWISTERS_CAST) {
+            // Hanging there, flailing his arms, the fire pouring out of his hands into the two storms
+            setNoGravity(true);
+            setVelocity(Vec3d.ZERO);
+            setPosition(twisterCenter.x, twisterCenter.y + hover + 0.35 * Math.sin(t * 0.15), twisterCenter.z);
+            if (c % 10 == 0) faceTowards(nearestOr(twisterCenter.add(0, 0, 1)));
+            Vec3d forward = Vec3d.fromPolar(0, getYaw()), side = new Vec3d(-forward.z, 0, forward.x);
+            Vec3d over = getPos().add(0, getHeight() * 1.05, 0);
+            for (int i = 0; i < twisters.size(); i++) {
+                FireTwister twister = twisters.get(i);
+                Vec3d hand = over.add(side.multiply(i == 0 ? 0.5 : -0.5)), top = twister.top();
+                for (int k = 0; k < 2; k++) {
+                    double u = (c * 0.06 + k / 2.0 + i * 0.25) % 1.0;
+                    Vec3d along = hand.lerp(top, u).add(0, Math.sin(u * Math.PI) * 5, 0);
+                    emit(world, k == 0 ? ParticleTypes.FLAME : FireTwister.RED_DUST, along, 2, 0.2, 0.2, 0.2, 0.02);
+                }
+            }
+            // A ring of fire turning round him, embers and lava dripping off him
+            for (int k = 0; k < 8; k++) {
+                double a = c * 0.25 + k * MathHelper.TAU / 8;
+                world.spawnParticles(ParticleTypes.FLAME, getX() + Math.cos(a) * 1.7, getY() + 1 + 0.4 * Math.sin(a * 2 + c * 0.2), getZ() + Math.sin(a) * 1.7, 1, 0, 0, 0, 0);
+            }
+            if (c % 2 == 0) world.spawnParticles(ParticleTypes.FALLING_LAVA, getX(), getY(), getZ(), 2, 0.4, 0.1, 0.4, 0);
+            if (c % 3 == 0) world.spawnParticles(DARK_EMBER, getX(), getY() + 1, getZ(), 3, 0.8, 1, 0.8, 0);
+            if (c % 20 == 10) world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_BLAZE_AMBIENT, SoundCategory.HOSTILE, 3.0f, 0.4f + c / (float) TWISTERS_CAST * 0.5f);
+            if (c % 8 == 0) world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_FIRE_AMBIENT, SoundCategory.HOSTILE, 3.0f, 0.5f);
+            if (c % 14 == 7) world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.HOSTILE, 1.5f, 0.5f);
+            if (c == 60) {
+                world.playSound(null, getX(), getY() + 10, getZ(), SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.WEATHER, 4.0f, 0.6f);
+                for (ServerPlayerEntity p : audience(world)) if (p.squaredDistanceTo(this) < 60 * 60) flash(p, 0.3f, 8);
+            }
+            if (c > 70 && c % 5 == 0) MagicSpells.shake(world, twisterCenter, 45, 0.15f + 0.3f * (c - 70) / 30f, 6);
+            if (c == TWISTERS_CAST) {
+                // Let loose, and down he comes
+                for (FireTwister twister : twisters) twister.release(TWISTERS_ROAM, TWISTERS_SPEED);
+                setPoseState(POSE_RAISE);
+                setNoGravity(false);
+                setVelocity(0, -1.4, 0);
+                stageTicks = -1;
+                world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 4.0f, 0.6f);
+                world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_BREEZE_WIND_BURST.value(), SoundCategory.HOSTILE, 4.0f, 0.5f);
+                for (FireTwister twister : twisters) {
+                    Vec3d f = twister.foot();
+                    world.playSound(null, f.x, f.y, f.z, SoundEvents.ENTITY_BLAZE_SHOOT, SoundCategory.HOSTILE, 4.0f, 0.4f);
+                }
+                MagicSpells.shake(world, twisterCenter, 45, 0.7f, 14);
+            }
+            return;
+        }
+        int fall = c - TWISTERS_CAST;
+        if (stageTicks < 0) {
+            emit(world, ParticleTypes.FLAME, getPos().add(0, 1, 0), 6, 0.3, 0.5, 0.3, 0.03);
+            if (!(isOnGround() && fall > 1) && fall < TWISTERS_FALL) return;
+            // Down on the sand: thrown back, nobody hurt
+            stageTicks = 0;
+            untouchable = false;
+            setPoseState(POSE_KNEEL);
+            Vec3d at = getPos();
+            emit(world, ParticleTypes.EXPLOSION_EMITTER, at.add(0, 0.5, 0), 1, 0, 0, 0, 0);
+            emit(world, ParticleTypes.FLAME, at.add(0, 0.3, 0), 60, 2.0, 0.2, 2.0, 0.12);
+            world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, groundState()), at.x, at.y + 0.2, at.z, 80, 2, 0.2, 2, 0.2);
+            world.playSound(null, at.x, at.y, at.z, SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.HOSTILE, 3.0f, 0.6f);
+            world.playSound(null, at.x, at.y, at.z, SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 2.5f, 0.7f);
+            for (ServerPlayerEntity p : fighters) {
+                double d = p.getPos().distanceTo(at);
+                if (d < 6) launch(p, p.getPos().subtract(at), 1.0 * (1 - d / 6) + 0.3, 0.4);
+                if (d < 30) flash(p, 0.3f, 10);
+            }
+            return;
+        }
+        if (++stageTicks >= 10) endTwinTwisters();
+    }
+
+    private void endTwinTwisters() {
+        untouchable = false;
+        setInvisible(false);
+        twisterCenter = null;
+        endAttack();
+        // He fights on while they roam; nothing else that big for a while
+        rest = Math.max(rest, 40);
+    }
+
+    /**
+     * A tornado's done with {@code p}: hurt, set alight and thrown along {@code dir} a long way. The landing hurts too:
+     * it's a long way down.
+     */
+    void twisterFling(ServerPlayerEntity p, Vec3d dir) {
+        if (!(getWorld() instanceof ServerWorld world)) return;
+        p.timeUntilRegen = 0;
+        hurt(p, TWISTER_DAMAGE, TWISTER_BURN);
+        Vec3d fling = new Vec3d(dir.x * TWISTER_FLING, TWISTER_LIFT, dir.z * TWISTER_FLING);
+        p.setVelocity(fling);
+        p.velocityModified = true;
+        p.fallDistance = 0;
+        twisterFlings++;
+        lastFling = fling;
+        flash(p, 0.4f, 8);
+        world.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_BREEZE_WIND_BURST.value(), SoundCategory.HOSTILE, 2.0f, 0.7f);
+        world.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_BLAZE_SHOOT, SoundCategory.HOSTILE, 1.5f, 0.8f);
+    }
+
+    /** A nudge added to {@code p}'s own speed on their side (a tornado dragging them in), so they can still run from it. */
+    void pushPlayer(ServerPlayerEntity p, Vec3d push) {
+        lastPush.put(p.getUuid(), push);
+        if (ServerPlayNetworking.canSend(p, GreedPushPayload.ID)) {
+            ServerPlayNetworking.send(p, new GreedPushPayload((float) push.x, (float) push.y, (float) push.z));
+        }
+    }
+
+    /** The top of the ground under {@code at}, looking down from a little over {@code near} (or {@code near} if none). */
+    double groundUnder(Vec3d at, double near) {
+        double g = groundBelow(new Vec3d(at.x, near + 2, at.z), 8);
+        return Double.isNaN(g) ? near : g;
+    }
+
+    // ---- Burning Boulder: off to the far end of the pit, a meteor's worth of rock gathered overhead, thrown, rolling ----
+
+    /** Ticks: gone, the boulder gathering over his head (2 s), after the throw before he's on the move again. */
+    public static final int BOULDER_VANISH = 6, BOULDER_FORM = 40, BOULDER_THROW = 14;
+    private FlamingBoulder boulder;
+    private int boulderHits, boulderBursts;
+    private double lastBoulderRoll;
+
+    /** For tests: whether a boulder is up (held, rolling or breaking apart), whether it's rolling, where it is. */
+    public boolean hasBoulder() {
+        return boulder != null;
+    }
+
+    public boolean boulderRolling() {
+        return boulder != null && boulder.rolling();
+    }
+
+    public Vec3d boulderPos() {
+        return boulder == null ? null : boulder.pos;
+    }
+
+    /** For tests: how many people a boulder has run over, how many have burst, and how far the last one rolled. */
+    public int boulderHits() {
+        return boulderHits;
+    }
+
+    public int boulderBursts() {
+        return boulderBursts;
+    }
+
+    public double lastBoulderRoll() {
+        return lastBoulderRoll;
+    }
+
+    void boulderHit() {
+        boulderHits++;
+    }
+
+    void boulderBurst(double rolled) {
+        boulderBursts++;
+        lastBoulderRoll = rolled;
+    }
+
+    boolean inColosseum(ServerWorld world) {
+        return Arenas.sinOf(world) == Sin.WRATH;
+    }
+
+    private Vec3d overHead() {
+        return getPos().add(0, getHeight() + FlamingBoulder.RADIUS + 0.6, 0).add(Vec3d.fromPolar(0, getYaw()).multiply(0.4));
+    }
+
+    /** Somewhere by the wall of the pit as far as can be from all of them (off the colosseum: where he is). */
+    private Vec3d farEnd(ServerWorld world) {
+        if (!inColosseum(world)) return getPos();
+        Vec3d best = null;
+        double bestScore = -1;
+        double offset = random.nextDouble() * MathHelper.TAU;
+        for (int k = 0; k < 16; k++) {
+            double a = offset + k * MathHelper.TAU / 16;
+            Vec3d spot = standingSpot(WrathArena.CENTER.add(Math.cos(a) * (WrathArena.PIT_RADIUS - 5), 1, Math.sin(a) * (WrathArena.PIT_RADIUS - 5)));
+            if (spot == null) continue;
+            double score = Double.MAX_VALUE;
+            for (ServerPlayerEntity p : fighters) score = Math.min(score, WrathHazards.flatDistance(p.getPos(), spot));
+            if (score > bestScore) {
+                bestScore = score;
+                best = spot;
+            }
+        }
+        return best == null ? getPos() : best;
+    }
+
+    private void tickBoulder(ServerWorld world) {
+        int t = actionTicks;
+        getNavigation().stop();
+        if (t == 1) {
+            ServerPlayerEntity target = pick(null);
+            focus = target == null ? null : target.getUuid();
+            // Gone, in a burst of flame
+            Vec3d c = getPos().add(0, 1, 0);
+            emit(world, ParticleTypes.FLAME, c, 50, 0.4, 0.9, 0.4, 0.12);
+            emit(world, ParticleTypes.LARGE_SMOKE, c, 18, 0.4, 0.8, 0.4, 0.04);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_BLAZE_SHOOT, SoundCategory.HOSTILE, 2.5f, 0.6f);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.HOSTILE, 2.0f, 0.7f);
+            setInvisible(true);
+            untouchable = true;
+            setNoGravity(true);
+            spinCenter = farEnd(world);
+        }
+        if (spinCenter == null) {
+            endBoulder();
+            return;
+        }
+        ServerPlayerEntity target = fighter(focus);
+        if (t < BOULDER_VANISH) {
+            setVelocity(Vec3d.ZERO);
+            return;
+        }
+        if (t == BOULDER_VANISH) {
+            // ...at the far end of the pit, arms raised
+            requestTeleport(spinCenter.x, spinCenter.y, spinCenter.z);
+            setInvisible(false);
+            untouchable = false;
+            setNoGravity(false);
+            faceTowards(target != null ? target.getPos() : WrathArena.CENTER);
+            setPoseState(POSE_CAST);
+            Vec3d c = spinCenter.add(0, 1, 0);
+            emit(world, ParticleTypes.FLAME, c, 60, 0.5, 1.0, 0.5, 0.15);
+            emit(world, ParticleTypes.LARGE_SMOKE, c, 20, 0.4, 0.8, 0.4, 0.05);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_BLAZE_SHOOT, SoundCategory.HOSTILE, 3.0f, 0.5f);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_EVOKER_CAST_SPELL, SoundCategory.HOSTILE, 2.0f, 0.5f);
+            world.playSound(null, c.x, c.y, c.z, SoundEvents.BLOCK_RESPAWN_ANCHOR_CHARGE, SoundCategory.HOSTILE, 2.5f, 0.5f);
+            boulder = new FlamingBoulder(world, overHead());
+            hazards.add(boulder);
+        }
+        int f = t - BOULDER_VANISH;
+        setVelocity(0, getVelocity().y, 0);
+        if (f < BOULDER_FORM) {
+            if (target != null) faceTowards(target.getPos());
+            float u = f / (float) BOULDER_FORM;
+            Vec3d over = overHead();
+            if (boulder != null) boulder.hold(over, u * u * (3 - 2 * u));
+            // Rock and fire torn up off the sand and drawn into it
+            BlockState sand = groundState();
+            for (int i = 0; i < 4; i++) {
+                double a = random.nextDouble() * MathHelper.TAU, d = 3 + random.nextDouble() * 4;
+                Vec3d from = getPos().add(Math.cos(a) * d, 0.2, Math.sin(a) * d), to = over.subtract(from);
+                world.spawnParticles(new BlockStateParticleEffect(ParticleTypes.BLOCK, i % 2 == 0 ? sand : Blocks.MAGMA_BLOCK.getDefaultState()),
+                        from.x, from.y, from.z, 0, to.x, to.y, to.z, 0.15);
+                world.spawnParticles(ParticleTypes.FLAME, from.x, from.y, from.z, 0, to.x, to.y, to.z, 0.07);
+            }
+            // Fire climbing from his raised hands into it
+            Vec3d hands = getPos().add(0, getHeight() * 1.05, 0);
+            for (int i = 0; i < 2; i++) {
+                double v = (f * 0.12 + i * 0.5) % 1.0;
+                Vec3d along = hands.lerp(over, v);
+                world.spawnParticles(ParticleTypes.FLAME, along.x, along.y, along.z, 2, 0.15, 0.15, 0.15, 0.01);
+            }
+            if (f % 4 == 0) world.playSound(null, over.x, over.y, over.z, SoundEvents.BLOCK_BASALT_PLACE, SoundCategory.HOSTILE, 2.0f, 0.4f + u * 0.4f);
+            if (f % 10 == 5) world.playSound(null, over.x, over.y, over.z, SoundEvents.BLOCK_FIRE_AMBIENT, SoundCategory.HOSTILE, 3.0f, 0.5f);
+            if (f == 20) world.playSound(null, over.x, over.y, over.z, SoundEvents.ENTITY_BLAZE_AMBIENT, SoundCategory.HOSTILE, 3.0f, 0.4f);
+            if (f > 24 && f % 4 == 0) MagicSpells.shake(world, getPos(), 20, 0.15f + 0.25f * u, 5);
+            return;
+        }
+        if (f == BOULDER_FORM) {
+            // Thrown down in front of him, at whoever he picked (where they're headed)
+            setPoseState(POSE_SLAM);
+            swingHand(Hand.MAIN_HAND);
+            Vec3d aim = target != null ? target.getPos().add(target.getVelocity().multiply(1, 0, 1).multiply(10)) : getPos().add(Vec3d.fromPolar(0, getYaw()).multiply(10));
+            if (boulder != null) boulder.launch(aim.subtract(getPos()));
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_RAVAGER_ROAR, SoundCategory.HOSTILE, 3.5f, 0.6f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_IRON_GOLEM_ATTACK, SoundCategory.HOSTILE, 2.5f, 0.5f);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_WITCH_THROW, SoundCategory.HOSTILE, 2.5f, 0.4f);
+        }
+        if (f >= BOULDER_FORM + BOULDER_THROW) endBoulder();
+    }
+
+    private void endBoulder() {
+        untouchable = false;
+        setInvisible(false);
+        setNoGravity(false);
+        spinCenter = null;
+        endAttack();
+    }
+
+    // ---- Burnout: how he dies (OrnamixDeath) ----
+
+    /** Ticks from the last blow: until he's granted the Defeated advancement, until he dies, then until the rewards. */
+    public static final int DEATH_HONOUR_AT = OrnamixDeath.HONOUR, DEATH_TICKS = OrnamixDeath.END, DEATH_REWARDS_AFTER = OrnamixDeath.REWARDS_AFTER;
+    /** On the sword and the ash he leaves behind. */
+    public static final String REMAINS_TAG = OrnamixDeath.REMAINS_TAG;
+    private OrnamixDeath death;
+    private boolean lethalGuard, pendingDeath;
+
+    /** Whether he's burning out (beaten, not yet dead), and how far into it he is. */
+    public boolean isDying() {
+        return action == Action.DYING;
+    }
+
+    public int deathTicks() {
+        return death == null ? 0 : death.t;
+    }
+
+    private void startDying(ServerWorld world) {
+        pendingDeath = false;
+        if (getMainHandStack().isOf(Items.BOW)) equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_SWORD));
+        clearAttacks(world);
+        action = Action.DYING;
+        actionTicks = 0;
+        untouchable = true;
+        setNoGravity(false);
+        getNavigation().stop();
+        setTarget(null);
+        death = new OrnamixDeath(random);
+        stopSong(30);
+        // The fight is won from here (nobody can lose it while he burns out); the portal and the wheel come after
+        BossFights.onBossDefeated(this, OrnamixDeath.END + OrnamixDeath.REWARDS_AFTER);
+    }
+
+    private void tickDying(ServerWorld world) {
+        getNavigation().stop();
+        if (death == null || !death.tick(world, this)) return;
+        // Burnt out: only now does he die (quietly, unseen: there's nothing left of him)
+        death.remove();
+        setSilent(true);
+        setInvisible(true);
+        kill();
+    }
+
+    void setDeathPose(int pose) {
+        setPoseState(pose);
+    }
+
+    /** The fire in his eyes goes out. */
+    void burnOut() {
+        dataTracker.set(RAGE, false);
+    }
+
+    void letGoOfSword() {
+        equipStack(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+    }
+
+    void grantDefeated(ServerPlayerEntity player) {
+        SinBossEntity.grantDefeated(player, Sin.WRATH);
+    }
+
     // ---- Ragemode ----
 
     @Override
@@ -1516,6 +1992,10 @@ public class OrnamixEntity extends SinBossEntity {
         pillar = null;
         shards = null;
         storm = null;
+        twisters.clear();
+        twisterCenter = null;
+        boulder = null;
+        setInvisible(false);
         for (UUID id : summons) {
             Entity skeleton = world.getEntity(id);
             if (skeleton != null) {
@@ -1642,11 +2122,14 @@ public class OrnamixEntity extends SinBossEntity {
                 hazards.remove(h);
             }
         }
+        twisters.removeIf(t -> !hazards.contains(t));
+        if (boulder != null && !hazards.contains(boulder)) boulder = null;
     }
 
     /** Always burning: flames curling up round him, embers, smoke; far more of it in Ragemode. */
     private void tickAura(ServerWorld world) {
         if (action == Action.TRANSITION && actionTicks < OrnamixTimeline.LIFT_AT) return;
+        if (isInvisible()) return;
         boolean rage = isRaging();
         double w = getWidth() * 0.5, h = getHeight();
         world.spawnParticles(ParticleTypes.FLAME, getX(), getY() + h * 0.5, getZ(), rage ? 3 : 1, w, h * 0.35, w, 0.01);
@@ -1727,7 +2210,12 @@ public class OrnamixEntity extends SinBossEntity {
 
     @Override
     public void onDeath(DamageSource source) {
-        if (getWorld() instanceof ServerWorld world) {
+        if (getWorld() instanceof ServerWorld world && death != null) {
+            // Burnt out: all that was his own death (OrnamixDeath); the sword and the ash stay
+            clearAttacks(world);
+            death.remove();
+            for (ServerPlayerEntity p : audience(world)) sky(p, 1);
+        } else if (getWorld() instanceof ServerWorld world) {
             clearAttacks(world);
             if (getMainHandStack().isOf(Items.BOW)) equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_SWORD));
             for (ServerPlayerEntity p : audience(world)) {
@@ -1749,6 +2237,7 @@ public class OrnamixEntity extends SinBossEntity {
     public void remove(RemovalReason reason) {
         // Taken away mid-fight (the attempt failed): nothing of his stays behind
         if (getWorld() instanceof ServerWorld world && reason.shouldDestroy()) clearAttacks(world);
+        if (death != null && reason.shouldDestroy()) death.remove();
         super.remove(reason);
     }
 

@@ -38,6 +38,7 @@ import net.ragnar.fmscraft.boss.BossSong;
 import net.ragnar.fmscraft.boss.SinBossEntity;
 import net.ragnar.fmscraft.compat.MagicSpells;
 import net.ragnar.fmscraft.fight.Arenas;
+import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fight.Cinematics;
 import net.ragnar.fmscraft.network.BossScreenPayload;
 import net.ragnar.fmscraft.sin.Sin;
@@ -84,9 +85,9 @@ public class LalliEntity extends SinBossEntity {
 
     // ---- Tuning knobs ----
     /** Full health, for 5-7 players; {@link LalliTimeline#healthScale} scales it. Over the 1024 cap he takes less damage instead. */
-    public static final float MAX_HEALTH = 1400;
+    public static final float MAX_HEALTH = 1350;
     /** Damage he takes is multiplied by this (on top of his armor), more while he's exposed, and capped per hit. */
-    public static final float DAMAGE_TAKEN = 0.7f, PHASE_TWO_TAKEN = 0.8f, EXPOSED_BONUS = 1.5f, MAX_HIT = 24f;
+    public static final float DAMAGE_TAKEN = 0.75f, PHASE_TWO_TAKEN = 0.85f, EXPOSED_BONUS = 1.5f, MAX_HIT = 24f;
     /** Every hit he deals is multiplied by this in phase 2, then rounded up. */
     public static final float PHASE_TWO_DEALT = 1.25f;
     /** Three blocks tall (a player is 1.8). */
@@ -100,7 +101,8 @@ public class LalliEntity extends SinBossEntity {
     // ---- What the client draws ----
     public static final int POSE_IDLE = 0, POSE_FLOAT = 1, POSE_LAND = 2, POSE_PUNCH_CHARGE = 3, POSE_PUNCH = 4, POSE_POINT = 5,
             POSE_RAISE = 6, POSE_BREATH = 7, POSE_PUSH_CHARGE = 8, POSE_PUSH = 9, POSE_DASH = 10, POSE_STOMP = 11, POSE_CAST = 12,
-            POSE_JUMP = 13, POSE_BEAM = 14, POSE_ROAR = 15, POSE_SLASH_A = 16, POSE_SLASH_B = 17, POSE_SPIN = 18;
+            POSE_JUMP = 13, POSE_BEAM = 14, POSE_ROAR = 15, POSE_SLASH_A = 16, POSE_SLASH_B = 17, POSE_SPIN = 18,
+            POSE_FAREWELL = 19;
     public static final int BEAM_OFF = 0, BEAM_CHARGE = 1, BEAM_FIRE = 2;
     private static final TrackedData<Integer> POSE = DataTracker.registerData(LalliEntity.class, TrackedDataHandlerRegistry.INTEGER);
     private static final TrackedData<Boolean> EYES = DataTracker.registerData(LalliEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
@@ -111,7 +113,7 @@ public class LalliEntity extends SinBossEntity {
     enum Action {
         ENTRANCE, MOVE, EXPOSED, TRANSITION,
         ICE_PUNCH, ICE_BEAM, DASH, GLACIER, ICICLES, FROST_BREATH, LARGE_PUSH, SHARDS, STOMP,
-        FREEZING, JUMP_SLAM, RISING_SPIKES, IMPALING, ICE_BLADE, BLADE_THROW, ICE_CANNON
+        FREEZING, JUMP_SLAM, RISING_SPIKES, IMPALING, ICE_BLADE, BLADE_THROW, ICE_CANNON, DYING
     }
 
     private Action action = Action.ENTRANCE;
@@ -152,8 +154,8 @@ public class LalliEntity extends SinBossEntity {
     public static DefaultAttributeContainer.Builder createAttributes() {
         return HostileEntity.createHostileAttributes()
                 .add(EntityAttributes.GENERIC_MAX_HEALTH, HEALTH_CAP)
-                .add(EntityAttributes.GENERIC_ARMOR, 14)
-                .add(EntityAttributes.GENERIC_ARMOR_TOUGHNESS, 8)
+                .add(EntityAttributes.GENERIC_ARMOR, 12)
+                .add(EntityAttributes.GENERIC_ARMOR_TOUGHNESS, 6)
                 .add(EntityAttributes.GENERIC_ATTACK_DAMAGE, 10)
                 .add(EntityAttributes.GENERIC_MOVEMENT_SPEED, SPEED)
                 .add(EntityAttributes.GENERIC_FOLLOW_RANGE, 80)
@@ -370,6 +372,7 @@ public class LalliEntity extends SinBossEntity {
         }
         Entity attacker = source.getAttacker();
         if (attacker == this) return false;
+        if (action == Action.DYING) return false;
         if (untouchable) {
             if (attacker instanceof PlayerEntity) {
                 getWorld().playSound(null, getX(), getEyeY(), getZ(), SoundEvents.BLOCK_GLASS_HIT, SoundCategory.HOSTILE, 1.4f, 0.6f);
@@ -389,6 +392,8 @@ public class LalliEntity extends SinBossEntity {
         if (hurt && getWorld() instanceof ServerWorld world) {
             world.spawnParticles(GluttonyHazards.ICE_CHIPS, getX(), getBodyY(0.6), getZ(), 6, 0.4, 0.6, 0.4, 0.1);
         }
+        // The blow that would have killed him left him on his last breath instead (setHealth)
+        if (pendingDeath && getWorld() instanceof ServerWorld world) startDying(world);
         return hurt;
     }
 
@@ -399,6 +404,10 @@ public class LalliEntity extends SinBossEntity {
     @Override
     public void setHealth(float health) {
         if (!killing && action != null && getPhase() == 1) health = Math.max(health, getMaxHealth() * phaseTwoHealth());
+        if (!killing && action != null && getPhase() == 2 && action != Action.DYING && health <= 0) {
+            health = 1f;
+            pendingDeath = true;
+        }
         super.setHealth(health);
     }
 
@@ -429,6 +438,7 @@ public class LalliEntity extends SinBossEntity {
     public void tick() {
         super.tick();
         if (getWorld() instanceof ServerWorld world && age % 5 == 0) shrugOffSpells(world);
+        if (getWorld().isClient) farewellTicks = poseState() == POSE_FAREWELL ? farewellTicks + 1 : 0;
     }
 
     /** Ragnars Magic Mod can't put him to sleep or carry him off in a bubble. */
@@ -471,7 +481,9 @@ public class LalliEntity extends SinBossEntity {
             case ICE_BLADE -> tickIceBlade(world);
             case BLADE_THROW -> tickBladeThrow(world);
             case ICE_CANNON -> tickIceCannon(world);
+            case DYING -> tickDying(world);
         }
+        if (action == Action.DYING) return;
         tickHazards(world);
         if (!isInvisible()) tickAura(world);
         if (Arenas.sinOf(world) == Sin.GLUTTONY) {
@@ -815,7 +827,9 @@ public class LalliEntity extends SinBossEntity {
         }
         // From here on, timed by SIRENS itself (started as the cutscene ends)
         int s = songTicks;
-        if (s < LalliTimeline.MOVE_AT) {
+        if (s >= LalliTimeline.MOVE_AT - SNOW_AHEAD && s < LalliTimeline.MOVE_AT && snowBound.isEmpty()
+                && Arenas.sinOf(world) == Sin.GLUTTONY) goAheadToSnowfield(world);
+        if (s < LalliTimeline.MOVE_AT && snowBound.isEmpty()) {
             double h = LalliTimeline.ascent(s, liftoff.y - GluttonyArena.POLE_Y);
             double drift = LalliTimeline.ease(Math.min(1, s / (double) LalliTimeline.ASCENT_DRIFT));
             Vec3d at = new Vec3d(MathHelper.lerp(drift, liftoff.x, GluttonyArena.POLE.x), GluttonyArena.POLE_Y + h,
@@ -942,9 +956,35 @@ public class LalliEntity extends SinBossEntity {
         emit(world, GluttonyHazards.SNOW_PUFF, getPos().add(0, 0.2, 0), 60, 1.2, 0.1, 1.2, 0.2);
     }
 
+    /** Ticks before everyone else he goes on to the snowfield (see {@link #goAheadToSnowfield}). */
+    private static final int SNOW_AHEAD = 3;
+    /** Who's being taken to the snowfield, while he's gone on ahead of them. */
+    private final List<UUID> snowBound = new ArrayList<>();
+
+    /**
+     * Under the white, a moment before everyone else: he goes on ahead to the snowfield, a thousand blocks off. Gone from
+     * them first, the server stops sending him to their clients and sends him afresh once they're there too. (Taken
+     * there with them on the same tick, he'd stay tracked, and their clients, which only move what's in the chunks they
+     * have, would leave him frozen back over the pole: unseen, his ice coming from nowhere.)
+     */
+    private void goAheadToSnowfield(ServerWorld world) {
+        for (ServerPlayerEntity p : audience(world)) snowBound.add(p.getUuid());
+        Vec3d c = GluttonyArena.SNOW_CENTER;
+        // Kept ticking there until the players arrive and load it themselves
+        world.getChunkManager().addTicket(net.minecraft.server.world.ChunkTicketType.POST_TELEPORT,
+                new net.minecraft.util.math.ChunkPos(BlockPos.ofFloored(c)), 2, getId());
+        setVelocity(Vec3d.ZERO);
+        refreshPositionAndAngles(c.x, c.y, c.z, 180f, 0f);
+    }
+
     /** Under the white: everyone, and he, are taken to the snowfield. */
     private void moveToSnowfield(ServerWorld world) {
         List<ServerPlayerEntity> all = audience(world);
+        if (!snowBound.isEmpty()) {
+            all = new ArrayList<>();
+            for (UUID id : snowBound) if (world.getEntity(id) instanceof ServerPlayerEntity p) all.add(p);
+            snowBound.clear();
+        }
         if (halo != null) {
             halo.burst(world);
             hazards.remove(halo);
@@ -1750,11 +1790,155 @@ public class LalliEntity extends SinBossEntity {
         }
     }
 
-    // ---- Dying ----
+    // ---- Dying: he knows you, too late, and lets it be ----
+
+    /**
+     * Ticks from the last blow: his hands slowly come up over his face (2 s) and down again; two slow steps forward; he
+     * looks at you, one after another (up to three of you); then his head goes down, and he's gone in a fall of snow (9 s).
+     * The model eases his arms on its own clock ({@link #farewellTime}); his head turns smoothly towards each of you. The
+     * portal and the wheel come 2 s after.
+     */
+    public static final int DEATH_COVERED = 40, DEATH_UNCOVER = 56, DEATH_WALK = 76, DEATH_WALKED = 116, DEATH_LOOK = 116,
+            DEATH_LOOK_EACH = 22, DEATH_BOW = 166, DEATH_TICKS = 180, DEATH_REWARDS_AFTER = 40, DEATH_HONOUR_AT = 40;
+    public static final double DEATH_STEPS = 2;
+    private boolean pendingDeath;
+    private int deathTicks = -1, farewellTicks;
+    private Vec3d deathFrom, deathTo;
+    private final List<UUID> deathLooks = new ArrayList<>();
+
+    /** Client side: how long he's been saying goodbye, for the model; 0 if he isn't. */
+    public float farewellTime(float tickDelta) {
+        return farewellTicks <= 0 ? 0 : farewellTicks + tickDelta;
+    }
+
+    /** Whether he's dying (beaten, not yet gone), how far into it, and who he's looking at (for tests). */
+    public boolean isDying() {
+        return action == Action.DYING;
+    }
+
+    public int deathTicks() {
+        return Math.max(0, deathTicks);
+    }
+
+    public List<UUID> deathLooks() {
+        return deathLooks;
+    }
+
+    private void startDying(ServerWorld world) {
+        pendingDeath = false;
+        clearAttacks(world);
+        action = Action.DYING;
+        actionTicks = 0;
+        deathTicks = 0;
+        untouchable = true;
+        heldStill = true;
+        setNoGravity(false);
+        stand();
+        setTarget(null);
+        dataTracker.set(EYES, false);
+        stopSong(60);
+        setPoseState(POSE_FAREWELL);
+        // Two steps forward, as far as there's floor for them
+        Vec3d forward = Vec3d.fromPolar(0, getBodyYaw());
+        deathFrom = getPos();
+        deathTo = deathFrom;
+        for (double d = DEATH_STEPS; d > 0.2; d -= 0.5) {
+            Vec3d to = deathFrom.add(forward.multiply(d));
+            double g = groundBelow(to.add(0, 1.5, 0), 4);
+            if (!Double.isNaN(g) && Math.abs(g - deathFrom.y) < 1.1 && getWorld().isSpaceEmpty(this, getBoundingBox().offset(to.subtract(deathFrom)).offset(0, g - deathFrom.y + 0.01, 0))) {
+                deathTo = new Vec3d(to.x, g, to.z);
+                break;
+            }
+        }
+        // Who he looks at: up to three of you, nearest first
+        List<ServerPlayerEntity> near = new ArrayList<>(fighters);
+        near.sort(java.util.Comparator.comparingDouble(p -> p.squaredDistanceTo(this)));
+        for (int i = 0; i < Math.min(3, near.size()); i++) deathLooks.add(near.get(i).getUuid());
+        world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.BLOCK_GLASS_HIT, SoundCategory.HOSTILE, 1.0f, 0.5f);
+        // The fight is won from here (nobody can lose it now); the portal and the wheel come after
+        BossFights.onBossDefeated(this, DEATH_TICKS + DEATH_REWARDS_AFTER);
+    }
+
+    /** His head turned smoothly towards {@code at} (vanilla's look control; his body follows it round). */
+    private void lookTowards(Vec3d at, float maxTurn) {
+        getLookControl().lookAt(at.x, at.y, at.z, maxTurn, maxTurn * 0.7f);
+    }
+
+    /** Looking straight ahead, {@code down} blocks under eye level two blocks out. */
+    private void lookAhead(double down) {
+        Vec3d ahead = getEyePos().add(Vec3d.fromPolar(0, getBodyYaw()).multiply(2)).add(0, -down, 0);
+        lookTowards(ahead, 3f);
+    }
+
+    private void tickDying(ServerWorld world) {
+        int t = ++deathTicks;
+        getNavigation().stop();
+        setVelocity(0, getVelocity().y, 0);
+        if (t == DEATH_HONOUR_AT) {
+            for (ServerPlayerEntity p : audience(world)) if (!p.isSpectator()) SinBossEntity.grantDefeated(p, Sin.GLUTTONY);
+        }
+        if (t < DEATH_WALK) {
+            // His hands over his face (the model), quite still; the ice on him melting a little
+            lookAhead(0.6);
+            if (t % 6 == 0) world.spawnParticles(ParticleTypes.DRIPPING_WATER, getX(), getY() + getHeight() * 0.8, getZ(), 2, 0.5, 0.3, 0.5, 0);
+            if (t == 20) world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.HOSTILE, 1.0f, 0.5f);
+            return;
+        }
+        if (t <= DEATH_WALKED) {
+            // Two slow steps forward, towards you
+            float u = (t - DEATH_WALK) / (float) (DEATH_WALKED - DEATH_WALK), eased = u * u * (3 - 2 * u);
+            Vec3d at = deathFrom.lerp(deathTo, eased);
+            setPosition(at.x, at.y, at.z);
+            lookAhead(0.3);
+            if ((t - DEATH_WALK) % 18 == 9) {
+                var sound = world.getBlockState(getBlockPos().down()).getSoundGroup();
+                world.playSound(null, getX(), getY(), getZ(), sound.getStepSound(), SoundCategory.HOSTILE, 1.0f, 0.7f);
+            }
+        }
+        if (t >= DEATH_LOOK && t < DEATH_BOW) {
+            // He looks at you, each of you in turn, as if only now he knows who you are
+            int k = (t - DEATH_LOOK) / DEATH_LOOK_EACH;
+            ServerPlayerEntity who = deathLooks.isEmpty() ? null : fighterById(deathLooks.get(Math.min(k, deathLooks.size() - 1)));
+            if (who == null && !deathLooks.isEmpty()) who = fighterById(deathLooks.get(0));
+            if (who != null) lookTowards(who.getEyePos(), 7f);
+            if (who != null && (t - DEATH_LOOK) % DEATH_LOOK_EACH == 0 && k < deathLooks.size()) {
+                who.playSoundToPlayer(SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.HOSTILE, 0.8f, 0.6f);
+            }
+        }
+        if (t >= DEATH_BOW && t < DEATH_TICKS) {
+            // And he lets it be: his head goes down
+            lookAhead(2.6);
+            if (t == DEATH_BOW) world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.BLOCK_POWDER_SNOW_BREAK, SoundCategory.HOSTILE, 1.0f, 0.6f);
+        }
+        if (t < DEATH_TICKS) return;
+        // Gone: a soft fall of snow and ice where he stood
+        Vec3d c = getPos().add(0, getHeight() * 0.5, 0);
+        world.spawnParticles(ParticleTypes.SNOWFLAKE, c.x, c.y, c.z, 140, getWidth() * 0.4, getHeight() * 0.4, getWidth() * 0.4, 0.03);
+        world.spawnParticles(GluttonyHazards.ICE_CHIPS, c.x, c.y, c.z, 60, getWidth() * 0.4, getHeight() * 0.4, getWidth() * 0.4, 0.05);
+        world.spawnParticles(ParticleTypes.CLOUD, c.x, c.y, c.z, 30, getWidth() * 0.4, getHeight() * 0.4, getWidth() * 0.4, 0.02);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.BLOCK_POWDER_SNOW_BREAK, SoundCategory.HOSTILE, 2.0f, 0.6f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.BLOCK_GLASS_BREAK, SoundCategory.HOSTILE, 1.0f, 0.7f);
+        setInvisible(true);
+        setSilent(true);
+        killing = true;
+        try {
+            kill();
+        } finally {
+            killing = false;
+        }
+    }
+
+    private ServerPlayerEntity fighterById(UUID id) {
+        for (ServerPlayerEntity p : fighters) if (p.getUuid().equals(id)) return p;
+        return null;
+    }
 
     @Override
     public void onDeath(DamageSource source) {
-        if (getWorld() instanceof ServerWorld world) {
+        if (getWorld() instanceof ServerWorld world && deathTicks >= 0) {
+            // All that was his own goodbye: nothing more
+            clearAttacks(world);
+        } else if (getWorld() instanceof ServerWorld world) {
             clearAttacks(world);
             for (ServerPlayerEntity p : audience(world)) Cinematics.flash(p, 0.8f, 30);
             Vec3d c = getPos().add(0, getHeight() / 2, 0);

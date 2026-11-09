@@ -35,6 +35,9 @@ public class FightSession {
     final ServerBossBar countdown = new ServerBossBar(Text.empty(), BossBar.Color.WHITE, BossBar.Style.PROGRESS);
 
     Stage stage = Stage.JOINING;
+    /** Once won: the server tick the rewards (message, portal home, wheel) come on, and whether they have. */
+    long rewardAt;
+    boolean rewarded;
     UUID bossId;
     /** The boss song playing for everyone, and the server tick it started on (for anyone who arrives later). */
     BossSong song;

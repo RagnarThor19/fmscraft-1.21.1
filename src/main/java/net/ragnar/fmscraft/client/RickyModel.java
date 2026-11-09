@@ -181,6 +181,22 @@ public class RickyModel<T extends HostileEntity & RickyLook> extends PlayerEntit
                 leftArm.roll = -1.35f - tremble;
                 head.pitch = -0.3f;
             }
+            case RickyLook.POSE_FALLING -> {
+                // Falling on his back, arms and legs drifting out and back, slowly, like through water
+                float a = age * 0.09f;
+                head.pitch = -0.25f + MathHelper.sin(a * 0.7f) * 0.15f;
+                head.yaw = MathHelper.sin(a * 0.4f) * 0.3f;
+                rightArm.pitch = -0.6f + MathHelper.sin(a) * 0.55f;
+                rightArm.yaw = 0;
+                rightArm.roll = 1.05f + MathHelper.sin(a * 0.8f + 1f) * 0.4f;
+                leftArm.pitch = -0.6f + MathHelper.sin(a + 2.2f) * 0.55f;
+                leftArm.yaw = 0;
+                leftArm.roll = -1.05f - MathHelper.sin(a * 0.8f + 2.6f) * 0.4f;
+                rightLeg.pitch = MathHelper.sin(a * 0.75f) * 0.35f;
+                rightLeg.roll = 0.18f + MathHelper.sin(a * 0.6f) * 0.1f;
+                leftLeg.pitch = MathHelper.sin(a * 0.75f + 2.5f) * 0.35f;
+                leftLeg.roll = -0.18f - MathHelper.sin(a * 0.6f + 1f) * 0.1f;
+            }
             default -> {
             }
         }

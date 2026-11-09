@@ -100,6 +100,18 @@ public class GummssModel<T extends HostileEntity & GummssLook> extends PlayerEnt
                 rightArm.roll = 0.4f;
                 leftArm.pitch = -0.4f;
             }
+            case GummssLook.POSE_COVET -> {
+                // Both arms raised high, reaching in and up at what they're pulling together, straining, shaking
+                float strain = MathHelper.sin(age * 1.7f) * 0.05f + MathHelper.sin(age * 0.23f) * 0.08f;
+                rightArm.pitch = -2.75f + strain;
+                rightArm.yaw = -0.1f;
+                rightArm.roll = 0.32f + strain * 0.5f;
+                leftArm.pitch = -2.75f - strain;
+                leftArm.yaw = 0.1f;
+                leftArm.roll = -0.32f - strain * 0.5f;
+                head.pitch = -0.6f;
+                head.roll = MathHelper.sin(age * 0.11f) * 0.06f;
+            }
             case GummssLook.POSE_SKY -> {
                 // Looking up into the dark, arms spread, staff raised
                 head.pitch = -0.95f;
@@ -151,6 +163,19 @@ public class GummssModel<T extends HostileEntity & GummssLook> extends PlayerEnt
                 leftArm.pitch = -2.0f + sway;
                 leftArm.yaw = -0.3f;
                 leftArm.roll = -0.5f;
+            }
+            case GummssLook.POSE_SORROW -> {
+                // Looking down at the floor, the staff hanging from his hand, shoulders dropped
+                float breath = MathHelper.sin(age * 0.07f) * 0.025f;
+                head.pitch = 0.8f + breath;
+                head.yaw = 0;
+                head.roll = 0.06f;
+                rightArm.pitch = 0.12f + breath;
+                rightArm.yaw = 0;
+                rightArm.roll = 0.04f;
+                leftArm.pitch = 0.05f + breath;
+                leftArm.yaw = 0;
+                leftArm.roll = -0.04f;
             }
             case GummssLook.POSE_STUNNED -> {
                 head.roll = MathHelper.sin(age * 0.3f) * 0.3f;

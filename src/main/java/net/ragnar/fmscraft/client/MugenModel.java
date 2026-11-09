@@ -23,7 +23,7 @@ public class MugenModel<T extends HostileEntity & MugenLook> extends PlayerEntit
     public void setAngles(T boss, float limbAngle, float limbDistance, float age, float headYaw, float headPitch) {
         int pose = boss.poseState();
         sneaking = pose == MugenLook.POSE_STANCE || pose == MugenLook.POSE_LAND || pose == MugenLook.POSE_KICK_WIND
-                || pose == MugenLook.POSE_CROUCH || pose == MugenLook.POSE_IAIDO;
+                || pose == MugenLook.POSE_CROUCH || pose == MugenLook.POSE_IAIDO || pose == MugenLook.POSE_SPENT;
         rightArmPose = boss.getMainHandStack().isEmpty() ? BipedEntityModel.ArmPose.EMPTY : BipedEntityModel.ArmPose.ITEM;
         leftArmPose = boss.getOffHandStack().isEmpty() ? BipedEntityModel.ArmPose.EMPTY : BipedEntityModel.ArmPose.ITEM;
         super.setAngles(boss, limbAngle, limbDistance, age, headYaw, headPitch);
@@ -275,6 +275,36 @@ public class MugenModel<T extends HostileEntity & MugenLook> extends PlayerEntit
                 leftArm.yaw = 0.2f;
                 leftArm.roll = -0.25f;
                 head.pitch = 0.1f;
+            }
+            case MugenLook.POSE_SPENT -> {
+                // The anger gone out of him: knees giving, head dropping, arms hanging loose
+                head.pitch = 0.6f;
+                head.yaw = 0;
+                rightArm.pitch = 0.1f;
+                rightArm.yaw = 0;
+                rightArm.roll = 0.08f;
+                leftArm.pitch = 0.1f;
+                leftArm.yaw = 0;
+                leftArm.roll = -0.08f;
+            }
+            case MugenLook.POSE_SIT, MugenLook.POSE_SIT_SKY -> {
+                // Sat on the ground, legs out, leaning back on his hands; slowly lifting his head to the sky
+                float sky = boss.skyward(age - boss.age);
+                float breath = MathHelper.sin(age * 0.07f) * 0.025f;
+                head.pitch = MathHelper.lerp(sky, 0.5f, -0.95f) + breath;
+                head.yaw = 0;
+                rightArm.pitch = 0.6f + breath;
+                rightArm.yaw = 0;
+                rightArm.roll = 0.22f;
+                leftArm.pitch = 0.6f + breath;
+                leftArm.yaw = 0;
+                leftArm.roll = -0.22f;
+                rightLeg.pitch = -1.45f;
+                rightLeg.yaw = 0.12f;
+                rightLeg.roll = 0;
+                leftLeg.pitch = -1.15f;
+                leftLeg.yaw = -0.3f;
+                leftLeg.roll = 0;
             }
             case MugenLook.POSE_HOLE -> {
                 // Both hands straight up, holding the dark over his head, trembling with it

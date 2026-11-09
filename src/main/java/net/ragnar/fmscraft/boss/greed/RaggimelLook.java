@@ -12,4 +12,9 @@ public interface RaggimelLook {
     default boolean isBubbled() {
         return false;
     }
+
+    /** Client side: how long he's been saying goodbye (his death), for the model; 0 if he isn't. */
+    default float farewellTime(float tickDelta) {
+        return 0f;
+    }
 }

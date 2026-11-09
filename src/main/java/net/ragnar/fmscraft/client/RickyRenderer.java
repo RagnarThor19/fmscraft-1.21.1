@@ -74,6 +74,15 @@ public class RickyRenderer extends MobEntityRenderer<RickyEntity, RickyModel<Ric
                 matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-50f));
                 matrices.translate(0, -0.9f, 0);
             }
+            case RickyLook.POSE_FALLING -> {
+                // Tipping over onto his back as he starts to fall, then turning slowly as he drifts down, rocking a little
+                float t = boss.fallTime(tickDelta), u = MathHelper.clamp(t / 30f, 0f, 1f), tip = u * u * (3 - 2 * u);
+                matrices.translate(0, 0.9f, 0);
+                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(t * 0.9f));
+                matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(MathHelper.sin(t * 0.05f) * 8f * tip));
+                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(85f * tip + MathHelper.sin(t * 0.04f) * 5f * tip));
+                matrices.translate(0, -0.9f, 0);
+            }
             case RickyLook.POSE_DIVE -> {
                 matrices.translate(0, 0.9f, 0);
                 matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-160f));

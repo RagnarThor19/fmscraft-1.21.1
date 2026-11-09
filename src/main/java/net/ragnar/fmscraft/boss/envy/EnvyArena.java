@@ -143,6 +143,24 @@ public final class EnvyArena {
         return eyes;
     }
 
+    /**
+     * The eyes that open once GUMMSS's Covet has come down: closer in, just past the rim, at every height (some below
+     * the floor, looking up), so the void round the arena is crowded with them.
+     */
+    public static List<Eye> awakeEyes() {
+        List<Eye> eyes = new ArrayList<>();
+        Random r = new Random(0xC0BE7L);
+        int count = 28;
+        for (int i = 0; i < count; i++) {
+            double a = i * 2 * Math.PI / count + r.nextDouble() * 0.2;
+            double d = RADIUS + 9 + r.nextDouble() * 18;
+            double y = FLOOR_Y - 24 + r.nextDouble() * 62;
+            double w = 4 + r.nextDouble() * 8;
+            eyes.add(new Eye(CENTER.x + Math.cos(a) * d, y, CENTER.z + Math.sin(a) * d, w, true, 0, r.nextLong()));
+        }
+        return eyes;
+    }
+
     static double pillarAngle(int i) {
         return Math.PI / OUTER_PILLARS + i * 2 * Math.PI / OUTER_PILLARS;
     }

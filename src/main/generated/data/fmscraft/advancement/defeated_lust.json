@@ -1,0 +1,27 @@
+{
+  "parent": "fmscraft:lust",
+  "criteria": {
+    "defeated": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.fmscraft.defeated_lust.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "fmscraft:soul_of_lust"
+    },
+    "title": {
+      "translate": "advancements.fmscraft.defeated_lust.title"
+    }
+  },
+  "requirements": [
+    [
+      "defeated"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

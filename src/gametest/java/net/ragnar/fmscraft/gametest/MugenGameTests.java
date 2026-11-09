@@ -269,17 +269,42 @@ public class MugenGameTests implements FabricGameTest {
             ctx.assertFalse(boss.isUntouchable(), "and he can be hurt");
             ctx.assertEquals(boss.currentAction(), "MOVE", "fighting");
             boss.holdStill();
-            boss.damage(arena.getDamageSources().genericKill(), Float.MAX_VALUE);
+            boss.setHealth(3);
+            boss.damage(arena.getDamageSources().magic(), 20);
+            ctx.assertTrue(boss.isAlive() && boss.isDying(), "the last blow: he's done fighting, at " + boss.getHealth());
             FightSession session = BossFights.session(Sin.LUST);
             ctx.assertTrue(session.stage() == FightSession.Stage.WON, "fight should be won");
             ctx.assertTrue(FmsWorldState.get(server).isDefeated(Sin.LUST), "Lust should be marked defeated");
-            ctx.assertTrue(!arena.getEntitiesByClass(ItemEntity.class, new Box(boss.getBlockPos()).expand(4),
-                    e -> e.getStack().isOf(ModItems.SOULS.get(Sin.LUST))).isEmpty(), "Soul of Lust should drop");
-            ctx.assertTrue(arena.getBlockState(LustArena.EXIT_PORTAL).isOf(ModBlocks.SIN_PORTAL), "exit portal should open");
+            ctx.assertFalse(BossFights.rewarded(Sin.LUST), "the portal and the wheel wait for him");
+            float health = boss.getHealth();
+            boss.damage(arena.getDamageSources().playerAttack(player), 20);
+            ctx.assertEquals(boss.getHealth(), health, "nothing more reaches him");
         });
-        ctx.runAtTick(toxic + MugenTimeline.TOXIC_DROP + MugenTimeline.READY_AFTER + 30, () -> {
-            ctx.assertTrue(arena.getEntitiesByClass(DisplayEntity.class, new Box(LustArena.CENTER, LustArena.CENTER).expand(60), e -> true).isEmpty(),
-                    "nothing of his left behind");
+        int dies = toxic + MugenTimeline.TOXIC_DROP + MugenTimeline.READY_AFTER + 6;
+        ctx.runAtTick(dies + MugenEntity.DEATH_SKY + 20, () -> {
+            MugenEntity boss = boss(arena);
+            ctx.assertTrue(boss.isAlive(), "still with us");
+            ctx.assertEquals(boss.poseState(), MugenEntity.POSE_SIT_SKY, "sat down, looking up at the sky");
+            ctx.assertEquals(boss.eyes(), MugenEntity.EYES_NONE, "the anger gone out of his eyes");
+            ctx.assertTrue(boss.getMainHandStack().isEmpty() && boss.getOffHandStack().isEmpty(), "his blades let go");
+            ctx.assertEquals(arena.getEntitiesByClass(DisplayEntity.class, new Box(boss.getBlockPos()).expand(3),
+                    e -> e.getCommandTags().contains(MugenEntity.REMAINS_TAG)).size(), 2, "lying either side of him");
+            var advancement = server.getAdvancementLoader().get(net.minecraft.util.Identifier.of(net.ragnar.fmscraft.FmsCraft.MOD_ID, "defeated_lust"));
+            ctx.assertTrue(advancement != null && player.getAdvancementTracker().getProgress(advancement).isDone(), "Defeated MUGEN, during it");
+            ctx.assertTrue(arena.getBlockState(LustArena.EXIT_PORTAL).isAir(), "no portal yet");
+        });
+        ctx.runAtTick(dies + MugenEntity.DEATH_TICKS + 4, () -> {
+            ctx.assertTrue(arena.getEntitiesByClass(MugenEntity.class, new Box(LustArena.CENTER, LustArena.CENTER).expand(80), MugenEntity::isAlive).isEmpty(),
+                    "a poof of clouds, and he's gone");
+            ctx.assertTrue(!arena.getEntitiesByClass(ItemEntity.class, new Box(LustArena.CENTER, LustArena.CENTER).expand(80),
+                    e -> e.getStack().isOf(ModItems.SOULS.get(Sin.LUST))).isEmpty(), "Soul of Lust should drop");
+            ctx.assertFalse(BossFights.rewarded(Sin.LUST), "and a moment's quiet before the portal");
+        });
+        ctx.runAtTick(dies + MugenEntity.DEATH_TICKS + MugenEntity.DEATH_REWARDS_AFTER + 4, () -> {
+            ctx.assertTrue(BossFights.rewarded(Sin.LUST), "then the portal and the wheel");
+            ctx.assertTrue(arena.getBlockState(LustArena.EXIT_PORTAL).isOf(ModBlocks.SIN_PORTAL), "exit portal should open");
+            ctx.assertTrue(arena.getEntitiesByClass(DisplayEntity.class, new Box(LustArena.CENTER, LustArena.CENTER).expand(60),
+                    e -> !e.getCommandTags().contains(MugenEntity.REMAINS_TAG)).isEmpty(), "nothing of his left behind but his blades");
             BossFights.forceEnd(server, Sin.LUST);
             FmsWorldState.get(server).clearDefeated(Sin.LUST);
             forceAround(arena, LustArena.CENTER, 4, false);

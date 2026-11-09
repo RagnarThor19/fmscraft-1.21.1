@@ -143,6 +143,13 @@ public abstract class SinBossEntity extends HostileEntity {
         bossBar.setPercent(Math.max(0f, Math.min(1f, barPercent())));
     }
 
+    /** The advancement for beating {@code sin}'s boss ({@code fmscraft:defeated_<sin>}, made in datagen), if it has one. */
+    public static void grantDefeated(net.minecraft.server.network.ServerPlayerEntity player, Sin sin) {
+        net.minecraft.advancement.AdvancementEntry advancement = player.getServer().getAdvancementLoader()
+                .get(net.minecraft.util.Identifier.of(net.ragnar.fmscraft.FmsCraft.MOD_ID, "defeated_" + sin.id()));
+        if (advancement != null) player.getAdvancementTracker().grantCriterion(advancement, "defeated");
+    }
+
     @Override
     public void onDeath(DamageSource source) {
         super.onDeath(source);

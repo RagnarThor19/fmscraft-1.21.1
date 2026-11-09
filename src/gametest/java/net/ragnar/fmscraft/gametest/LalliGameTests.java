@@ -98,6 +98,62 @@ public class LalliGameTests implements FabricGameTest {
         return boss;
     }
 
+
+    /**
+     * His death: the last blow (phase 2) leaves him on his last breath, untouchable; he covers his face, takes two steps
+     * towards you, looks at each of you (two here), bows his head, and is gone in a fall of snow (9 s), Defeated
+     * LALLILARGE given on the way. (Put into phase 2 by hand, off his Earth.)
+     */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 700, batchId = "lalli_death")
+    public void heKnowsYouTooLateAndLetsItBe(TestContext ctx) {
+        floor(ctx);
+        LalliEntity boss = spawn(ctx, new BlockPos(3, 1, 1));
+        ServerPlayerEntity a = player(ctx, new BlockPos(1, 1, 6), 180), b = player(ctx, new BlockPos(6, 1, 6), 180);
+        for (ServerPlayerEntity p : new ServerPlayerEntity[]{a, b}) p.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 600, 4));
+        whenReady(ctx, boss, () -> {
+            try {
+                java.lang.reflect.Field phase = net.ragnar.fmscraft.boss.SinBossEntity.class.getDeclaredField("phase");
+                phase.setAccessible(true);
+                phase.setInt(boss, 2);
+            } catch (ReflectiveOperationException e) {
+                throw new RuntimeException(e);
+            }
+            boss.setYaw(0);
+            boss.setBodyYaw(0);
+            boss.setHeadYaw(0);
+            boss.setHealth(3);
+            boss.damage(ctx.getWorld().getDamageSources().magic(), 20);
+            ctx.assertTrue(boss.isAlive() && boss.isDying(), "the last blow: he lets it be, at " + boss.getHealth());
+            float health = boss.getHealth();
+            boss.damage(ctx.getWorld().getDamageSources().playerAttack(a), 20);
+            ctx.assertEquals(boss.getHealth(), health, "nothing more reaches him");
+            ctx.assertTrue(boss.deathLooks().size() >= 2 && boss.deathLooks().subList(0, 2).containsAll(java.util.List.of(a.getUuid(), b.getUuid())), "he'll look at both of them first");
+            Vec3d from = boss.getPos();
+            ctx.waitAndRun(LalliEntity.DEATH_COVERED + 4, () -> {
+                ctx.assertEquals(boss.poseState(), LalliEntity.POSE_FAREWELL, "his hands over his face");
+                ctx.assertTrue(boss.getPos().distanceTo(from) < 0.1, "standing still");
+                var advancement = ctx.getWorld().getServer().getAdvancementLoader().get(net.minecraft.util.Identifier.of(net.ragnar.fmscraft.FmsCraft.MOD_ID, "defeated_gluttony"));
+                ctx.assertTrue(advancement != null && a.getAdvancementTracker().getProgress(advancement).isDone(), "Defeated LALLILARGE, during it");
+            });
+            ctx.waitAndRun(LalliEntity.DEATH_WALKED + 2, () -> {
+                double walked = boss.getPos().distanceTo(from);
+                ctx.assertTrue(walked > 1.5 && walked < 2.2, "two steps forward, " + walked);
+            });
+            ctx.waitAndRun(LalliEntity.DEATH_LOOK + LalliEntity.DEATH_LOOK_EACH * 2 - 2, () -> {
+                ServerPlayerEntity second = boss.deathLooks().get(1).equals(a.getUuid()) ? a : b;
+                Vec3d to = second.getPos().subtract(boss.getPos());
+                float yaw = (float) (Math.atan2(to.z, to.x) * 180 / Math.PI) - 90f;
+                float off = Math.abs(net.minecraft.util.math.MathHelper.wrapDegrees(yaw - boss.getHeadYaw()));
+                ctx.assertTrue(off < 20, "looking at the second of them, " + off + " degrees off");
+            });
+            ctx.waitAndRun(LalliEntity.DEATH_TICKS + 4, () -> {
+                ctx.assertFalse(boss.isAlive(), "and he's gone after 9 s");
+                ctx.getWorld().getServer().getPlayerManager().remove(a);
+                ctx.getWorld().getServer().getPlayerManager().remove(b);
+                ctx.complete();
+            });
+        });
+    }
     /** Runs {@code then} as soon as he's up and can be hurt (spawned here, he skips the float down). */
     private static void whenReady(TestContext ctx, LalliEntity boss, Runnable then) {
         if (!boss.isUntouchable() && boss.currentAction().equals("MOVE")) then.run();
@@ -260,6 +316,12 @@ public class LalliGameTests implements FabricGameTest {
         });
         ctx.runAtTick(sirens + LalliTimeline.WHITE_AT + 4, () -> ctx.assertTrue(Cinematics.isFrozen(player), "held still in the white"));
 
+        // He goes on ahead to the snowfield a moment before everyone (so their clients get him afresh there)
+        ctx.runAtTick(sirens + LalliTimeline.MOVE_AT - 1, () -> {
+            LalliEntity boss = boss(arena);
+            ctx.assertTrue(GluttonyArena.inSnowfield(boss.getPos()), "gone on ahead to the snowfield, at " + boss.getPos());
+            ctx.assertFalse(GluttonyArena.inSnowfield(player.getPos()), "while everyone's still on the Earth");
+        });
         // The switch-up: everyone is in the snowfield, his eyes burn, and the fight goes on
         ctx.runAtTick(sirens + LalliTimeline.SWITCH_TICK + 4, () -> {
             LalliEntity boss = boss(arena);

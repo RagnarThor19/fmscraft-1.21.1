@@ -233,6 +233,7 @@ public final class BossFights {
                     }
                 }
                 case WON -> {
+                    if (!session.rewarded && now >= session.rewardAt) reward(server, session);
                     ServerWorld arena = Arenas.world(server, session.sin);
                     session.participants.removeIf(id -> arena.getPlayerByUuid(id) == null);
                     if (session.participants.isEmpty()) SESSIONS.remove(session.sin);
@@ -339,13 +340,38 @@ public final class BossFights {
     // ---- Winning and losing ----
 
     public static void onBossDied(SinBossEntity boss) {
+        onBossDefeated(boss, 0);
+    }
+
+    /**
+     * The boss is beaten. With {@code rewardsIn} 0 it's dead: the music stops and the rewards (the message, the portal
+     * home, the wheel) come at once. Otherwise it has a death to play out first (its music is its own business): the
+     * fight is won now (nobody can lose it any more), the rewards come {@code rewardsIn} ticks later, and its real death
+     * afterwards changes nothing.
+     */
+    public static void onBossDefeated(SinBossEntity boss, int rewardsIn) {
         FightSession session = SESSIONS.get(boss.getSin());
         if (session == null || session.stage != FightSession.Stage.ACTIVE || !boss.getUuid().equals(session.bossId)) return;
 
         MinecraftServer server = boss.getServer();
         session.stage = FightSession.Stage.WON;
         FmsWorldState.get(server).markDefeated(session.sin);
-        sendMusic(server, session, BossMusicPayload.STOP);
+        if (rewardsIn <= 0) {
+            sendMusic(server, session, BossMusicPayload.STOP);
+            reward(server, session);
+        } else {
+            session.rewardAt = server.getTicks() + rewardsIn;
+        }
+    }
+
+    /** Whether the portal home has opened and the wheel spun (for tests). */
+    public static boolean rewarded(Sin sin) {
+        FightSession session = SESSIONS.get(sin);
+        return session != null && session.rewarded;
+    }
+
+    private static void reward(MinecraftServer server, FightSession session) {
+        session.rewarded = true;
         server.getPlayerManager().broadcast(Text.translatable("message.fmscraft.boss_defeated",
                 session.sin.bossName(), session.sin.displayName()).formatted(Formatting.GOLD), false);
         for (ServerPlayerEntity player : online(server, session)) {

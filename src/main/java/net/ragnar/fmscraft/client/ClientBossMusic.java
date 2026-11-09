@@ -16,6 +16,8 @@ import net.minecraft.util.Identifier;
 public final class ClientBossMusic {
     private static Song current;
     private static String currentId = "";
+    /** A boss turning the song down (and back up) without losing its place: GUMMSS's Covet. 1 is as normal. */
+    private static float duck = 1f;
 
     private ClientBossMusic() {
     }
@@ -47,6 +49,15 @@ public final class ClientBossMusic {
         currentId = "";
     }
 
+    /** Turns whatever's playing down to {@code volume} (0-1) of itself, keeping time; 1 to put it back. */
+    public static void duck(float volume) {
+        duck = Math.max(0f, Math.min(1f, volume));
+    }
+
+    public static float duck() {
+        return duck;
+    }
+
     public static boolean isPlaying() {
         return current != null;
     }
@@ -61,7 +72,7 @@ public final class ClientBossMusic {
     private static final class Song extends MovingSoundInstance {
         private final int fadeTicks;
         private int age, fadeOut, fadeOutLeft;
-        private float fadeFrom;
+        private float fadeFrom, level;
 
         Song(SoundEvent sound, int fadeTicks) {
             super(sound, SoundCategory.RECORDS, SoundInstance.createRandom());
@@ -70,7 +81,8 @@ public final class ClientBossMusic {
             this.repeatDelay = 0;
             this.relative = true;
             this.attenuationType = SoundInstance.AttenuationType.NONE;
-            this.volume = fadeTicks > 0 ? 0.01f : 1.0f;
+            this.level = fadeTicks > 0 ? 0.01f : 1.0f;
+            this.volume = level * Math.max(0.0001f, duck);
         }
 
         @Override
@@ -80,14 +92,15 @@ public final class ClientBossMusic {
 
         void fadeOut(int ticks) {
             fadeOut = fadeOutLeft = ticks;
-            fadeFrom = volume;
+            fadeFrom = level;
         }
 
         @Override
         public void tick() {
             age++;
             if (fadeOut > 0) {
-                volume = Math.max(0.0f, fadeFrom * --fadeOutLeft / (float) fadeOut);
+                level = Math.max(0.0f, fadeFrom * --fadeOutLeft / (float) fadeOut);
+                volume = level * duck;
                 if (fadeOutLeft <= 0) {
                     setDone();
                     if (current == this) {
@@ -97,7 +110,9 @@ public final class ClientBossMusic {
                 }
                 return;
             }
-            if (fadeTicks > 0) volume = Math.max(0.01f, Math.min(1.0f, age / (float) fadeTicks));
+            if (fadeTicks > 0) level = Math.max(0.01f, Math.min(1.0f, age / (float) fadeTicks));
+            // Never quite 0, so the sound engine keeps it playing (and in time) while it's turned all the way down
+            volume = level * Math.max(0.0001f, duck);
         }
     }
 }

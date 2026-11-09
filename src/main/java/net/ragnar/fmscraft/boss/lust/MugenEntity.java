@@ -46,6 +46,7 @@ import net.ragnar.fmscraft.boss.ModBossEntities;
 import net.ragnar.fmscraft.boss.SinBossEntity;
 import net.ragnar.fmscraft.compat.MagicSpells;
 import net.ragnar.fmscraft.fight.Arenas;
+import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fight.Cinematics;
 import net.ragnar.fmscraft.network.BossScreenPayload;
 import net.ragnar.fmscraft.item.ModItems;
@@ -115,7 +116,7 @@ public class MugenEntity extends SinBossEntity implements MugenLook {
         PHASE, POOF, KUNAI, SHURIKEN, SPIN_KICK, CHAIN, BLADE_SPIN, SNEAK, CLONES, ORB, SWORD_RAIN, BLADE_THROW,
         DOUBLE_JUMP, SWAPPING, WIND, SMOKE_BOMB,
         VOID_SPIKES, IAIDO, SHADOW_BIND,
-        UNSEEN_HANDS, GRAPPLE_SLAM, SLIDE, BLAZE, TAUNT, BLACKOUT, SHADOW_STEP, SHADOW_SNEAK, CONTROLLER, BLACKHOLE
+        UNSEEN_HANDS, GRAPPLE_SLAM, SLIDE, BLAZE, TAUNT, BLACKOUT, SHADOW_STEP, SHADOW_SNEAK, CONTROLLER, BLACKHOLE, DYING
     }
 
     private Action action = Action.ENTRANCE;
@@ -231,7 +232,7 @@ public class MugenEntity extends SinBossEntity implements MugenLook {
     }
 
     public boolean isUntouchable() {
-        return untouchable || isInvisible();
+        return untouchable || isInvisible() || action == Action.DYING;
     }
 
     public String currentAction() {
@@ -459,6 +460,8 @@ public class MugenEntity extends SinBossEntity implements MugenLook {
             return false;
         }
         boolean hurt = super.damage(source, amount);
+        // The blow that would have killed him left him on his last breath instead (setHealth): he's done fighting
+        if (pendingDeath && getWorld() instanceof ServerWorld world) startDying(world);
         if (hurt && getWorld() instanceof ServerWorld world) {
             world.spawnParticles(MugenHazards.SHADOW, getX(), getBodyY(0.6), getZ(), 8, 0.3, 0.5, 0.3, 0);
             world.spawnParticles(ParticleTypes.SQUID_INK, getX(), getBodyY(0.6), getZ(), 3, 0.2, 0.3, 0.2, 0.05);
@@ -478,6 +481,10 @@ public class MugenEntity extends SinBossEntity implements MugenLook {
     @Override
     public void setHealth(float health) {
         if (!killing && action != null && getPhase() == 1) health = Math.max(health, getMaxHealth() * phaseTwoHealth());
+        if (!killing && action != null && getPhase() == 2 && action != Action.DYING && health <= 0) {
+            health = 1f;
+            pendingDeath = true;
+        }
         super.setHealth(health);
     }
 
@@ -503,6 +510,8 @@ public class MugenEntity extends SinBossEntity implements MugenLook {
         super.tick();
         if (getWorld() instanceof ServerWorld world && age % 5 == 0) shrugOffSpells(world);
         if (getWorld().isClient) {
+            prevSkyward = skyward;
+            skyward = MathHelper.clamp(skyward + (poseState() == POSE_SIT_SKY ? SKYWARD_RATE : -0.1f), 0f, 1f);
             double[] at = trail[trailHead];
             at[0] = getX();
             at[1] = getY();
@@ -582,7 +591,10 @@ public class MugenEntity extends SinBossEntity implements MugenLook {
             case SHADOW_SNEAK -> tickShadowSneak(world);
             case CONTROLLER -> tickController(world);
             case BLACKHOLE -> tickBlackHole(world);
+            case DYING -> tickDying(world);
         }
+        // At peace: nothing of the fight about him any more, just quiet
+        if (action == Action.DYING) return;
         tickControl(world);
         tickHazards(world);
         if (!isInvisible()) tickAura(world);
@@ -2833,11 +2845,126 @@ public class MugenEntity extends SinBossEntity implements MugenLook {
         }
     }
 
-    // ---- Dying ----
+    // ---- Dying: at peace ----
+
+    /**
+     * Ticks from the last blow: his anger goes out of him and he sinks down, he sits, the Defeated advancement, he looks
+     * up to the sky, then a poof of clouds and he's gone (8 s). The portal and the wheel come 2 s after that.
+     */
+    public static final int DEATH_SIT = 14, DEATH_HONOUR_AT = 40, DEATH_SKY = 46, DEATH_TICKS = 160, DEATH_REWARDS_AFTER = 40;
+    /** On the two blades he lets go of (they stay until the arena is next reset). */
+    public static final String REMAINS_TAG = "fmscraft.lust_remains";
+    /** How fast his head lifts to the sky (a share of the way a tick: about 4 s). */
+    private static final float SKYWARD_RATE = 0.0125f;
+    private boolean pendingDeath;
+    private int deathTicks = -1;
+    /** Client only: how far he's looking up, this tick and last. */
+    private float skyward, prevSkyward;
+
+    @Override
+    public float skyward(float tickDelta) {
+        return MathHelper.lerp(tickDelta, prevSkyward, skyward);
+    }
+
+    /** Whether he's dying (beaten, not yet gone), and how far into it he is. */
+    public boolean isDying() {
+        return action == Action.DYING;
+    }
+
+    public int deathTicks() {
+        return Math.max(0, deathTicks);
+    }
+
+    private void startDying(ServerWorld world) {
+        pendingDeath = false;
+        clearAttacks(world);
+        action = Action.DYING;
+        actionTicks = 0;
+        deathTicks = 0;
+        untouchable = true;
+        heldStill = true;
+        noClip = false;
+        setNoGravity(false);
+        setVelocity(0, Math.min(0, getVelocity().y), 0);
+        getNavigation().stop();
+        setTarget(null);
+        // The anger goes out of him: his eyes darken, the eclipse lifts off the moon, the music fades away
+        dataTracker.set(EYES, EYES_NONE);
+        setAfterimages(false);
+        sky(world, 1, 0);
+        stopSong(40);
+        setPoseState(POSE_SPENT);
+        // The fight is won from here (nobody can lose it now); the portal and the wheel come after
+        BossFights.onBossDefeated(this, DEATH_TICKS + DEATH_REWARDS_AFTER);
+    }
+
+    private void tickDying(ServerWorld world) {
+        int t = ++deathTicks;
+        getNavigation().stop();
+        setVelocity(0, getVelocity().y, 0);
+        setHeadYaw(bodyYaw);
+        if (t == 6) letGo(world);
+        if (t == DEATH_SIT) {
+            setPoseState(POSE_SIT);
+            BlockPos under = getBlockPos().down();
+            var sound = world.getBlockState(under).getSoundGroup();
+            world.playSound(null, getX(), getY(), getZ(), sound.getFallSound(), SoundCategory.HOSTILE, 0.8f, 0.8f);
+        }
+        if (t == DEATH_HONOUR_AT) {
+            for (ServerPlayerEntity p : audience(world)) if (!p.isSpectator()) SinBossEntity.grantDefeated(p, Sin.LUST);
+        }
+        if (t == DEATH_SKY) setPoseState(POSE_SIT_SKY);
+        if (t < DEATH_TICKS) return;
+        // A poof of clouds, and he's gone
+        Vec3d c = getPos().add(0, 0.6, 0);
+        world.spawnParticles(ParticleTypes.CLOUD, c.x, c.y, c.z, 45, 0.45, 0.45, 0.45, 0.04);
+        world.spawnParticles(ParticleTypes.POOF, c.x, c.y, c.z, 20, 0.35, 0.35, 0.35, 0.03);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_BREEZE_WIND_BURST.value(), SoundCategory.HOSTILE, 0.7f, 1.3f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.BLOCK_WOOL_BREAK, SoundCategory.HOSTILE, 0.8f, 0.7f);
+        setInvisible(true);
+        setSilent(true);
+        killing = true;
+        try {
+            kill();
+        } finally {
+            killing = false;
+        }
+    }
+
+    /** His blades slip out of his hands and fall either side of him, on the ground. */
+    private void letGo(ServerWorld world) {
+        equipStack(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+        equipStack(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+        Vec3d forward = Vec3d.fromPolar(0, bodyYaw), side = new Vec3d(-forward.z, 0, forward.x);
+        for (int i = -1; i <= 1; i += 2) {
+            Vec3d hand = getPos().add(0, getHeight() * 0.45, 0).add(side.multiply(0.4 * i));
+            Vec3d spot = getPos().add(side.multiply(0.85 * i)).add(forward.multiply(0.3));
+            Vec3d floor = ground(spot).add(0, 0.03, 0);
+            net.minecraft.entity.decoration.DisplayEntity.ItemDisplayEntity blade = EntityType.ITEM_DISPLAY.create(world);
+            if (blade == null) continue;
+            blade.setItemStack(new ItemStack(Items.NETHERITE_SWORD));
+            blade.setTransformationMode(net.minecraft.client.render.model.json.ModelTransformationMode.NONE);
+            blade.setViewRange(4f);
+            blade.addCommandTag(REMAINS_TAG);
+            blade.refreshPositionAndAngles(hand.x, hand.y, hand.z, 0f, 0f);
+            // Flat on the ground, pointing roughly the way he faced
+            org.joml.Quaternionf flat = new org.joml.Quaternionf().rotateY((float) Math.toRadians(-bodyYaw + 180 + i * 20))
+                    .rotateX(-MathHelper.HALF_PI).rotateZ(MathHelper.PI * 0.25f);
+            blade.setTransformation(new net.minecraft.util.math.AffineTransformation(null, flat, new org.joml.Vector3f(0.9f), null));
+            world.spawnEntity(blade);
+            blade.setTeleportDuration(4);
+            blade.setPosition(floor.x, floor.y, floor.z);
+        }
+        world.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_ARMOR_EQUIP_NETHERITE.value(), SoundCategory.HOSTILE, 1.0f, 0.7f);
+        world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_CHAIN_FALL, SoundCategory.HOSTILE, 0.8f, 0.6f);
+    }
 
     @Override
     public void onDeath(DamageSource source) {
-        if (getWorld() instanceof ServerWorld world) {
+        if (getWorld() instanceof ServerWorld world && deathTicks >= 0) {
+            // At peace: all that was his death; nothing more
+            clearAttacks(world);
+        } else if (getWorld() instanceof ServerWorld world) {
             clearAttacks(world);
             sky(world, 1, 0);
             for (ServerPlayerEntity p : audience(world)) Cinematics.flash(p, 0.7f, 30);

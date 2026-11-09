@@ -6,7 +6,11 @@ import java.util.UUID;
 public interface GummssLook {
     int POSE_IDLE = 0, POSE_CAST = 1, POSE_PUSH = 2, POSE_PULL = 3, POSE_LIFT = 4, POSE_SLAM = 5, POSE_THROW = 6,
             POSE_SLASH_A = 7, POSE_SLASH_B = 8, POSE_SKY = 9, POSE_FALL = 10, POSE_LAND = 11, POSE_POINT = 12,
-            POSE_STARE = 13, POSE_CATCH = 14, POSE_STUNNED = 15;
+            POSE_STARE = 13, POSE_CATCH = 14, POSE_STUNNED = 15,
+    /** His Covet: the four colossi, arms raised to the world they're pulling together. */
+            POSE_COVET = 16,
+    /** Dying: at the last, looking down, wanting nothing. */
+            POSE_SORROW = 17;
     /** His Disguise: not on; both of them shut in the cups (neither is drawn); his face and theirs traded. */
     int GUISE_OFF = 0, GUISE_HIDDEN = 1, GUISE_WORN = 2;
 

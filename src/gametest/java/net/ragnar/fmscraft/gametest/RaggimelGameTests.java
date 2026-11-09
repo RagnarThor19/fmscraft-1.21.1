@@ -143,6 +143,9 @@ public class RaggimelGameTests implements FabricGameTest {
             ctx.assertTrue(session != null && session.stage() == FightSession.Stage.ACTIVE, "fight should be running");
             ctx.assertTrue(arena.getEntity(session.bossId()) instanceof RaggimelEntity, "the boss should be RAGGIMEL");
             ctx.assertFalse(Cinematics.isFrozen(player), "player should be free once the fight starts");
+            RaggimelEntity boss = (RaggimelEntity) arena.getEntity(session.bossId());
+            ctx.assertEquals(boss.getMaxHealth(), RaggimelEntity.MAX_HEALTH * net.ragnar.fmscraft.boss.greed.GreedTimeline.healthScale(1),
+                    "health for one player, like every other sin");
         });
 
         // At 70% the phase change starts: he can't be hurt and everyone is held where they stand, watching
@@ -170,6 +173,12 @@ public class RaggimelGameTests implements FabricGameTest {
         ctx.runAtTick(phase + GreedTimeline.WAVE_AT + 10, () -> {
             RaggimelEntity boss = (RaggimelEntity) arena.getEntity(BossFights.session(Sin.GREED).bossId());
             ctx.assertTrue(water(arena, boss.getPos(), 60) >= 30 + 40, "and a wall of water rolling over the island");
+        });
+        // He goes on ahead to the manor a moment before the tide carries everyone (so their clients get him afresh there)
+        ctx.runAtTick(phase + GreedTimeline.RESHAPE_AT - 1, () -> {
+            RaggimelEntity boss = (RaggimelEntity) arena.getEntity(BossFights.session(Sin.GREED).bossId());
+            ctx.assertTrue(boss != null && GreedManor.contains(boss.getPos()), "gone on ahead to the manor, at " + (boss == null ? null : boss.getPos()));
+            ctx.assertFalse(GreedManor.contains(player.getPos()), "while everyone's still on the island");
         });
         ctx.runAtTick(phase + GreedTimeline.RESHAPE_AT + 4, () -> {
             RaggimelEntity boss = (RaggimelEntity) arena.getEntity(BossFights.session(Sin.GREED).bossId());
@@ -316,6 +325,48 @@ public class RaggimelGameTests implements FabricGameTest {
         ctx.runAtTick(30, () -> {
             ctx.assertTrue(stray.isRemoved(), "a boss with no fight running should be gone");
             arena.setChunkForced(0, 0, false);
+            ctx.complete();
+        });
+    }
+
+    /**
+     * His death: the last blow leaves him on his last health, untouchable; he grows huge, looks down, then up, pointing
+     * at the sky, and after 10 s he's gone in a splash, Defeated RAGGIMEL given on the way. (Put into phase 2 by hand:
+     * off his island there's no manor to carry anyone to.)
+     */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 300, batchId = "raggimel_death")
+    public void heGrowsLooksUpPointsAtTheSkyAndGoes(TestContext ctx) {
+        floor(ctx);
+        RaggimelEntity boss = spawn(ctx, new BlockPos(3, 1, 3));
+        ServerPlayerEntity player = survivalPlayer(ctx.getWorld(), Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(6, 1, 6))));
+        player.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.RESISTANCE, 300, 4));
+        double[] size = new double[1];
+        ctx.runAtTick(5, () -> {
+            try {
+                java.lang.reflect.Field phase = net.ragnar.fmscraft.boss.SinBossEntity.class.getDeclaredField("phase");
+                phase.setAccessible(true);
+                phase.setInt(boss, 2);
+            } catch (ReflectiveOperationException e) {
+                throw new RuntimeException(e);
+            }
+            size[0] = boss.getScale();
+            boss.setHealth(3);
+            boss.damage(ctx.getWorld().getDamageSources().magic(), 20);
+            ctx.assertTrue(boss.isAlive() && boss.isDying(), "the last blow: he says goodbye, at " + boss.getHealth());
+            float health = boss.getHealth();
+            boss.damage(ctx.getWorld().getDamageSources().playerAttack(player), 20);
+            ctx.assertEquals(boss.getHealth(), health, "nothing more reaches him");
+        });
+        ctx.runAtTick(5 + RaggimelEntity.DEATH_GROW + 5, () -> {
+            ctx.assertEquals(boss.poseState(), RaggimelEntity.POSE_FAREWELL, "head bowed");
+            ctx.assertTrue(boss.getScale() > size[0] * (RaggimelEntity.DEATH_GROWTH - 0.1f), "huge one last time, " + boss.getScale());
+            var advancement = ctx.getWorld().getServer().getAdvancementLoader().get(net.minecraft.util.Identifier.of(net.ragnar.fmscraft.FmsCraft.MOD_ID, "defeated_greed"));
+            ctx.assertTrue(advancement != null && player.getAdvancementTracker().getProgress(advancement).isDone(), "Defeated RAGGIMEL, during it");
+        });
+        ctx.runAtTick(5 + RaggimelEntity.DEATH_POINT + 10, () -> ctx.assertTrue(boss.isAlive(), "pointing at the sky, still with us"));
+        ctx.runAtTick(5 + RaggimelEntity.DEATH_TICKS + 4, () -> {
+            ctx.assertFalse(boss.isAlive(), "and gone after 10 s");
+            ctx.getWorld().getServer().getPlayerManager().remove(player);
             ctx.complete();
         });
     }

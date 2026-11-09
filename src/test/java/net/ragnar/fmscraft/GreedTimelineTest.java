@@ -60,4 +60,14 @@ class GreedTimelineTest {
         assertEquals(GreedTimeline.SPOUT_LIFT, GreedTimeline.spoutLift(GreedTimeline.SPOUT_TICKS), 1e-9);
         assertEquals(0, GreedTimeline.spoutLift(GreedTimeline.SONG_AT), 1e-9, "down on the burst");
     }
+
+    @Test
+    void healthScalesWithTheGroupLikeTheOthers() {
+        assertEquals(0.6f, GreedTimeline.healthScale(1), 1e-6);
+        assertEquals(1f, GreedTimeline.healthScale(5), 1e-6);
+        assertEquals(1f, GreedTimeline.healthScale(7), 1e-6);
+        assertEquals(1.24f, GreedTimeline.healthScale(10), 1e-6, "more of you, more of him");
+        assertEquals(2f, GreedTimeline.healthScale(40), 1e-6, "at most double");
+        for (int n = 1; n < 30; n++) assertTrue(GreedTimeline.healthScale(n + 1) >= GreedTimeline.healthScale(n));
+    }
 }

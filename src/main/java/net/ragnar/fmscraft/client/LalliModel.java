@@ -17,6 +17,30 @@ public class LalliModel extends PlayerEntityModel<LalliEntity> {
         super(root, true);
     }
 
+    private static float ease(float t, float start, float length) {
+        float u = MathHelper.clamp((t - start) / length, 0f, 1f);
+        return u * u * (3 - 2 * u);
+    }
+
+    /**
+     * His goodbye, eased on its own clock: his hands slowly up over his face, his head bowed into them, held; slowly down
+     * again; then arms hanging, his head free to turn to each of you (the entity turns it). At the last his head goes down.
+     */
+    private void farewell(float t, float age) {
+        float breath = MathHelper.sin(age * 0.08f) * 0.02f;
+        float cover = ease(t, 0, LalliEntity.DEATH_COVERED) * (1 - ease(t, LalliEntity.DEATH_UNCOVER, 20));
+        float shake = MathHelper.sin(age * 1.7f) * 0.025f * cover;
+        rightArm.pitch = MathHelper.lerp(cover, 0.05f, -2.15f) + breath + shake;
+        rightArm.yaw = MathHelper.lerp(cover, 0f, -0.55f);
+        rightArm.roll = MathHelper.lerp(cover, 0.06f, 0f);
+        leftArm.pitch = MathHelper.lerp(cover, 0.05f, -2.15f) + breath - shake;
+        leftArm.yaw = MathHelper.lerp(cover, 0f, 0.55f);
+        leftArm.roll = MathHelper.lerp(cover, -0.06f, 0f);
+        // Bowed into his hands while they're there; the entity's own look after that
+        head.pitch = MathHelper.lerp(cover, head.pitch, 0.35f);
+        head.yaw = MathHelper.lerp(cover, head.yaw, 0f);
+    }
+
     @Override
     public void setAngles(LalliEntity boss, float limbAngle, float limbDistance, float age, float headYaw, float headPitch) {
         int pose = boss.poseState();
@@ -26,7 +50,13 @@ public class LalliModel extends PlayerEntityModel<LalliEntity> {
         super.setAngles(boss, limbAngle, limbDistance, age, headYaw, headPitch);
         float sway = MathHelper.cos(age * 0.12f) * 0.08f;
         float tremble = MathHelper.sin(age * 2.3f) * 0.04f;
+        if (pose == LalliEntity.POSE_FAREWELL) {
+            farewell(boss.farewellTime(age - boss.age), age);
+            pose = -1;
+        }
         switch (pose) {
+            case -1 -> {
+            }
             case LalliEntity.POSE_FLOAT -> {
                 // Arms spread, legs hanging together, drifting
                 rightArm.pitch = sway;

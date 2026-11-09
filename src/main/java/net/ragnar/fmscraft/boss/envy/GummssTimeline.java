@@ -83,4 +83,43 @@ public final class GummssTimeline {
         if (players <= 7) return Math.min(1f, 0.5f + 0.1f * players);
         return Math.min(2f, 1f + 0.08f * (players - 7));
     }
+
+    // ---- His Covet, at half health: in ticks from when he vanishes ----
+    /** He's gone, the song fades out and the void blinks. */
+    public static final int COVET_FADE = 60;
+    /** The four of him rising out of the void at the rim, arms already raised (part of the cast). */
+    public static final int COVET_RISE = 36;
+    /** All four casting together, the world forming over the middle; the song fades back in over it. */
+    public static final int COVET_CAST = 160;
+    /** The world coming down, from the end of the cast to the ground. */
+    public static final int COVET_DROP = 16;
+    /** After it lands: the four of him stand a moment, then go; a second later he's back in the middle. */
+    public static final int COVET_LINGER = 14, COVET_GONE = 20;
+    /** How far it reaches, as a share of the arena's radius: everyone has to run for the rim. */
+    public static final double COVET_SHARE = 0.8;
+    /** Damage where it lands, and at the edge of its reach (before his DAMAGE_DEALT). */
+    public static final float COVET_CENTER = 40f, COVET_EDGE = 24f;
+
+    /** What it does to someone {@code distance} from where it lands, reaching {@code radius}: 0 past the edge. */
+    public static float covetDamage(double distance, double radius) {
+        if (distance > radius) return 0f;
+        double u = Math.max(0, distance / radius);
+        return (float) (COVET_CENTER + (COVET_EDGE - COVET_CENTER) * u * u);
+    }
+
+    /**
+     * The song's volume while he casts it, 0-1, {@code t} ticks in, landing at {@code impact}: fading out to nothing as
+     * he goes, silent as the four of him rise, then swelling back to full just as it lands.
+     */
+    public static float covetVolume(int t, int impact) {
+        if (t <= 0) return 1f;
+        if (t < COVET_FADE) {
+            float u = 1f - t / (float) COVET_FADE;
+            return u * u;
+        }
+        if (impact <= COVET_FADE || t >= impact) return 1f;
+        float u = (t - COVET_FADE) / (float) (impact - COVET_FADE);
+        // Faint at first, rising faster and faster towards the drop
+        return u * u;
+    }
 }

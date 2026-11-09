@@ -7,7 +7,8 @@ public interface MugenLook {
             POSE_SPIN = 13, POSE_PLUNGE = 14, POSE_ORB = 15, POSE_RAISE = 16, POSE_JUMP = 17, POSE_POINT = 18,
             POSE_HANG = 19, POSE_DIVE = 20, POSE_SLIDE = 21, POSE_TAUNT = 22, POSE_SLASH_A = 23, POSE_SLASH_B = 24,
             POSE_CROUCH = 25, POSE_GRAPPLE = 26, POSE_DASH = 27,
-            POSE_IAIDO = 28, POSE_PUPPET = 29, POSE_HOLE = 30;
+            POSE_IAIDO = 28, POSE_PUPPET = 29, POSE_HOLE = 30,
+            POSE_SPENT = 31, POSE_SIT = 32, POSE_SIT_SKY = 33;
     /** His eyes: dark, the violet of phase 1, the red of phase 2. */
     int EYES_NONE = 0, EYES_VIOLET = 1, EYES_RED = 2;
 
@@ -20,4 +21,9 @@ public interface MugenLook {
 
     /** Whether this is the real one (only he casts a shadow). */
     boolean isReal();
+
+    /** Dying, sat on the ground: how far he's lifted his head to the sky, 0 to 1 (eased on the client). */
+    default float skyward(float tickDelta) {
+        return 0f;
+    }
 }

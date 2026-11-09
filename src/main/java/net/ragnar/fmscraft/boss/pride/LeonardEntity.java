@@ -44,6 +44,7 @@ import net.ragnar.fmscraft.boss.BossSong;
 import net.ragnar.fmscraft.boss.SinBossEntity;
 import net.ragnar.fmscraft.compat.MagicSpells;
 import net.ragnar.fmscraft.fight.Arenas;
+import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fight.Cinematics;
 import net.ragnar.fmscraft.item.ModItems;
 import net.ragnar.fmscraft.network.PrideSkyPayload;
@@ -91,7 +92,7 @@ public class LeonardEntity extends SinBossEntity implements LeonardLook {
     /** Full health, for 5-7 players; {@link LeonardTimeline#healthScale} scales it. LEONARD is its top half; CONEMAN gets all of it again. */
     public static final float MAX_HEALTH = 800;
     /** Damage he takes is multiplied by this (on top of his armor), and capped per hit. CONEMAN is much tougher. */
-    public static final float DAMAGE_TAKEN = 0.85f, CONEMAN_TAKEN = 0.6f, MAX_HIT = 26f, CONEMAN_MAX_HIT = 22f;
+    public static final float DAMAGE_TAKEN = 0.85f, CONEMAN_TAKEN = 0.75f, MAX_HIT = 26f, CONEMAN_MAX_HIT = 22f;
     /** Every hit he deals is this share of its number (LEONARD's and CONEMAN's alike), rounded: cut by 10% twice. */
     public static final float DAMAGE_DEALT = 0.81f;
     /** CONEMAN's hits are this much harder again. */
@@ -119,7 +120,7 @@ public class LeonardEntity extends SinBossEntity implements LeonardLook {
     enum Action {
         ENTRANCE, MOVE, TRANSITION, PHASE, DASH,
         DISCHARGE, ZAP, STRIKES, PULL, THROW, ZOOM, BOOMERANG, CHAIN, CLAP,
-        SLAM, GRID, RODS, BALLS, SWEEP, STOMP
+        SLAM, GRID, RODS, BALLS, SWEEP, STOMP, DYING
     }
 
     private Action action = Action.ENTRANCE;
@@ -246,7 +247,7 @@ public class LeonardEntity extends SinBossEntity implements LeonardLook {
     }
 
     public boolean isUntouchable() {
-        return untouchable || isInvisible();
+        return untouchable || isInvisible() || action == Action.DYING;
     }
 
     public String currentAction() {
@@ -290,6 +291,14 @@ public class LeonardEntity extends SinBossEntity implements LeonardLook {
     /** For tests: Munch fires his beam at {@code at} now. */
     public void munchBeamAt(Vec3d at) {
         if (getWorld() instanceof ServerWorld world) startBeam(world, at);
+    }
+
+    /** For tests: he's CONEMAN now (the cone, his size), without the transition. */
+    public void goConeman() {
+        dataTracker.set(CONED, true);
+        dataTracker.set(SHADES, false);
+        setScale(LeonardTimeline.CONE_SCALE);
+        transitioned = true;
     }
 
     /** For tests: he hits as hard as CONEMAN does, without the transition. */
@@ -483,6 +492,8 @@ public class LeonardEntity extends SinBossEntity implements LeonardLook {
         if (hurt && getWorld() instanceof ServerWorld world) {
             world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, getX(), getBodyY(0.6), getZ(), 12, 0.3 * scale(), 0.5 * scale(), 0.3 * scale(), 0.2);
         }
+        // The blow that would have finished CONEMAN left him on his last breath instead (setHealth)
+        if (pendingDeath && getWorld() instanceof ServerWorld world) startDying(world);
         return hurt;
     }
 
@@ -499,6 +510,10 @@ public class LeonardEntity extends SinBossEntity implements LeonardLook {
     @Override
     public void setHealth(float health) {
         if (!killing && action != null && getPhase() == 1) health = Math.max(health, getMaxHealth() * phaseTwoHealth());
+        if (!killing && action != null && getPhase() == 2 && action != Action.DYING && health <= 0) {
+            health = 1f;
+            pendingDeath = true;
+        }
         super.setHealth(health);
     }
 
@@ -587,7 +602,9 @@ public class LeonardEntity extends SinBossEntity implements LeonardLook {
             case BALLS -> tickBalls(world);
             case SWEEP -> tickSweep(world);
             case STOMP -> tickStomp(world);
+            case DYING -> tickDying(world);
         }
+        if (action == Action.DYING) return;
         tickMunch(world);
         tickHazards(world);
         if (!isInvisible()) tickAura(world);
@@ -1927,11 +1944,240 @@ public class LeonardEntity extends SinBossEntity implements LeonardLook {
         }
     }
 
-    // ---- Dying ----
+    // ---- Dying: the cone comes off, and LEONARD would very much like to not be here ----
+
+    /**
+     * Ticks from the last blow: CONEMAN stands there a moment, then poof, the cone flies off, and it's just LEONARD
+     * ({@link #DEATH_POOF}); he looks round (6 s), fidgeting, whistling, sweating, glancing at you and quickly away;
+     * he's caught ({@link #DEATH_CAUGHT}: he jumps); and he runs for it, sprint-jumping, arms in the air, towards the
+     * middle (3 s), and is gone in a poof mid-jump (10 s). The portal and the wheel come 2 s after.
+     */
+    public static final int DEATH_POOF = 12, DEATH_HONOUR_AT = 40, DEATH_CAUGHT = 132, DEATH_FLEE = 142, DEATH_TICKS = 202,
+            DEATH_REWARDS_AFTER = 40;
+    /** How fast he runs (blocks a tick) and how far from the middle he'll go (in the plaza; off it, from where he was). */
+    public static final double DEATH_SPEED = 0.42, DEATH_RUN = 12, DEATH_RUN_OFF = 2.5;
+    /** The tune he whistles while trying very hard to look like he wasn't doing anything (flute notes, pitches). */
+    private static final float[] WHISTLE = {1.0f, 1.26f, 1.5f, 1.26f, 1.0f, 0.84f, 1.0f};
+    private boolean pendingDeath;
+    private int deathTicks = -1, nextGlance;
+    private Vec3d deathFrom, runTo, glanceAt;
+    private boolean glancingAtYou;
+
+    /** Whether he's dying (beaten, not yet gone), how far into it, and where he's running to (for tests). */
+    public boolean isDying() {
+        return action == Action.DYING;
+    }
+
+    public int deathTicks() {
+        return Math.max(0, deathTicks);
+    }
+
+    public Vec3d runTo() {
+        return runTo;
+    }
+
+    private void startDying(ServerWorld world) {
+        pendingDeath = false;
+        clearAttacks(world);
+        action = Action.DYING;
+        actionTicks = 0;
+        deathTicks = 0;
+        untouchable = true;
+        heldStill = true;
+        setNoGravity(false);
+        getNavigation().stop();
+        setTarget(null);
+        setVelocity(0, Math.min(0, getVelocity().y), 0);
+        deathFrom = getPos();
+        // The music stops dead
+        stopSong(0);
+        setPoseState(POSE_IDLE);
+        world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_NOTE_BLOCK_BASS.value(), SoundCategory.HOSTILE, 2.0f, 0.5f);
+        // The fight is won from here (nobody can lose it now); the portal and the wheel come after
+        BossFights.onBossDefeated(this, DEATH_TICKS + DEATH_REWARDS_AFTER);
+    }
+
+    private void tickDying(ServerWorld world) {
+        int t = ++deathTicks;
+        getNavigation().stop();
+        if (t < DEATH_POOF) {
+            // CONEMAN, standing very still, his storm gone out
+            setVelocity(0, getVelocity().y, 0);
+            if (t % 4 == 0) world.spawnParticles(ParticleTypes.SMOKE, getX(), getY() + getHeight(), getZ(), 2, 0.3, 0.1, 0.3, 0.01);
+            return;
+        }
+        if (t == DEATH_POOF) unCone(world);
+        if (t == DEATH_HONOUR_AT) {
+            for (ServerPlayerEntity p : audience(world)) if (!p.isSpectator()) SinBossEntity.grantDefeated(p, Sin.PRIDE);
+        }
+        if (t < DEATH_CAUGHT) {
+            lookAround(world, t);
+            return;
+        }
+        if (t < DEATH_FLEE) {
+            if (t == DEATH_CAUGHT) {
+                // Caught: he jumps out of his skin
+                setPoseState(POSE_CAUGHT);
+                ServerPlayerEntity near = nearestFighter();
+                if (near != null) getLookControl().lookAt(near, 60f, 60f);
+                setVelocity(0, 0.38, 0);
+                velocityDirty = true;
+                world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), SoundCategory.HOSTILE, 1.5f, 2.0f);
+                world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.BLOCK_NOTE_BLOCK_DIDGERIDOO.value(), SoundCategory.HOSTILE, 1.5f, 0.6f);
+                world.spawnParticles(ParticleTypes.SPLASH, getX(), getEyeY() + 0.3, getZ(), 14, 0.3, 0.1, 0.3, 0.2);
+                runTo = fleeTarget(world);
+            } else {
+                ServerPlayerEntity near = nearestFighter();
+                if (near != null) getLookControl().lookAt(near, 60f, 60f);
+                setVelocity(0, getVelocity().y, 0);
+            }
+            return;
+        }
+        if (t < DEATH_TICKS) {
+            flee(world, t);
+            return;
+        }
+        // Mid-jump: poof, and he's gone
+        Vec3d c = getPos().add(0, getHeight() * 0.5, 0);
+        world.spawnParticles(ParticleTypes.CLOUD, c.x, c.y, c.z, 45, 0.4, 0.6, 0.4, 0.06);
+        world.spawnParticles(ParticleTypes.POOF, c.x, c.y, c.z, 25, 0.3, 0.5, 0.3, 0.05);
+        world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, c.x, c.y, c.z, 20, 0.3, 0.5, 0.3, 0.2);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_BREEZE_WIND_BURST.value(), SoundCategory.HOSTILE, 1.0f, 1.6f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.BLOCK_NOTE_BLOCK_BIT.value(), SoundCategory.HOSTILE, 1.2f, 0.5f);
+        setInvisible(true);
+        setSilent(true);
+        killing = true;
+        try {
+            kill();
+        } finally {
+            killing = false;
+        }
+    }
+
+    /** Poof: the cone flies off his head (yours to keep), and he's just LEONARD again, shades and all. */
+    private void unCone(ServerWorld world) {
+        Vec3d top = getPos().add(0, getHeight() * 0.9, 0), mid = getPos().add(0, getHeight() * 0.5, 0);
+        world.spawnParticles(ParticleTypes.CLOUD, mid.x, mid.y, mid.z, 90, getWidth() * 0.5, getHeight() * 0.4, getWidth() * 0.5, 0.08);
+        world.spawnParticles(ParticleTypes.POOF, mid.x, mid.y, mid.z, 40, getWidth() * 0.4, getHeight() * 0.4, getWidth() * 0.4, 0.06);
+        world.playSound(null, mid.x, mid.y, mid.z, SoundEvents.ENTITY_BREEZE_WIND_BURST.value(), SoundCategory.HOSTILE, 2.0f, 1.0f);
+        world.playSound(null, mid.x, mid.y, mid.z, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.HOSTILE, 2.0f, 0.5f);
+        if (dataTracker.get(CONED)) {
+            net.minecraft.entity.ItemEntity cone = new net.minecraft.entity.ItemEntity(world, top.x, top.y, top.z, new ItemStack(ModItems.TRAFFIC_CONE));
+            double a = random.nextDouble() * MathHelper.TAU;
+            cone.setVelocity(Math.cos(a) * 0.18, 0.55, Math.sin(a) * 0.18);
+            cone.setPickupDelay(60);
+            world.spawnEntity(cone);
+        }
+        dataTracker.set(CONED, false);
+        dataTracker.set(SHADES, true);
+        setScale(1f);
+        transitioned = false;
+        bossBar().setName(Text.literal("LEONARD"));
+        // The storm breaks up: back to the plain blue sky
+        sky(world, PrideSkyPayload.MUNCH_HIDDEN, 0, Vec3d.ZERO);
+        setPoseState(POSE_GUILTY);
+        nextGlance = DEATH_POOF + 14;
+        glanceAt = null;
+    }
+
+    /** Looking round (anywhere but at you, mostly), fidgeting, sweating, whistling a little tune. */
+    private void lookAround(ServerWorld world, int t) {
+        Vec3d forward = Vec3d.fromPolar(0, getBodyYaw());
+        if (t >= nextGlance) {
+            ServerPlayerEntity near = nearestFighter();
+            // One glance in three is at you, quickly, and away again
+            glancingAtYou = near != null && random.nextInt(3) == 0;
+            if (glancingAtYou) {
+                glanceAt = near.getEyePos();
+                nextGlance = t + 8 + random.nextInt(5);
+            } else {
+                float side = (random.nextBoolean() ? 1 : -1) * (40f + random.nextFloat() * 70f);
+                Vec3d dir = Vec3d.fromPolar(0, getBodyYaw() + side);
+                glanceAt = getEyePos().add(dir.multiply(6)).add(0, -1 + random.nextDouble() * 3, 0);
+                nextGlance = t + 14 + random.nextInt(14);
+                // Now and then a nervous little shuffle
+                if (random.nextInt(3) == 0 && isOnGround()) {
+                    Vec3d step = Vec3d.fromPolar(0, getBodyYaw() + (random.nextBoolean() ? 90 : -90)).multiply(0.12);
+                    setVelocity(step.x, getVelocity().y, step.z);
+                }
+            }
+        }
+        if (glanceAt != null) getLookControl().lookAt(glanceAt.x, glanceAt.y, glanceAt.z, glancingAtYou ? 40f : 12f, 20f);
+        if (!(random.nextInt(3) == 0)) setVelocity(getVelocity().x * 0.6, getVelocity().y, getVelocity().z * 0.6);
+        // Whistling innocently, twice
+        int w = t - 40, w2 = t - 92;
+        int note = w >= 0 && w % 5 == 0 && w / 5 < WHISTLE.length ? w / 5 : w2 >= 0 && w2 % 5 == 0 && w2 / 5 < WHISTLE.length ? w2 / 5 : -1;
+        if (note >= 0) {
+            world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.HOSTILE, 0.9f, WHISTLE[note]);
+            world.spawnParticles(ParticleTypes.NOTE, getX() + forward.x * 0.4, getEyeY() + 0.4, getZ() + forward.z * 0.4, 0, (note % 7) / 24.0, 0, 0, 1);
+        }
+        // Sweating
+        if (t % 7 == 0) {
+            Vec3d side = new Vec3d(-forward.z, 0, forward.x).multiply(random.nextBoolean() ? 0.3 : -0.3);
+            world.spawnParticles(ParticleTypes.FALLING_WATER, getX() + side.x, getEyeY() + 0.15, getZ() + side.z, 1, 0, 0, 0, 0);
+        }
+        if (t % 31 == 0) world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_PLAYER_BREATH, SoundCategory.HOSTILE, 0.5f, 1.4f);
+    }
+
+    /** Where he runs: towards the middle of the plaza (never off it), away from you. Off it, a little way from where he was. */
+    private Vec3d fleeTarget(ServerWorld world) {
+        boolean plaza = Arenas.sinOf(world) == Sin.PRIDE;
+        Vec3d center = plaza ? PrideArena.CENTER : deathFrom;
+        double run = plaza ? DEATH_RUN : DEATH_RUN_OFF;
+        ServerPlayerEntity near = nearestFighter();
+        Vec3d away = near == null ? Vec3d.fromPolar(0, getBodyYaw()) : getPos().subtract(near.getPos()).multiply(1, 0, 1);
+        if (away.lengthSquared() < 1e-4) away = new Vec3d(1, 0, 0);
+        away = away.normalize();
+        // In the plaza: straight for the middle if he's out from it, and on past it away from you; never further out than DEATH_RUN
+        if (plaza && getPos().subtract(center).horizontalLength() > 4) {
+            Vec3d in = center.subtract(getPos()).multiply(1, 0, 1).normalize();
+            away = in.add(away.multiply(0.4)).normalize();
+        }
+        Vec3d to = getPos().add(away.multiply(run * 1.2));
+        Vec3d off = to.subtract(center).multiply(1, 0, 1);
+        if (off.horizontalLength() > run) to = center.add(off.normalize().multiply(run));
+        return new Vec3d(to.x, getY(), to.z);
+    }
+
+    /** Running for it: sprint-jumping, arms in the air, straight for where he's going, a little hop each time he lands. */
+    private void flee(ServerWorld world, int t) {
+        if (t == DEATH_FLEE) {
+            setPoseState(POSE_FLEE);
+            setSprinting(true);
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP, SoundCategory.HOSTILE, 1.0f, 1.8f);
+        }
+        if (runTo == null) runTo = fleeTarget(world);
+        Vec3d to = runTo.subtract(getPos()).multiply(1, 0, 1);
+        double d = to.horizontalLength();
+        Vec3d dir = d > 1e-3 ? to.multiply(1 / d) : Vec3d.fromPolar(0, getBodyYaw());
+        double speed = d > 1.2 ? DEATH_SPEED : d * 0.3;
+        float yaw = (float) (MathHelper.atan2(dir.z, dir.x) * (180 / Math.PI)) - 90f;
+        setYaw(yaw);
+        setBodyYaw(yaw);
+        setHeadYaw(yaw);
+        double vy = getVelocity().y;
+        if (isOnGround() && t > DEATH_FLEE) {
+            vy = 0.48;
+            world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_PLAYER_SMALL_FALL, SoundCategory.HOSTILE, 0.8f, 1.2f);
+            var ground = world.getBlockState(getBlockPos().down());
+            if (!ground.isAir()) world.spawnParticles(new net.minecraft.particle.BlockStateParticleEffect(ParticleTypes.BLOCK, ground), getX(), getY() + 0.1, getZ(), 8, 0.3, 0.05, 0.3, 0.1);
+        }
+        setVelocity(dir.x * speed, vy, dir.z * speed);
+        velocityDirty = true;
+        if (t % 3 == 0) world.spawnParticles(ParticleTypes.CLOUD, getX() - dir.x * 0.5, getY() + 0.2, getZ() - dir.z * 0.5, 1, 0.1, 0.05, 0.1, 0.01);
+        if (t % 9 == 0) world.spawnParticles(ParticleTypes.FALLING_WATER, getX(), getEyeY() + 0.2, getZ(), 2, 0.3, 0.05, 0.3, 0);
+        if (t % 14 == 4) world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.ENTITY_PLAYER_BREATH, SoundCategory.HOSTILE, 0.8f, 1.8f);
+    }
 
     @Override
     public void onDeath(DamageSource source) {
-        if (getWorld() instanceof ServerWorld world) {
+        if (getWorld() instanceof ServerWorld world && deathTicks >= 0) {
+            // All that was his own exit: nothing more
+            clearAttacks(world);
+            transitioned = false;
+            sky(world, PrideSkyPayload.MUNCH_HIDDEN, 0, Vec3d.ZERO);
+            setSprinting(false);
+        } else if (getWorld() instanceof ServerWorld world) {
             clearAttacks(world);
             transitioned = false;
             sky(world, PrideSkyPayload.MUNCH_HIDDEN, 0, Vec3d.ZERO);

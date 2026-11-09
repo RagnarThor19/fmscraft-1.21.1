@@ -170,7 +170,7 @@ public class GummssGameTests implements FabricGameTest {
 
     // ---- The whole fight ----
 
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 700, batchId = "gummss_fight")
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 1600, batchId = "gummss_fight")
     public void envyFightFallsIntoTheEyeAndLandsOnTheDrop(TestContext ctx) {
         ServerWorld world = ctx.getWorld();
         MinecraftServer server = world.getServer();
@@ -264,23 +264,60 @@ public class GummssGameTests implements FabricGameTest {
         ctx.runAtTick(fighting + 20, () -> {
             ctx.assertTrue(EnvyArena.onFloor(player.getPos()), "dragged back onto the floor, at " + player.getPos());
             GummssEntity boss = (GummssEntity) arena.getEntity(BossFights.session(Sin.ENVY).bossId());
-            // No second phase, however low he gets
+            // No second phase, however low he gets (held: no Covet, nothing new)
+            boss.holdStill();
             boss.setHealth(boss.getMaxHealth() * 0.2f);
         });
         ctx.runAtTick(fighting + 25, () -> {
             GummssEntity boss = (GummssEntity) arena.getEntity(BossFights.session(Sin.ENVY).bossId());
             ctx.assertEquals(boss.getPhase(), 1, "phase");
             ctx.assertTrue(BossFights.session(Sin.ENVY).song() == GummssEntity.SONG, "the same song plays on");
-            boss.kill();
-            ctx.assertTrue(BossFights.session(Sin.ENVY).stage() == FightSession.Stage.WON, "fight should be won");
-            ctx.assertTrue(FmsWorldState.get(server).isDefeated(Sin.ENVY), "Envy should be marked defeated");
-        });
-        ctx.runAtTick(fighting + 29, () -> {
-            BossFights.forceEnd(server, Sin.ENVY);
-            FmsWorldState.get(server).clearDefeated(Sin.ENVY);
-            server.getPlayerManager().remove(player);
-            forceArena(arena, false);
-            ctx.complete();
+            // Struck down the moment he can be (not in the middle of something he can't be hurt in)
+            whenReady(ctx, boss, () -> {
+                boss.setHealth(3);
+                boss.damage(arena.getDamageSources().magic(), 20);
+                ctx.assertTrue(boss.isAlive() && boss.isDying(), "the last blow: he comes apart, at " + boss.getHealth());
+                ctx.assertTrue(BossFights.session(Sin.ENVY).stage() == FightSession.Stage.WON, "fight should be won");
+                ctx.assertTrue(FmsWorldState.get(server).isDefeated(Sin.ENVY), "Envy should be marked defeated");
+                ctx.assertFalse(BossFights.rewarded(Sin.ENVY), "the portal and the wheel wait for him");
+                float health = boss.getHealth();
+                boss.damage(arena.getDamageSources().playerAttack(player), 20);
+                ctx.assertEquals(boss.getHealth(), health, "nothing more reaches him");
+            UUID[] bossId = {boss.getUuid()};
+            ctx.waitAndRun(GummssEntity.DEATH_HONOUR_AT + 5, () -> {
+                ctx.assertEquals(boss.poseState(), GummssEntity.POSE_SKY, "looking up into the sky");
+                ctx.assertEquals(boss.echoCount(), 0, "nothing else yet");
+                var advancement = server.getAdvancementLoader().get(net.minecraft.util.Identifier.of(net.ragnar.fmscraft.FmsCraft.MOD_ID, "defeated_envy"));
+                ctx.assertTrue(advancement != null && player.getAdvancementTracker().getProgress(advancement).isDone(), "Defeated GUMMSS, during it");
+            });
+            ctx.waitAndRun(GummssEntity.DEATH_GLITCH + 60, () -> {
+                ctx.assertTrue(boss.echoCount() >= 15, "glitching: copies of him everywhere, " + boss.echoCount());
+                long up = arena.getEntitiesByClass(net.ragnar.fmscraft.boss.envy.GummssColossusEntity.class, boss.getBoundingBox().expand(12), e -> true).size();
+                ctx.assertTrue(up >= 15, "in the world, " + up);
+                ctx.assertTrue(arena.getBlockState(EnvyArena.EXIT_PORTAL).isAir(), "no portal yet");
+            });
+            ctx.waitAndRun(GummssEntity.DEATH_SORROW + 10, () -> {
+                ctx.assertTrue(boss.isAlive(), "still here");
+                ctx.assertEquals(boss.echoCount(), 0, "the copies gone");
+                ctx.assertTrue(arena.getEntitiesByClass(net.ragnar.fmscraft.boss.envy.GummssColossusEntity.class, boss.getBoundingBox().expand(12), e -> true).isEmpty(), "every one");
+                ctx.assertFalse(boss.isInvisible(), "him, alone");
+                ctx.assertEquals(boss.poseState(), GummssEntity.POSE_SORROW, "looking down, sad");
+            });
+            ctx.waitAndRun(GummssEntity.DEATH_TICKS + 5, () -> {
+                ctx.assertTrue(arena.getEntity(bossId[0]) == null || !arena.getEntity(bossId[0]).isAlive(), "and he's gone");
+                ctx.assertFalse(BossFights.rewarded(Sin.ENVY), "a moment's quiet before the portal");
+                ctx.assertTrue(arena.getBlockState(EnvyArena.EXIT_PORTAL).isAir(), "no portal yet");
+            });
+            ctx.waitAndRun(GummssEntity.DEATH_TICKS + GummssEntity.DEATH_REWARDS_AFTER + 4, () -> {
+                ctx.assertTrue(BossFights.rewarded(Sin.ENVY), "then the portal and the wheel");
+                ctx.assertTrue(arena.getBlockState(EnvyArena.EXIT_PORTAL).isOf(net.ragnar.fmscraft.block.ModBlocks.SIN_PORTAL), "the portal home is open");
+                BossFights.forceEnd(server, Sin.ENVY);
+                FmsWorldState.get(server).clearDefeated(Sin.ENVY);
+                server.getPlayerManager().remove(player);
+                forceArena(arena, false);
+                ctx.complete();
+            });
+            });
         });
     }
 
@@ -586,8 +623,9 @@ public class GummssGameTests implements FabricGameTest {
         });
     }
 
+    /** His fall from the sky (one of his attacks after his Covet): up into the dark, flipped, and down heavy on the crowd. */
     @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 300, batchId = "gummss_ascend")
-    public void atHalfHealthHeFallsUpThenQuakesWhereHeLands(TestContext ctx) {
+    public void heFallsUpThenQuakesWhereHeLands(TestContext ctx) {
         floor(ctx);
         GummssEntity boss = spawn(ctx, new BlockPos(4, 1, 4));
         ServerPlayerEntity a = player(ctx, new BlockPos(1, 1, 1), 0);
@@ -610,28 +648,25 @@ public class GummssGameTests implements FabricGameTest {
                 ctx.assertTrue(Math.abs(boss.getY() - floorY) < 0.6, "down on the floor, at " + boss.getY());
                 ctx.assertTrue(a.getHealth() < a.getMaxHealth() - 6 && b.getHealth() < b.getMaxHealth() - 6,
                         "heavy where he lands, " + a.getHealth() + " and " + b.getHealth());
-                ctx.assertTrue(boss.hasAscended(), "he's come down");
                 ctx.assertEquals(boss.getPhase(), 1, "no second phase");
                 ctx.assertTrue(BossFights.session(Sin.ENVY) == null || BossFights.session(Sin.ENVY).song() == GummssEntity.SONG, "same song");
             });
             ctx.waitAndRun(120, () -> {
-                long green = ctx.getWorld().getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
-                        boss.getBoundingBox().expand(4), e -> e.getBlockState().isOf(Blocks.EMERALD_BLOCK) || e.getBlockState().isOf(Blocks.VERDANT_FROGLIGHT)).size();
-                ctx.assertTrue(green >= 4, "green blocks drift round him from now on, found " + green);
+                ctx.assertFalse(boss.isAwake(), "his fall alone doesn't wake the void");
                 boss.discard();
             });
             ctx.waitAndRun(122, () -> {
                 long left = ctx.getWorld().getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
                         new net.minecraft.util.math.Box(ctx.getAbsolutePos(BlockPos.ORIGIN)).expand(20), e -> true).size();
-                ctx.assertEquals((int) left, 0, "and go with him");
+                ctx.assertEquals((int) left, 0, "nothing of it is left behind");
                 done(ctx, a, b);
             });
         });
     }
 
-    /** Below half health he goes up by himself, on the next beat, whatever his rest. */
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200, batchId = "gummss_ascend_auto")
-    public void halfHealthSendsHimUpByHimself(TestContext ctx) {
+    /** Below half health his Covet comes by itself, as soon as he's between attacks, whatever his rest. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200, batchId = "gummss_covet_auto")
+    public void halfHealthBringsHisCovetByItself(TestContext ctx) {
         floor(ctx);
         GummssEntity boss = spawn(ctx, new BlockPos(4, 1, 4));
         ServerPlayerEntity a = player(ctx, new BlockPos(1, 1, 1), 0);
@@ -639,12 +674,113 @@ public class GummssGameTests implements FabricGameTest {
         whenReady(ctx, boss, () -> {
             setHeldStill(boss, false);
             boss.setHealth(boss.getMaxHealth() * 0.45f);
-            waitForAction(ctx, boss, "ASCEND", 40, () -> {
+            waitForAction(ctx, boss, "COVET", 40, () -> {
                 boss.discard();
                 done(ctx, a);
             });
         });
     }
+
+    // ---- His Covet, at half health ----
+
+    /**
+     * He's gone, the song with him; four colossal copies of him rise and cast, a world of blocks forming over him; it
+     * comes down on the beat and crushes whoever is still inside its reach, not whoever got out; they go, he comes back,
+     * awake, with the green blocks round him. Nothing hurts him meanwhile, and nothing is left behind.
+     */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 420, batchId = "gummss_covet")
+    public void covetComesDownOnWhoeverStaysInside(TestContext ctx) {
+        floor(ctx);
+        GummssEntity boss = spawn(ctx, new BlockPos(4, 1, 4));
+        ServerPlayerEntity inside = player(ctx, new BlockPos(3, 1, 3), 0), outside = player(ctx, new BlockPos(0, 1, 0), 0);
+        // Enough health to show what it did
+        for (ServerPlayerEntity p : new ServerPlayerEntity[]{inside, outside}) {
+            p.getAttributeInstance(net.minecraft.entity.attribute.EntityAttributes.GENERIC_MAX_HEALTH).setBaseValue(400);
+            p.setHealth(400);
+        }
+        int fade = GummssTimeline.COVET_FADE, castEnd = fade + GummssTimeline.COVET_CAST + GummssTimeline.COVET_DROP;
+        whenReady(ctx, boss, () -> {
+            boss.setHealth(boss.getMaxHealth() * 0.45f);
+            start(boss, "COVET");
+            ctx.waitAndRun(4, () -> {
+                ctx.assertEquals(boss.currentAction(), "COVET", "his Covet");
+                ctx.assertTrue(boss.isInvisible() && boss.isUntouchable(), "he's gone, and can't be hurt");
+                ctx.assertTrue(boss.covetTicks() > 0, "the void knows (it blinks, the song fades)");
+                ctx.assertEquals(boss.colossusCount(), 0, "nothing has risen yet");
+            });
+            ctx.waitAndRun(fade + GummssTimeline.COVET_RISE + 30, () -> {
+                ctx.assertEquals(boss.colossusCount(), 4, "four of him");
+                List<net.ragnar.fmscraft.boss.envy.GummssColossusEntity> four = ctx.getWorld().getEntitiesByClass(
+                        net.ragnar.fmscraft.boss.envy.GummssColossusEntity.class, boss.getBoundingBox().expand(30), e -> true);
+                ctx.assertEquals(four.size(), 4, "in the world");
+                for (var c : four) {
+                    double scale = c.getAttributeValue(net.minecraft.entity.attribute.EntityAttributes.GENERIC_SCALE);
+                    ctx.assertTrue(scale > 2, "huge, " + scale);
+                    ctx.assertEquals(c.poseState(), GummssEntity.POSE_COVET, "arms raised");
+                    ctx.assertFalse(c.damage(ctx.getWorld().getDamageSources().playerAttack(inside), 10), "nothing reaches them");
+                }
+                ctx.assertTrue(boss.hoardBlocks() > 10, "a world forming between them, " + boss.hoardBlocks() + " blocks so far");
+                int impact = boss.covetImpact();
+                ctx.assertTrue(impact >= castEnd && impact < castEnd + 14, "an eight-second cast, landing on the beat, at " + impact);
+                float health = boss.getHealth();
+                boss.damage(ctx.getWorld().getDamageSources().playerAttack(inside), 10);
+                ctx.assertEquals(boss.getHealth(), health, "nothing reaches him either");
+                ctx.assertEquals(inside.getHealth(), inside.getMaxHealth(), "nothing has come down yet");
+            });
+            ctx.waitAndRun(castEnd + 14 + 4, () -> {
+                float lost = inside.getMaxHealth() - inside.getHealth();
+                ctx.assertTrue(lost > 40, "it came down on the one who stayed, " + lost);
+                ctx.assertEquals(outside.getHealth(), outside.getMaxHealth(), "not on the one who got out");
+            });
+            int back = castEnd + 14 + GummssTimeline.COVET_LINGER + GummssTimeline.COVET_GONE + 4;
+            ctx.waitAndRun(castEnd + 14 + GummssTimeline.COVET_LINGER + 3, () -> {
+                ctx.assertEquals(boss.colossusCount(), 0, "the four of him are gone");
+                ctx.assertTrue(ctx.getWorld().getEntitiesByClass(net.ragnar.fmscraft.boss.envy.GummssColossusEntity.class,
+                        boss.getBoundingBox().expand(30), e -> true).isEmpty(), "every one");
+            });
+            ctx.waitAndRun(back, () -> {
+                ctx.assertEquals(boss.currentAction(), "MOVE", "on with the fight");
+                ctx.assertFalse(boss.isInvisible() || boss.isUntouchable(), "he's back, and can be hurt");
+                ctx.assertTrue(boss.isAwake(), "the void is awake");
+                ctx.assertEquals(boss.covetTicks(), 0, "and has stopped blinking");
+                long green = ctx.getWorld().getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
+                        boss.getBoundingBox().expand(4), e -> e.getBlockState().isOf(Blocks.EMERALD_BLOCK) || e.getBlockState().isOf(Blocks.MOSS_BLOCK)).size();
+                ctx.assertTrue(green >= 2, "green blocks drift round him from now on, found " + green);
+                boss.discard();
+            });
+            ctx.waitAndRun(back + 2, () -> {
+                long left = ctx.getWorld().getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
+                        boss.getBoundingBox().expand(13), e -> true).size();
+                ctx.assertEquals((int) left, 0, "nothing of it is left behind");
+                done(ctx, inside, outside);
+            });
+        });
+    }
+
+    /** Killed (or the fight ends) in the middle of it: the four of him and the world go with him. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 300, batchId = "gummss_covet_cut")
+    public void covetCutShortLeavesNothingBehind(TestContext ctx) {
+        floor(ctx);
+        GummssEntity boss = spawn(ctx, new BlockPos(4, 1, 4));
+        ServerPlayerEntity a = player(ctx, new BlockPos(1, 1, 1), 0);
+        a.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 400, 4));
+        whenReady(ctx, boss, () -> {
+            start(boss, "COVET");
+            ctx.waitAndRun(GummssTimeline.COVET_FADE + 60, () -> {
+                ctx.assertEquals(boss.colossusCount(), 4, "mid-cast");
+                boss.kill();
+            });
+            ctx.waitAndRun(GummssTimeline.COVET_FADE + 63, () -> {
+                ctx.assertTrue(ctx.getWorld().getEntitiesByClass(net.ragnar.fmscraft.boss.envy.GummssColossusEntity.class,
+                        boss.getBoundingBox().expand(13), e -> true).isEmpty(), "the four of him gone");
+                long left = ctx.getWorld().getEntitiesByClass(net.minecraft.entity.decoration.DisplayEntity.BlockDisplayEntity.class,
+                        boss.getBoundingBox().expand(13), e -> true).size();
+                ctx.assertEquals((int) left, 0, "and the world they were making");
+                done(ctx, a);
+            });
+        });
+    }
+
 
     // ---- Disguise ----
 

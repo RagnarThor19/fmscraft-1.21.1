@@ -130,6 +130,42 @@ public class LeonardModel<T extends HostileEntity & LeonardLook> extends PlayerE
                 leftArm.yaw = -0.1f;
                 rightArm.pitch = 0.5f;
             }
+            case LeonardLook.POSE_GUILTY -> {
+                // Hunched, hands fidgeting together in front of him, shifting his weight, very much not guilty of anything
+                float fidget = MathHelper.sin(age * 0.55f), shift = MathHelper.sin(age * 0.11f);
+                rightArm.pitch = -0.75f + fidget * 0.12f;
+                rightArm.yaw = -0.5f;
+                rightArm.roll = 0.05f;
+                leftArm.pitch = -0.7f - fidget * 0.12f;
+                leftArm.yaw = 0.55f;
+                leftArm.roll = -0.05f;
+                head.pitch += 0.12f;
+                body.roll = shift * 0.04f;
+                rightLeg.pitch = Math.max(0, shift) * 0.15f;
+                leftLeg.pitch = Math.max(0, -shift) * 0.15f;
+            }
+            case LeonardLook.POSE_CAUGHT -> {
+                // Caught: arms flung up, frozen
+                rightArm.pitch = -2.7f + tremble;
+                rightArm.roll = 0.5f;
+                leftArm.pitch = -2.7f - tremble;
+                leftArm.roll = -0.5f;
+                head.pitch -= 0.15f;
+            }
+            case LeonardLook.POSE_FLEE -> {
+                // Running for his life, arms waving over his head, legs going twice as fast as they need to
+                float wave = age * 1.1f;
+                rightArm.pitch = -2.6f + MathHelper.sin(wave) * 0.55f;
+                rightArm.roll = 0.35f + MathHelper.cos(wave) * 0.25f;
+                rightArm.yaw = 0;
+                leftArm.pitch = -2.6f + MathHelper.sin(wave + MathHelper.PI) * 0.55f;
+                leftArm.roll = -0.35f - MathHelper.cos(wave) * 0.25f;
+                leftArm.yaw = 0;
+                float legs = MathHelper.cos(age * 1.3f) * 1.1f;
+                rightLeg.pitch = legs;
+                leftLeg.pitch = -legs;
+                head.pitch = -0.1f;
+            }
             default -> {
             }
         }

@@ -93,6 +93,13 @@ public class MugenRenderer<T extends HostileEntity & MugenLook> extends BipedEnt
                 matrices.translate(0f, 0.25f, 0f);
                 matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(62f));
             }
+            // Sat on the ground (his hips down at it), leaning back a little more as he looks up
+            case MugenLook.POSE_SIT, MugenLook.POSE_SIT_SKY -> {
+                matrices.translate(0f, -0.62f, 0f);
+                matrices.translate(0f, 0.75f, 0f);
+                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(4f + 9f * boss.skyward(tickDelta)));
+                matrices.translate(0f, -0.75f, 0f);
+            }
             // Turned over, head first, round his middle
             case MugenLook.POSE_DIVE -> {
                 matrices.translate(0f, 0.9f, 0f);

@@ -42,6 +42,7 @@ import net.ragnar.fmscraft.boss.BossSong;
 import net.ragnar.fmscraft.boss.SinBossEntity;
 import net.ragnar.fmscraft.compat.MagicSpells;
 import net.ragnar.fmscraft.fight.Arenas;
+import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fight.Cinematics;
 import net.ragnar.fmscraft.network.SlothSkyPayload;
 import net.ragnar.fmscraft.sin.Sin;
@@ -70,7 +71,7 @@ import java.util.UUID;
  *       and that), the <b>Hands</b> (huge hands of shadow rise out of the ground and slam down flat) and the
  *       <b>Dashpunch</b> (he crouches, then he's on you, fist first, and you're thrown across the city).</li>
  * </ul>
- * At half health he goes Super Saiyan, timed by Kills: the sky drains to black and fills with red lights, rubble lifts
+ * At 40% health he goes Super Saiyan, timed by Kills: the sky drains to black and fills with red lights, rubble lifts
  * round him, his hair flickers gold, and on the drop it bursts. From then on he flies, teleports, and fights like an evil
  * Saiyan: the <b>black beam</b>, the <b>spirit bomb</b>, the <b>ki barrage</b>, the <b>rush</b>, the <b>meteor dive</b>,
  * the <b>rubble storm</b>, the <b>big bang</b>, and when he's desperate the <b>final beam</b>, swept all the way round:
@@ -84,7 +85,9 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
     /** Full health, for 5-7 players; {@link RickyTimeline#healthScale} scales it. */
     public static final float MAX_HEALTH = 1000;
     /** Damage he takes is multiplied by this (on top of his armor), and capped per hit. */
-    public static final float DAMAGE_TAKEN = 0.85f, SAIYAN_TAKEN = 0.9f, MAX_HIT = 26f;
+    /** Where Super Saiyan starts: 40% health. */
+    public static final float SAIYAN_AT = 0.4f;
+    public static final float DAMAGE_TAKEN = 0.85f, SAIYAN_TAKEN = 0.94f, MAX_HIT = 26f;
     /** Every hit he deals is this much harder once he's Super Saiyan (rounded up). */
     public static final float SAIYAN_DEALT = 1.15f;
     private static final double SPEED = 0.3;
@@ -110,7 +113,7 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
     enum Action {
         ENTRANCE, MOVE, TRANSITION, TELEPORT,
         ROCKS, BOULDER, SPIKES, IMPALE, CANNON, SMASH, SNAKES, HANDS, DASH_PUNCH,
-        BEAM, SPIRIT_BOMB, BARRAGE, RUSH, DIVE, RUBBLE, BIG_BANG, FINAL_BEAM, STRIKE
+        BEAM, SPIRIT_BOMB, BARRAGE, RUSH, DIVE, RUBBLE, BIG_BANG, FINAL_BEAM, STRIKE, DYING
     }
 
     private Action action = Action.ENTRANCE;
@@ -204,6 +207,11 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
 
     /** Kills starts a moment into the transformation ({@link #tickTransition}). */
     @Override
+    protected float phaseTwoHealth() {
+        return SAIYAN_AT;
+    }
+
+    @Override
     protected boolean startsPhaseTwoSongAtOnce() {
         return false;
     }
@@ -231,7 +239,7 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
     }
 
     public boolean isUntouchable() {
-        return untouchable || isInvisible();
+        return untouchable || isInvisible() || action == Action.DYING;
     }
 
     public String currentAction() {
@@ -430,7 +438,7 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
         }
         amount *= (transitioned ? SAIYAN_TAKEN : DAMAGE_TAKEN) * toughness;
         amount = Math.min(amount, MAX_HIT);
-        // Phase 1 can't be skipped: his health stops at half (setHealth), and at half nothing more gets through
+        // Phase 1 can't be skipped: his health stops at 40% (setHealth), and there nothing more gets through
         if (getPhase() == 1 && getHealth() <= getMaxHealth() * phaseTwoHealth()) amount = 0;
         if (amount <= 0) {
             clink();
@@ -440,6 +448,8 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
         if (hurt && getWorld() instanceof ServerWorld world) {
             world.spawnParticles(transitioned ? RickyHazards.GOLD : RickyHazards.DARK_RED, getX(), getBodyY(0.6), getZ(), 10, 0.3, 0.5, 0.3, 0);
         }
+        // The blow that would have killed him left him on his last breath instead (setHealth): he falls
+        if (pendingDeath && getWorld() instanceof ServerWorld world) startDying(world);
         return hurt;
     }
 
@@ -450,6 +460,10 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
     @Override
     public void setHealth(float health) {
         if (!killing && action != null && getPhase() == 1) health = Math.max(health, getMaxHealth() * phaseTwoHealth());
+        if (!killing && action != null && getPhase() == 2 && action != Action.DYING && health <= 0) {
+            health = 1f;
+            pendingDeath = true;
+        }
         super.setHealth(health);
     }
 
@@ -475,6 +489,7 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
         super.tick();
         if (getWorld() instanceof ServerWorld world && age % 5 == 0) shrugOffSpells(world);
         if (getWorld().isClient) {
+            fallTicks = poseState() == POSE_FALLING ? fallTicks + 1 : 0;
             double[] at = trail[trailHead];
             at[0] = getX();
             at[1] = getY();
@@ -540,7 +555,9 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
             case BIG_BANG -> tickBigBang(world);
             case FINAL_BEAM -> tickFinalBeam(world);
             case STRIKE -> tickStrike(world);
+            case DYING -> tickDying(world);
         }
+        if (action == Action.DYING) return;
         tickHazards(world);
         if (!isInvisible()) tickAura(world);
         if (Arenas.sinOf(world) == Sin.SLOTH && action != Action.ENTRANCE) {
@@ -816,7 +833,7 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
         endAttack(10);
     }
 
-    // ---- Half health: the sky goes black, he powers up, and on Kills' drop he's a Super Saiyan ----
+    // ---- 40% health: the sky goes black, he powers up, and on Kills' drop he's a Super Saiyan ----
 
     private void tickTransition(ServerWorld world, int songTicks) {
         int t = actionTicks;
@@ -2141,11 +2158,136 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
         }
     }
 
-    // ---- Dying ----
+    // ---- Dying: he tries to fly once more, his form gives out, and he falls, slowly, like an angel ----
+
+    /**
+     * Ticks from the last blow: up into the sky one last time, slowing as his power fails ({@link #DEATH_PEAK}), his form
+     * flickering out ({@link #DEATH_FLICKER} on); then, his own self again, he tips onto his back and falls, very slowly,
+     * turning, arms and legs drifting, until 3 blocks over the ground he's gone in a poof (12 s). The portal and the
+     * wheel come 2 s after.
+     */
+    public static final int DEATH_FLICKER = 25, DEATH_HONOUR_AT = 40, DEATH_PEAK = 60, DEATH_TICKS = 240, DEATH_REWARDS_AFTER = 40;
+    public static final double DEATH_RISE = 5, DEATH_LAST = 3;
+    private boolean pendingDeath;
+    private int deathTicks = -1, fallTicks;
+    private Vec3d deathFrom, deathPeak;
+    private double deathGround;
+
+    @Override
+    public float fallTime(float tickDelta) {
+        return fallTicks <= 0 ? 0 : fallTicks + tickDelta;
+    }
+
+    /** Whether he's dying (beaten, not yet gone), and how far into it. */
+    public boolean isDying() {
+        return action == Action.DYING;
+    }
+
+    public int deathTicks() {
+        return Math.max(0, deathTicks);
+    }
+
+    /** Where he'll be gone, for tests: 3 blocks over the ground under him. */
+    public double deathEnd() {
+        return deathGround + DEATH_LAST;
+    }
+
+    private void startDying(ServerWorld world) {
+        pendingDeath = false;
+        clearAttacks(world);
+        action = Action.DYING;
+        actionTicks = 0;
+        deathTicks = 0;
+        untouchable = true;
+        heldStill = true;
+        setNoGravity(true);
+        getNavigation().stop();
+        setTarget(null);
+        deathFrom = getPos();
+        deathPeak = deathFrom.add(0, DEATH_RISE, 0);
+        double g = groundBelow(deathFrom.add(0, 0.5, 0), 48);
+        deathGround = Double.isNaN(g) ? deathFrom.y - 6 : g;
+        stopSong(60);
+        setPoseState(POSE_RAISE);
+        world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundCategory.HOSTILE, 2.0f, 0.6f);
+        // The fight is won from here (nobody can lose it now); the portal and the wheel come after
+        BossFights.onBossDefeated(this, DEATH_TICKS + DEATH_REWARDS_AFTER);
+    }
+
+    private void tickDying(ServerWorld world) {
+        int t = ++deathTicks;
+        getNavigation().stop();
+        if (t <= DEATH_PEAK) {
+            // Up, one last time: reaching for the sky, slower and slower as it gives out
+            float u = t / (float) DEATH_PEAK, rise = 1 - (1 - u) * (1 - u) * (1 - u);
+            stay(deathFrom.lerp(deathPeak, rise));
+            if (t < DEATH_FLICKER) {
+                world.spawnParticles(RickyHazards.GOLD, getX(), getY() + 1, getZ(), 4, 0.4, 0.8, 0.4, 0);
+                if (t % 2 == 0) world.spawnParticles(ParticleTypes.END_ROD, getX(), getY(), getZ(), 1, 0.3, 0.1, 0.3, 0.02);
+            } else {
+                // His form flickering: back to himself for a moment, then less and less of the gold
+                float off = (t - DEATH_FLICKER) / (float) (DEATH_PEAK - DEATH_FLICKER);
+                boolean gold = random.nextFloat() > off * 1.15f;
+                setSaiyan(gold);
+                setAura(gold ? AURA_SAIYAN : AURA_NONE);
+                if (gold) world.spawnParticles(RickyHazards.GOLD, getX(), getY() + 1, getZ(), 3, 0.4, 0.8, 0.4, 0);
+                if (random.nextInt(4) == 0) {
+                    world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_BEACON_AMBIENT, SoundCategory.HOSTILE, 1.0f, 1.6f - off);
+                    world.spawnParticles(ParticleTypes.ELECTRIC_SPARK, getX(), getY() + 1, getZ(), 6, 0.4, 0.7, 0.4, 0.05);
+                }
+            }
+            if (t == DEATH_PEAK) {
+                // Gone out of him: he's just himself, and he falls
+                setSaiyan(false);
+                setAura(AURA_NONE);
+                setPoseState(POSE_FALLING);
+                sky(world, 1);
+                bossBar().setColor(BossBar.Color.RED);
+                world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.HOSTILE, 2.5f, 0.7f);
+                world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.HOSTILE, 2.0f, 0.5f);
+            }
+        } else {
+            // Falling, very slowly, drifting a little as he goes
+            float u = (t - DEATH_PEAK) / (float) (DEATH_TICKS - DEATH_PEAK), eased = u * u * (3 - 2 * u);
+            double y = MathHelper.lerp(eased, deathPeak.y, deathGround + DEATH_LAST);
+            double drift = Math.sin(u * Math.PI) * 1.2;
+            stay(new Vec3d(deathPeak.x + drift * Math.cos(t * 0.02), y, deathPeak.z + drift * Math.sin(t * 0.017)));
+            // The last of the gold coming off him, and a little light above
+            if (t % 5 == 0) world.spawnParticles(RickyHazards.GOLD, getX(), getY() + 0.6, getZ(), 1, 0.5, 0.2, 0.5, 0);
+            if (t % 8 == 0) world.spawnParticles(ParticleTypes.END_ROD, getX(), getY() + 1.2, getZ(), 1, 0.4, 0.2, 0.4, 0.005);
+            if (t % 6 == 0) world.spawnParticles(ParticleTypes.WHITE_ASH, getX(), getY() + 1, getZ(), 3, 0.8, 0.5, 0.8, 0);
+            if (t % 50 == 30) world.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_ELYTRA_FLYING, SoundCategory.HOSTILE, 0.25f, 0.5f);
+        }
+        if (t == DEATH_HONOUR_AT) {
+            for (ServerPlayerEntity p : audience(world)) if (!p.isSpectator()) SinBossEntity.grantDefeated(p, Sin.SLOTH);
+        }
+        if (t < DEATH_TICKS) return;
+        // Three blocks off the ground: a poof, and he's gone
+        Vec3d c = getPos().add(0, 0.5, 0);
+        world.spawnParticles(ParticleTypes.CLOUD, c.x, c.y, c.z, 50, 0.5, 0.4, 0.5, 0.05);
+        world.spawnParticles(ParticleTypes.POOF, c.x, c.y, c.z, 25, 0.4, 0.3, 0.4, 0.04);
+        world.spawnParticles(RickyHazards.GOLD, c.x, c.y, c.z, 30, 0.5, 0.4, 0.5, 0);
+        world.spawnParticles(ParticleTypes.END_ROD, c.x, c.y, c.z, 12, 0.3, 0.3, 0.3, 0.05);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_BREEZE_WIND_BURST.value(), SoundCategory.HOSTILE, 0.8f, 1.2f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, SoundCategory.HOSTILE, 1.5f, 0.6f);
+        setInvisible(true);
+        setSilent(true);
+        killing = true;
+        try {
+            kill();
+        } finally {
+            killing = false;
+        }
+    }
 
     @Override
     public void onDeath(DamageSource source) {
-        if (getWorld() instanceof ServerWorld world) {
+        if (getWorld() instanceof ServerWorld world && deathTicks >= 0) {
+            // All that was his own death: nothing more
+            clearAttacks(world);
+            sky(world, 1);
+            setAura(AURA_NONE);
+        } else if (getWorld() instanceof ServerWorld world) {
             clearAttacks(world);
             sky(world, 1);
             for (ServerPlayerEntity p : audience(world)) {

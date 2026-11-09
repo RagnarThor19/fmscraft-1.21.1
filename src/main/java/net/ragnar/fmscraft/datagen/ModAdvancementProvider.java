@@ -40,15 +40,28 @@ public class ModAdvancementProvider extends FabricAdvancementProvider {
         AdvancementEntry root = rootBuilder.build(consumer, id("root"));
 
         // One per sin, titled just the sin, for your first fragment of it
+        java.util.Map<Sin, AdvancementEntry> perSin = new java.util.EnumMap<>(Sin.class);
         for (Sin sin : Sin.values()) {
-            Advancement.Builder.create()
+            perSin.put(sin, Advancement.Builder.create()
                     .parent(root)
                     .display(ModItems.FRAGMENTS.get(sin),
                             Text.translatable("advancements.fmscraft." + sin.id() + ".title"),
                             Text.translatable("advancements.fmscraft." + sin.id() + ".description"),
                             null, AdvancementFrame.TASK, true, true, false)
                     .criterion("has_fragment", InventoryChangedCriterion.Conditions.items(ModItems.FRAGMENTS.get(sin)))
-                    .build(consumer, id(sin.id()));
+                    .build(consumer, id(sin.id())));
+        }
+
+        // For beating a sin's boss, granted from code (SinBossEntity.grantDefeated) as it dies
+        for (Sin sin : Sin.values()) {
+            Advancement.Builder.create()
+                    .parent(perSin.get(sin))
+                    .display(ModItems.SOULS.get(sin),
+                            Text.translatable("advancements.fmscraft.defeated_" + sin.id() + ".title"),
+                            Text.translatable("advancements.fmscraft.defeated_" + sin.id() + ".description"),
+                            null, AdvancementFrame.CHALLENGE, true, true, false)
+                    .criterion("defeated", Criteria.IMPOSSIBLE.create(new ImpossibleCriterion.Conditions()))
+                    .build(consumer, id("defeated_" + sin.id()));
         }
 
         // Granted from code to everyone online when all 7 souls are placed

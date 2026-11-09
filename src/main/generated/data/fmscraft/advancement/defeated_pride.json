@@ -1,0 +1,27 @@
+{
+  "parent": "fmscraft:pride",
+  "criteria": {
+    "defeated": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.fmscraft.defeated_pride.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "fmscraft:soul_of_pride"
+    },
+    "title": {
+      "translate": "advancements.fmscraft.defeated_pride.title"
+    }
+  },
+  "requirements": [
+    [
+      "defeated"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

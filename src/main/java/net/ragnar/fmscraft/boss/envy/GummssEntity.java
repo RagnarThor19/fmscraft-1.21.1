@@ -56,6 +56,7 @@ import net.ragnar.fmscraft.boss.ModBossEntities;
 import net.ragnar.fmscraft.boss.SinBossEntity;
 import net.ragnar.fmscraft.compat.MagicSpells;
 import net.ragnar.fmscraft.fight.Arenas;
+import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fight.Cinematics;
 import net.ragnar.fmscraft.network.BossScreenPayload;
 import net.ragnar.fmscraft.sin.Sin;
@@ -106,9 +107,12 @@ import java.util.UUID;
  *   <li><b>Rubble Barrage</b>: 6-12 blocks torn out of the floor round him, hung in the air, then hurled one
  *       after another. A direct hit is heavy, and each shatters with a blast, but they're thrown wide.</li>
  * </ul>
- * At half health, once, he turns the Tome of Upside Down on himself: falls up into the dark, rights himself and comes
- * down on the crowd with the Tome of Earthquake. From then on green blocks drift round him (and his Mirror Images).
- * It's no second phase: same song, same attacks.
+ * At half health, once, his <b>Covet</b>: he's gone, the song fades out and the void blinks; four colossal copies of him
+ * rise out of the dark beyond the rim and pull a world of stolen blocks together over the middle as the song swells
+ * back, then bring it down on the beat over most of the arena (run for the rim). He's back in the middle after it, with
+ * green blocks drifting round him (and his Mirror Images), the void more awake, and from then on he can also turn the
+ * Tome of Upside Down on himself: fall up into the dark, right himself and come down on the crowd with the Tome of
+ * Earthquake. Same song throughout.
  */
 public class GummssEntity extends SinBossEntity implements GummssLook {
     public static final BossSong SONG = new BossSong("fmscraft:music.envy.theme", GummssTimeline.BPM, GummssTimeline.FIRST_BEAT_TICK);
@@ -138,12 +142,23 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
     /** Where he lands: heavy in the middle, less to the edge of this; then the quake rolls out from it. */
     public static final double LANDING_RADIUS = 6;
     public static final float LANDING_CENTER = 30f, LANDING_EDGE = 14f, QUAKE_CENTER = 8f, QUAKE_EDGE = 3f;
+    /**
+     * His Covet (timings in GummssTimeline): how big the four of him are (16 is as big as Minecraft scales anything),
+     * how far out beyond the rim they rise and from how deep, how deep they stand, how high the world hangs over the
+     * middle. Off his arena (tests), all of it shrinks down to fit.
+     */
+    public static final double COLOSSUS_SCALE = 16, COLOSSUS_OUT = 8, COLOSSUS_DEPTH = 46, COLOSSUS_STAND = 7, HOARD_HEIGHT = 34;
+    private static final double OFF_ARENA_REACH = 5, OFF_ARENA_SCALE = 3, OFF_ARENA_OUT = 2.5, OFF_ARENA_HEIGHT = 9;
 
     private static final TrackedData<Integer> POSE = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.INTEGER);
     private static final TrackedData<Boolean> STARING = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     private static final TrackedData<Boolean> FLIPPED = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     private static final TrackedData<Optional<UUID>> GUISE_PLAYER = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.OPTIONAL_UUID);
     private static final TrackedData<Integer> GUISE = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.INTEGER);
+    /** His Covet, for the void on each client (EnvySky): ticks into it (0: not now), when it lands, and whether it's happened. */
+    private static final TrackedData<Integer> COVET = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.INTEGER);
+    private static final TrackedData<Integer> COVET_IMPACT = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.INTEGER);
+    private static final TrackedData<Boolean> AWAKE = DataTracker.registerData(GummssEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
 
     /** Disguise, in ticks: pointing at whoever he'll be, the cups turning, wearing their face, the cups again. */
     public static final int GUISE_POINT = 22, GUISE_SHUFFLE = 28, GUISE_TICKS = 200, GUISE_UNDO = 12;
@@ -156,7 +171,7 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         ENTRANCE, MOVE, EXPOSED,
         FORCE_PUSH, FORCE_PULL, TK_SLAM, RECKONING, PEARL, VANISH, MOON, ARROW_RAIN, QUIVER, POISON_DARTS, SWORDS, SWAP,
         PSYCHIC_SLASH, POISON_SLASH, SWORD_RAIN, ILLUSIONS, EVIL_EYE, VENOM_FLASKS, LEVITATION, JUDGEMENT, UPSIDE_DOWN,
-        RUBBLE, ASCEND, DISGUISE
+        RUBBLE, ASCEND, DISGUISE, COVET, DYING
     }
 
     private Action action = Action.ENTRANCE;
@@ -199,11 +214,20 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
     /** For tests: whether the cups trade the two of them round (null: at random, half the time). */
     private Boolean guiseSwapForced;
 
-    // His fall from the sky at half health (once), and the green blocks round him after it
-    private boolean ascended, quakeCharging;
+    // His fall from the sky (after his Covet)
+    private boolean quakeCharging;
     private Vec3d ascendFrom;
     /** Client side: how far over he's rolled (0 upright, 180 upside down), this tick and last. */
     private float flipRoll, lastFlipRoll;
+
+    // His Covet at half health (once), and the green blocks round him after it
+    private boolean awakened, covetLanded, covetArena;
+    private final List<UUID> colossi = new ArrayList<>();
+    private List<Vec3d> covetHands = List.of();
+    private GummssCovet.Hoard hoard;
+    private Vec3d covetCenter;
+    private double covetReach;
+    private int covetImpact, nextHeartbeat, songNow;
 
     public GummssEntity(EntityType<? extends HostileEntity> type, World world) {
         super(type, world);
@@ -242,6 +266,9 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         builder.add(FLIPPED, false);
         builder.add(GUISE_PLAYER, Optional.empty());
         builder.add(GUISE, GUISE_OFF);
+        builder.add(COVET, 0);
+        builder.add(COVET_IMPACT, 0);
+        builder.add(AWAKE, false);
     }
 
     @Override
@@ -278,12 +305,48 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
     }
 
     public boolean isUntouchable() {
-        return untouchable;
+        return untouchable || action == Action.DYING;
     }
 
-    /** Whether he's turned the Tome of Upside Down on himself and come down again (the green blocks round him). */
-    public boolean hasAscended() {
-        return ascended;
+    /** Whether his Covet has come down (the green blocks round him, the void more awake, his fall from the sky). */
+    public boolean isAwake() {
+        return dataTracker.get(AWAKE);
+    }
+
+    /** Ticks into his Covet (0 if it isn't on), and the tick it lands on (0 until the four of him are up). */
+    public int covetTicks() {
+        return dataTracker.get(COVET);
+    }
+
+    public int covetImpact() {
+        return dataTracker.get(COVET_IMPACT);
+    }
+
+    /** For tests: how many of the four of him are up, how many blocks are in the world they're making, how far it reaches. */
+    public int colossusCount() {
+        return colossi.size();
+    }
+
+    public int hoardBlocks() {
+        return hoard == null ? 0 : hoard.blocks();
+    }
+
+    public double covetReach() {
+        return covetReach;
+    }
+
+    public Vec3d covetCenter() {
+        return covetCenter;
+    }
+
+    /** Whether {@code id} is one of the four of him he's holding up right now. */
+    boolean holdsColossus(UUID id) {
+        return action == Action.COVET && colossi.contains(id) || action == Action.DYING && echoes.contains(id);
+    }
+
+    /** Where the four of him hold up their hands, this tick (empty when they aren't up). */
+    List<Vec3d> covetHands() {
+        return covetHands;
     }
 
     /** For tests: how many blocks the Rubble Barrage under way tore up (0 if none), and the floor it tore them from. */
@@ -490,6 +553,7 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         if (source.isOf(DamageTypes.OUT_OF_WORLD) || source.isOf(DamageTypes.GENERIC_KILL)) return super.damage(source, amount);
         Entity attacker = source.getAttacker();
         if (attacker == this || attacker instanceof GummssIllusionEntity) return false;
+        if (action == Action.DYING) return false;
         // Shut in his cup nothing reaches him, and nothing tells you which cup he's in
         if (guiseStage() == GUISE_HIDDEN) return false;
         // Found out: a hit knocks the face off him, and he reels
@@ -512,7 +576,18 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         if (rainActive()) amount *= RAIN_TAKEN;
         if (action == Action.EXPOSED) amount *= EXPOSED_BONUS;
         amount = Math.min(amount, MAX_HIT);
-        boolean hurt = super.damage(source, Math.max(0.01f, amount));
+        // The blow that would kill him leaves him on his last health instead (setHealth), and he comes apart
+        boolean hurt;
+        lethalGuard = true;
+        try {
+            hurt = super.damage(source, Math.max(0.01f, amount));
+        } finally {
+            lethalGuard = false;
+        }
+        if (pendingDeath && getWorld() instanceof ServerWorld world) {
+            startDying(world);
+            return hurt;
+        }
         if (hurt && lift != null && lift.holding()) {
             liftDamage += amount;
             if (liftDamage >= LIFT_BREAK) {
@@ -603,6 +678,9 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         if (rest > 0) rest--;
         if (meleeCooldown > 0) meleeCooldown--;
         if (catchPose > 0 && --catchPose == 0 && action == Action.MOVE) setPoseState(POSE_IDLE);
+        songNow = songTicks;
+        // Half health: once, as soon as he's between attacks, whatever his rest
+        if (action == Action.MOVE && !awakened && desperate() && !fighters.isEmpty() && !heldStill) startAttack(Action.COVET);
         actionTicks++;
         switch (action) {
             case ENTRANCE -> tickEntrance(world, songTicks);
@@ -632,13 +710,15 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
             case RUBBLE -> tickRubble(world);
             case ASCEND -> tickAscend(world);
             case DISGUISE -> tickDisguise(world);
+            case COVET -> tickCovet(world);
+            case DYING -> tickDying(world);
         }
         tickHazards(world);
         illusions.removeIf(id -> !(world.getEntity(id) instanceof GummssIllusionEntity i) || !i.isAlive());
-        tickAura(world);
+        if (action != Action.DYING || deathTicks < DEATH_GLITCH_END) tickAura(world);
         if (inArena) {
             tickAmbience(world);
-            if (action != Action.ENTRANCE) catchStrays(world);
+            if (action != Action.ENTRANCE && action != Action.DYING) catchStrays(world);
         }
     }
 
@@ -655,11 +735,10 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
     @Override
     protected void onBeat(int phase, int beat) {
         if (!(getWorld() instanceof ServerWorld world)) return;
-        // Half health: once, whatever his rest, he turns the Tome of Upside Down on himself
-        if (action == Action.MOVE && !ascended && desperate() && !fighters.isEmpty() && !heldStill) startAttack(Action.ASCEND);
-        else if (action == Action.MOVE && rest <= 0 && !fighters.isEmpty() && !heldStill) startAttack(chooseAttack());
-        // The eye in the floor pulses with the bass
-        if (action != Action.ENTRANCE && beat % 4 == 0 && Arenas.sinOf(world) == Sin.ENVY) {
+        // (Not at half health before his Covet: that comes first)
+        if (action == Action.MOVE && rest <= 0 && !fighters.isEmpty() && !heldStill && (awakened || !desperate())) startAttack(chooseAttack());
+        // The eye in the floor pulses with the bass (not while the song's gone, in his Covet)
+        if (action != Action.ENTRANCE && action != Action.COVET && beat % 4 == 0 && Arenas.sinOf(world) == Sin.ENVY) {
             hazards.add(new EnvyHazards.Shockwave(EnvyArena.CENTER, 0.5, beat % 16 == 0 ? 9 : 6, 0, 0));
             world.spawnParticles(ParticleTypes.SCULK_SOUL, EnvyArena.CENTER.x, EnvyArena.CENTER.y + 0.2, EnvyArena.CENTER.z, 4, 1.2, 0.1, 1.2, 0.02);
         }
@@ -701,6 +780,8 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         offer(options, weights, Action.UPSIDE_DOWN, 1, 820);
         offer(options, weights, Action.RUBBLE, new int[]{3, 4, 4}[band], 320);
         if (fighters.size() >= GUISE_MIN_PLAYERS && illusions.isEmpty()) offer(options, weights, Action.DISGUISE, 2, 700);
+        // After his Covet: his fall from the sky
+        if (awakened) offer(options, weights, Action.ASCEND, 2, 620);
         if (options.isEmpty()) return Action.PSYCHIC_SLASH;
         int total = weights.stream().mapToInt(Integer::intValue).sum(), roll = random.nextInt(total);
         for (int i = 0; i < options.size(); i++) {
@@ -1733,7 +1814,7 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
                     world.spawnEntity(image);
                     illusions.add(image.getUuid());
                     // The green blocks round him would give the real one away: they have them too
-                    if (ascended) hazards.add(new EnvyHazards.Orbit(world, image));
+                    if (awakened) hazards.add(new EnvyHazards.Orbit(world, image));
                 }
                 Vec3d mine = spots.get(real);
                 refreshPositionAndAngles(mine.x, mine.y, mine.z, random.nextFloat() * 360, 0);
@@ -1948,10 +2029,9 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
     }
 
     /**
-     * Half health, once: he turns the Tome of Upside Down on himself and falls up into the dark, rolled over, while
-     * the Tome of Earthquake's fissures crack out across the floor where most of them stand. He rights himself, hangs
-     * there, and comes down on that spot: heavy where he lands, and the quake rolls out from it (jump it). From then
-     * on green blocks drift round him. Not a second phase: same song, same attacks.
+     * After his Covet: he turns the Tome of Upside Down on himself and falls up into the dark, rolled over, while the
+     * Tome of Earthquake's fissures crack out across the floor where most of them stand. He rights himself, hangs there,
+     * and comes down on that spot: heavy where he lands, and the quake rolls out from it (jump it).
      */
     private void tickAscend(ServerWorld world) {
         int t = actionTicks;
@@ -2033,7 +2113,7 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         if (t >= land + 24) endAttack();
     }
 
-    /** He lands: heavy where he comes down, the quake rolls out, and from now on the green blocks are round him. */
+    /** He lands: heavy where he comes down, and the quake rolls out. */
     private void landQuake(ServerWorld world) {
         setPosition(spot.x, spot.y, spot.z);
         setNoGravity(false);
@@ -2064,13 +2144,6 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.HOSTILE, 3.0f, 0.6f);
         world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.HOSTILE, 4.0f, 0.5f);
         world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.HOSTILE, 3.0f, 0.5f);
-        // The green blocks: torn up in the landing, and they stay with him
-        ascended = true;
-        hazards.add(new EnvyHazards.Orbit(world, this));
-        for (UUID id : illusions) {
-            if (world.getEntity(id) instanceof GummssIllusionEntity image) hazards.add(new EnvyHazards.Orbit(world, image));
-        }
-        world.playSound(null, c.x, c.y, c.z, SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.HOSTILE, 2.0f, 0.5f);
     }
 
     /** Cut short (he died, the fight ended): the right way up, back on gravity, and the quake called off. */
@@ -2079,6 +2152,276 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         quakeCharging = false;
         dataTracker.set(FLIPPED, false);
         setNoGravity(false);
+    }
+
+    // ---- His Covet: half health, once ----
+
+    /**
+     * Half health, once. He's gone, and the song with him, and the void blinks. Then four colossal copies of him rise out
+     * of the dark beyond the rim, arms already raised, and for eight seconds pull a world together over the middle: every
+     * block he's ever wanted torn loose in their hands and flown in, round a glowing green heart, turning faster and
+     * faster, while the song swells back. They bring it down on the beat, the song at its height, and it reaches most of
+     * the arena: run for the rim. They're gone a moment later, and a second after that he's back in the middle, green
+     * blocks round him from now on. Nothing can hurt him through any of it.
+     */
+    private void tickCovet(ServerWorld world) {
+        int t = actionTicks;
+        if (t == 1) startCovet(world);
+        dataTracker.set(COVET, t);
+        stand();
+        setVelocity(Vec3d.ZERO);
+        int fade = GummssTimeline.COVET_FADE;
+        if (t < fade) {
+            // Nothing: the song dying away, the void blinking, a heartbeat in the dark
+            if (t % 20 == 10) for (ServerPlayerEntity p : audience(world)) p.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.MASTER, 1.0f, 0.5f);
+            if (t == 24) for (ServerPlayerEntity p : audience(world)) p.playSoundToPlayer(SoundEvents.AMBIENT_CAVE.value(), SoundCategory.MASTER, 1.0f, 0.6f);
+            if (t == 44) for (ServerPlayerEntity p : audience(world)) p.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_NEARBY_CLOSEST, SoundCategory.MASTER, 1.0f, 0.5f);
+            if (t % 4 == 0) for (ServerPlayerEntity p : fighters) world.spawnParticles(EnvyHazards.SHADOW, p.getX(), p.getY() + 3, p.getZ(), 4, 6, 2, 6, 0);
+            return;
+        }
+        if (t == fade) raiseColossi(world);
+        int dropStart = covetImpact - GummssTimeline.COVET_DROP, gone = covetImpact + GummssTimeline.COVET_LINGER;
+        if (t < gone) holdColossi(world, t);
+        if (t < covetImpact) {
+            double u = MathHelper.clamp((t - fade) / (double) (covetImpact - fade), 0, 1);
+            // The heartbeat quickening, the ground starting to shake
+            if (t >= nextHeartbeat) {
+                nextHeartbeat = t + (int) MathHelper.lerp(u, 24, 6);
+                for (ServerPlayerEntity p : audience(world)) p.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_HEARTBEAT, SoundCategory.MASTER, 1.2f, 0.5f + (float) u * 0.3f);
+            }
+            if (t % 10 == 0) MagicSpells.shake(world, covetCenter, 90, (float) (0.06 + 0.45 * u), 12);
+            if (t == fade + 70) for (ServerPlayerEntity p : audience(world)) p.playSoundToPlayer(SoundEvents.BLOCK_SCULK_SHRIEKER_SHRIEK, SoundCategory.MASTER, 1.0f, 0.5f);
+            if (t == fade + 115) for (ServerPlayerEntity p : audience(world)) p.playSoundToPlayer(SoundEvents.ENTITY_ELDER_GUARDIAN_CURSE, SoundCategory.MASTER, 1.0f, 0.5f);
+        }
+        if (t == dropStart) {
+            // All four bring it down at once
+            for (UUID id : colossi) if (world.getEntity(id) instanceof GummssColossusEntity c) c.setLook(POSE_SLAM);
+            for (ServerPlayerEntity p : audience(world)) {
+                p.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_SONIC_CHARGE, SoundCategory.MASTER, 1.0f, 0.5f);
+                p.playSoundToPlayer(SoundEvents.ENTITY_ENDER_DRAGON_GROWL, SoundCategory.MASTER, 0.8f, 0.5f);
+            }
+            Vec3d top = covetCenter.add(0, covetHeight(), 0);
+            world.playSound(null, top.x, top.y, top.z, SoundEvents.ITEM_TRIDENT_RIPTIDE_3.value(), SoundCategory.HOSTILE, 8.0f, 0.5f);
+        }
+        // Should it somehow not have come down by itself
+        if (t == covetImpact + 2 && !covetLanded) covetLands(world, covetCenter);
+        if (t == gone) dismissColossi(world);
+        if (t >= gone + GummssTimeline.COVET_GONE) returnFromCovet(world);
+    }
+
+    private double covetHeight() {
+        return covetArena ? HOARD_HEIGHT : OFF_ARENA_HEIGHT;
+    }
+
+    private double colossusScale() {
+        return covetArena ? COLOSSUS_SCALE : OFF_ARENA_SCALE;
+    }
+
+    private double colossusDepth() {
+        return covetArena ? COLOSSUS_DEPTH : 6;
+    }
+
+    /** He's gone: a burst of green smoke and nothing, and he can't be found or hurt until it's over. */
+    private void startCovet(ServerWorld world) {
+        untouchable = true;
+        covetLanded = false;
+        dataTracker.set(STARING, false);
+        dataTracker.set(COVET_IMPACT, 0);
+        for (UUID id : illusions) if (world.getEntity(id) instanceof GummssIllusionEntity i) i.shatter(false);
+        illusions.clear();
+        covetArena = Arenas.sinOf(world) == Sin.ENVY;
+        covetCenter = covetArena ? EnvyArena.CENTER : getPos();
+        covetReach = covetArena ? EnvyArena.RADIUS * GummssTimeline.COVET_SHARE : OFF_ARENA_REACH;
+        Vec3d c = getPos().add(0, 1, 0);
+        emit(world, EnvyHazards.DEEP_GREEN, c, 160, 0.6, 1.0, 0.6, 0);
+        emit(world, EnvyHazards.SHADOW, c, 80, 0.5, 1.0, 0.5, 0);
+        emit(world, ParticleTypes.REVERSE_PORTAL, c, 80, 0.4, 0.9, 0.4, 0.2);
+        emit(world, ParticleTypes.SCULK_SOUL, c, 20, 0.4, 0.8, 0.4, 0.05);
+        emit(world, ParticleTypes.LARGE_SMOKE, c, 30, 0.4, 0.8, 0.4, 0.03);
+        for (ServerPlayerEntity p : audience(world)) {
+            p.playSoundToPlayer(SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.MASTER, 1.0f, 0.5f);
+            p.playSoundToPlayer(SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.MASTER, 1.0f, 0.5f);
+        }
+        setInvisible(true);
+        setNoGravity(true);
+        getNavigation().stop();
+        refreshPositionAndAngles(covetCenter.x, covetCenter.y, covetCenter.z, getYaw(), 0);
+        nextHeartbeat = 0;
+    }
+
+    /** Four of him, colossal, out beyond the rim, rising out of the void. The world starts forming between them. */
+    private void raiseColossi(ServerWorld world) {
+        double scale = colossusScale(), out = covetArena ? EnvyArena.RADIUS + COLOSSUS_OUT : OFF_ARENA_OUT;
+        double start = covetArena ? MathHelper.PI / 4 : 0;
+        for (int i = 0; i < 4; i++) {
+            GummssColossusEntity colossus = ModBossEntities.GUMMSS_COLOSSUS.create(world);
+            if (colossus == null) continue;
+            double a = start + i * MathHelper.HALF_PI;
+            Vec3d feet = covetCenter.add(Math.cos(a) * out, -colossusDepth(), Math.sin(a) * out);
+            colossus.setOwner(this);
+            colossus.setSize(scale);
+            colossus.hold(feet, yawTowards(feet, covetCenter), -30f);
+            world.spawnEntity(colossus);
+            colossi.add(colossus.getUuid());
+            Vec3d rim = new Vec3d(feet.x, covetCenter.y, feet.z);
+            emit(world, EnvyHazards.DEEP_GREEN, rim, 80, scale * 0.4, 2, scale * 0.4, 0);
+            emit(world, ParticleTypes.SCULK_SOUL, rim, 30, scale * 0.3, 1, scale * 0.3, 0.05);
+            world.playSound(null, rim.x, rim.y, rim.z, SoundEvents.ENTITY_WARDEN_EMERGE, SoundCategory.HOSTILE, 8.0f, 0.5f);
+        }
+        // Down on the beat
+        int t = actionTicks, base = t + GummssTimeline.COVET_CAST + GummssTimeline.COVET_DROP;
+        covetImpact = base;
+        for (int k = 0; k < 14; k++) {
+            if (SONG.isBeatTick(songNow + base + k - t)) {
+                covetImpact = base + k;
+                break;
+            }
+        }
+        dataTracker.set(COVET_IMPACT, covetImpact);
+        // The world's own clock starts this tick (it ticks after him), so that it lands on covetImpact
+        int dropAt = covetImpact - t + 1 - GummssTimeline.COVET_DROP;
+        hoard = new GummssCovet.Hoard(random, covetCenter.add(0, covetHeight(), 0), covetCenter.y, covetReach, dropAt - 16, dropAt, GummssTimeline.COVET_DROP);
+        hazards.add(hoard);
+        for (ServerPlayerEntity p : audience(world)) {
+            p.playSoundToPlayer(SoundEvents.ENTITY_WITHER_SPAWN, SoundCategory.MASTER, 0.7f, 0.5f);
+            p.playSoundToPlayer(SoundEvents.BLOCK_END_PORTAL_SPAWN, SoundCategory.MASTER, 0.6f, 0.6f);
+            p.sendMessage(Text.translatable("message.fmscraft.gummss_covet").formatted(Formatting.DARK_GREEN, Formatting.ITALIC), true);
+        }
+    }
+
+    /** The four of him: rising, then standing thigh-deep in the void, arms up, looking up at what they're making. */
+    private void holdColossi(ServerWorld world, int t) {
+        int fade = GummssTimeline.COVET_FADE;
+        double u = MathHelper.clamp((t - fade) / (double) GummssTimeline.COVET_RISE, 0, 1), rise = 1 - Math.pow(1 - u, 3);
+        double scale = colossusScale(), height = 1.8 * scale, stand = covetArena ? -COLOSSUS_STAND : 0;
+        double hangY = covetCenter.y + covetHeight();
+        List<Vec3d> hands = new ArrayList<>();
+        for (int i = 0; i < colossi.size(); i++) {
+            if (!(world.getEntity(colossi.get(i)) instanceof GummssColossusEntity c)) continue;
+            Vec3d at = c.getPos();
+            // Swaying a little where they stand
+            double y = covetCenter.y + MathHelper.lerp(rise, -colossusDepth(), stand) + Math.sin((t + i * 13) * 0.07) * 0.02 * scale;
+            Vec3d feet = new Vec3d(at.x, y, at.z);
+            Vec3d in = covetCenter.subtract(feet).multiply(1, 0, 1).normalize();
+            double eye = y + height * 0.9, flat = EnvyHazards.flatDistance(feet, covetCenter);
+            float pitch = (float) -Math.toDegrees(Math.atan2(hangY - eye, flat));
+            c.hold(feet, yawTowards(feet, covetCenter), MathHelper.clamp(pitch, -60f, 10f));
+            if (c.poseState() != POSE_SLAM) c.setLook(POSE_COVET);
+            hands.add(feet.add(0, height * 1.1, 0).add(in.multiply(height * 0.2)));
+            Vec3d body = feet.add(0, height * 0.6, 0);
+            if (u < 1 && t % 2 == 0) {
+                // The void pouring off them as they come up
+                emit(world, EnvyHazards.DEEP_GREEN, body, 10, scale * 0.25, height * 0.3, scale * 0.25, 0);
+                emit(world, EnvyHazards.SHADOW, body, 6, scale * 0.3, height * 0.3, scale * 0.3, 0);
+            } else if (t % 3 == 0) {
+                emit(world, EnvyHazards.DEEP_GREEN, body, 4, scale * 0.2, height * 0.3, scale * 0.2, 0);
+                emit(world, ParticleTypes.WARPED_SPORE, body, 3, scale * 0.3, height * 0.3, scale * 0.3, 0);
+            }
+        }
+        covetHands = hands;
+    }
+
+    /** It lands: crushing anyone within reach of it, heaviest in the middle; everyone flashed and shaken. */
+    void covetLands(ServerWorld world, Vec3d at) {
+        if (covetLanded) return;
+        covetLanded = true;
+        Vec3d c = at;
+        java.util.Set<UUID> struck = new java.util.HashSet<>();
+        for (ServerPlayerEntity p : fighters) {
+            double d = EnvyHazards.flatDistance(p.getPos(), c);
+            float damage = GummssTimeline.covetDamage(d, covetReach);
+            if (damage <= 0 || Math.abs(p.getY() - c.y) > 24) continue;
+            struck.add(p.getUuid());
+            p.timeUntilRegen = 0;
+            crush(p, damage);
+            launch(p, p.getPos().subtract(c), 0.5 + 0.9 * (1 - d / covetReach), 0.75);
+            flash(p, 0.95f, 34);
+        }
+        for (ServerPlayerEntity p : audience(world)) {
+            if (!struck.contains(p.getUuid())) flash(p, 0.7f, 28);
+            p.playSoundToPlayer(SoundEvents.ENTITY_GENERIC_EXPLODE.value(), SoundCategory.MASTER, 1.0f, 0.4f);
+            p.playSoundToPlayer(SoundEvents.ENTITY_WARDEN_SONIC_BOOM, SoundCategory.MASTER, 1.0f, 0.5f);
+            p.playSoundToPlayer(SoundEvents.ITEM_MACE_SMASH_GROUND_HEAVY, SoundCategory.MASTER, 1.0f, 0.5f);
+            p.playSoundToPlayer(SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.MASTER, 1.0f, 0.5f);
+        }
+        MagicSpells.shake(world, c, 90, 1.3f, 34);
+        Vec3d up = c.add(0, 1, 0);
+        emit(world, ParticleTypes.FLASH, up, 1, 0, 0, 0, 0);
+        emit(world, ParticleTypes.SONIC_BOOM, up, 1, 0, 0, 0, 0);
+        emit(world, ParticleTypes.EXPLOSION_EMITTER, up, 5, covetReach * 0.15, 1, covetReach * 0.15, 0);
+        emit(world, ParticleTypes.GUST_EMITTER_LARGE, up, 3, covetReach * 0.1, 0.5, covetReach * 0.1, 0);
+        emit(world, EnvyHazards.DEEP_GREEN, up, 300, covetReach * 0.3, 2, covetReach * 0.3, 0);
+        emit(world, EnvyHazards.PSYCHIC, up, 160, covetReach * 0.25, 3, covetReach * 0.25, 0);
+        emit(world, ParticleTypes.SCULK_SOUL, up, 60, covetReach * 0.2, 2, covetReach * 0.2, 0.1);
+        emit(world, ParticleTypes.END_ROD, up.add(0, 2, 0), 120, 2, 2, 2, 0.9);
+        for (int i = 0; i < 6; i++) {
+            BlockState state = GummssCovet.Hoard.pickBlock(random);
+            emit(world, new BlockStateParticleEffect(ParticleTypes.BLOCK, state), up, 60, covetReach * 0.2, 1.5, covetReach * 0.2, 0.4);
+        }
+        hazards.add(new EnvyHazards.Shockwave(c, 1.8, covetReach + 8, 0, 0));
+        hazards.add(new EnvyHazards.Shockwave(c, 1.2, covetReach, 0, 0));
+        hazards.add(new EnvyHazards.Shockwave(c, 0.7, covetReach * 0.6, 0, 0));
+    }
+
+    /** The four of him go: each collapses into the void it came from. */
+    private void dismissColossi(ServerWorld world) {
+        double scale = colossusScale(), height = 1.8 * scale;
+        for (UUID id : colossi) {
+            if (!(world.getEntity(id) instanceof GummssColossusEntity c)) continue;
+            Vec3d body = c.getPos().add(0, height * 0.5, 0);
+            emit(world, EnvyHazards.DEEP_GREEN, body, 200, scale * 0.3, height * 0.35, scale * 0.3, 0);
+            emit(world, EnvyHazards.SHADOW, body, 120, scale * 0.35, height * 0.35, scale * 0.35, 0);
+            emit(world, ParticleTypes.LARGE_SMOKE, body, 60, scale * 0.3, height * 0.35, scale * 0.3, 0.05);
+            emit(world, ParticleTypes.REVERSE_PORTAL, body, 80, scale * 0.3, height * 0.35, scale * 0.3, 0.3);
+            world.playSound(null, body.x, body.y, body.z, SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.HOSTILE, 8.0f, 0.5f);
+            c.discard();
+        }
+        colossi.clear();
+        covetHands = List.of();
+    }
+
+    /** Back in the middle, as he was, only now the green blocks are round him and the void is awake. */
+    private void returnFromCovet(ServerWorld world) {
+        Vec3d c = covetCenter;
+        double ground = groundBelow(c.add(0, 1.5, 0), 6);
+        refreshPositionAndAngles(c.x, Double.isNaN(ground) ? c.y : ground, c.z, getYaw(), 0);
+        setInvisible(false);
+        setNoGravity(false);
+        Vec3d body = getPos().add(0, 1, 0);
+        emit(world, EnvyHazards.DEEP_GREEN, body, 120, 0.5, 1.0, 0.5, 0);
+        emit(world, EnvyHazards.PSYCHIC, body, 60, 0.4, 0.9, 0.4, 0);
+        emit(world, ParticleTypes.REVERSE_PORTAL, body, 60, 0.4, 0.9, 0.4, 0.2);
+        world.playSound(null, body.x, body.y, body.z, SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.HOSTILE, 4.0f, 0.6f);
+        world.playSound(null, body.x, body.y, body.z, SoundEvents.ENTITY_EVOKER_CAST_SPELL, SoundCategory.HOSTILE, 3.0f, 0.5f);
+        world.playSound(null, body.x, body.y, body.z, SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.HOSTILE, 3.0f, 0.5f);
+        awakened = true;
+        dataTracker.set(AWAKE, true);
+        hazards.add(new EnvyHazards.Orbit(world, this));
+        dataTracker.set(COVET, 0);
+        dataTracker.set(COVET_IMPACT, 0);
+        hoard = null;
+        untouchable = false;
+        // His fall from the sky comes round later
+        lastUsed.put(Action.ASCEND, age);
+        endAttack(30);
+    }
+
+    /** Cut short (he died, the fight ended): the four of him gone, and nothing left blinking. */
+    private void endCovet(ServerWorld world) {
+        for (UUID id : colossi) if (world.getEntity(id) instanceof GummssColossusEntity c) c.discard();
+        colossi.clear();
+        covetHands = List.of();
+        hoard = null;
+        dataTracker.set(COVET, 0);
+        dataTracker.set(COVET_IMPACT, 0);
+        if (action == Action.COVET) {
+            setInvisible(false);
+            setNoGravity(false);
+        }
+    }
+
+    private static float yawTowards(Vec3d from, Vec3d to) {
+        return (float) (MathHelper.atan2(to.z - from.z, to.x - from.x) * (180 / Math.PI)) - 90f;
     }
 
     // ---- Disguise: he takes one of your faces and gives them his ----
@@ -2344,11 +2687,184 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         }
     }
 
-    // ---- Dying ----
+    // ---- Dying: he looks up, comes apart into every other him, and they go, and so does he ----
+
+    /**
+     * Ticks from the last blow: looking up into the sky (3 s; the Defeated advancement in it), then glitching (copies of
+     * him everywhere, in every pose, flickering in and out, while he twitches, still looking up), the copies gone,
+     * looking down, sad; then he dies (10 s). The portal and the wheel come 2 s after that.
+     */
+    public static final int DEATH_HONOUR_AT = 40, DEATH_GLITCH = 60, DEATH_GLITCH_END = 150, DEATH_SORROW = 160,
+            DEATH_TICKS = 200, DEATH_REWARDS_AFTER = 40;
+    /** The most copies of him up at once. */
+    public static final int DEATH_ECHOES = 28;
+    private static final int[] ECHO_POSES = {POSE_CAST, POSE_PUSH, POSE_PULL, POSE_LIFT, POSE_SLAM, POSE_THROW, POSE_SLASH_A,
+            POSE_SLASH_B, POSE_SKY, POSE_POINT, POSE_STARE, POSE_CATCH, POSE_STUNNED, POSE_COVET, POSE_FALL, POSE_LAND};
+    private final List<UUID> echoes = new ArrayList<>();
+    private boolean lethalGuard, pendingDeath;
+    private int deathTicks = -1;
+    private float deathYaw;
+
+    @Override
+    public void setHealth(float health) {
+        if (lethalGuard && health <= 0 && action != Action.DYING) {
+            health = 1f;
+            pendingDeath = true;
+        }
+        super.setHealth(health);
+    }
+
+    /** Whether he's dying (beaten, not yet gone), how far into it, and how many copies of him are up. */
+    public boolean isDying() {
+        return action == Action.DYING;
+    }
+
+    public int deathTicks() {
+        return Math.max(0, deathTicks);
+    }
+
+    public int echoCount() {
+        return echoes.size();
+    }
+
+    private void startDying(ServerWorld world) {
+        pendingDeath = false;
+        clearAttacks(world);
+        held.clear();
+        action = Action.DYING;
+        actionTicks = 0;
+        deathTicks = 0;
+        untouchable = true;
+        heldStill = true;
+        setNoGravity(false);
+        setInvisible(false);
+        dataTracker.set(STARING, false);
+        stand();
+        setTarget(null);
+        deathYaw = getBodyYaw();
+        stopSong(40);
+        setPoseState(POSE_SKY);
+        world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.ENTITY_ILLUSIONER_HURT, SoundCategory.HOSTILE, 1.5f, 0.5f);
+        // The fight is won from here (nobody can lose it now); the portal and the wheel come after
+        BossFights.onBossDefeated(this, DEATH_TICKS + DEATH_REWARDS_AFTER);
+    }
+
+    private void tickDying(ServerWorld world) {
+        int t = ++deathTicks;
+        stand();
+        if (t == DEATH_HONOUR_AT) {
+            for (ServerPlayerEntity p : audience(world)) if (!p.isSpectator()) SinBossEntity.grantDefeated(p, Sin.ENVY);
+        }
+        if (t < DEATH_GLITCH) {
+            // Looking up into the sky, quite still
+            faceYaw(deathYaw);
+            return;
+        }
+        if (t < DEATH_GLITCH_END) {
+            glitch(world, t - DEATH_GLITCH);
+            return;
+        }
+        if (t < DEATH_SORROW) {
+            // The copies go, a handful a tick, and then it's quiet
+            setInvisible(false);
+            faceYaw(deathYaw);
+            setPoseState(POSE_SKY);
+            for (int k = 0; k < 4 && !echoes.isEmpty(); k++) {
+                Entity echo = world.getEntity(echoes.remove(echoes.size() - 1));
+                if (echo != null) {
+                    Vec3d c = echo.getPos().add(0, 1, 0);
+                    world.spawnParticles(EnvyHazards.DEEP_GREEN, c.x, c.y, c.z, 6, 0.25, 0.5, 0.25, 0);
+                    echo.discard();
+                }
+            }
+            if (t == DEATH_GLITCH_END) world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_AMETHYST_CLUSTER_BREAK, SoundCategory.HOSTILE, 2.0f, 0.5f);
+            return;
+        }
+        if (t == DEATH_SORROW) {
+            // At the last he looks down, and there's nothing he wants
+            dismissEchoes(world);
+            setPoseState(POSE_SORROW);
+            world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.ENTITY_ILLUSIONER_AMBIENT, SoundCategory.HOSTILE, 0.8f, 0.5f);
+        }
+        if (t < DEATH_TICKS) return;
+        // And he's gone: green motes rising slowly off where he stood
+        Vec3d c = getPos().add(0, 1, 0);
+        world.spawnParticles(EnvyHazards.DEEP_GREEN, c.x, c.y, c.z, 60, 0.3, 0.8, 0.3, 0);
+        world.spawnParticles(EnvyHazards.PSYCHIC, c.x, c.y, c.z, 25, 0.3, 0.8, 0.3, 0);
+        world.spawnParticles(ParticleTypes.WARPED_SPORE, c.x, c.y, c.z, 30, 0.4, 0.9, 0.4, 0);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_ILLUSIONER_DEATH, SoundCategory.HOSTILE, 1.5f, 0.6f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.HOSTILE, 2.0f, 0.5f);
+        setInvisible(true);
+        setSilent(true);
+        kill();
+    }
+
+    /** Coming apart: copies of him everywhere, every pose, popping in and out, while he twitches, looking up. */
+    private void glitch(ServerWorld world, int g) {
+        boolean inArena = Arenas.sinOf(world) == Sin.ENVY;
+        double reach = inArena ? 8 : 3, rise = inArena ? 3.5 : 1.5;
+        // How many there should be: a burst, then more and more
+        int want = Math.min(DEATH_ECHOES, 6 + g / 3);
+        echoes.removeIf(id -> !(world.getEntity(id) instanceof GummssColossusEntity e) || e.isRemoved());
+        // Some of them blink out and back somewhere else, in some other pose
+        for (int i = echoes.size() - 1; i >= 0; i--) {
+            if (random.nextInt(4) != 0) continue;
+            Entity echo = world.getEntity(echoes.get(i));
+            if (echo instanceof GummssColossusEntity e && random.nextInt(3) == 0) {
+                // Or just flicker where it is
+                e.setInvisible(!e.isInvisible());
+                continue;
+            }
+            if (echo != null) echo.discard();
+            echoes.remove(i);
+        }
+        while (echoes.size() < want) {
+            GummssColossusEntity echo = ModBossEntities.GUMMSS_COLOSSUS.create(world);
+            if (echo == null) break;
+            double a = random.nextDouble() * MathHelper.TAU, d = 1.3 + random.nextDouble() * (reach - 1.3);
+            Vec3d at = getPos().add(Math.cos(a) * d, random.nextDouble() * random.nextDouble() * rise, Math.sin(a) * d);
+            echo.setOwner(this);
+            echo.setSize(random.nextInt(8) == 0 ? 0.6 + random.nextDouble() * 0.9 : 1.0);
+            echo.setLook(ECHO_POSES[random.nextInt(ECHO_POSES.length)]);
+            echo.hold(at, random.nextFloat() * 360f, -60f + random.nextFloat() * 100f);
+            world.spawnEntity(echo);
+            echoes.add(echo.getUuid());
+            if (random.nextInt(3) == 0) world.spawnParticles(EnvyHazards.PSYCHIC, at.x, at.y + 1, at.z, 3, 0.2, 0.5, 0.2, 0);
+        }
+        // He twitches, his head snapping about, still looking up; now and then he's gone for a moment himself
+        if (g % 3 == 0 || random.nextInt(5) == 0) {
+            int r = random.nextInt(6);
+            setPoseState(r < 3 ? POSE_SKY : r == 3 ? POSE_STUNNED : r == 4 ? POSE_STARE : POSE_COVET);
+            faceYaw(deathYaw + (random.nextFloat() - 0.5f) * 50f);
+        }
+        setInvisible(random.nextInt(14) == 0);
+        // Like a broken record
+        if (g % 2 == 0) {
+            float pitch = 0.4f + random.nextFloat() * 1.4f;
+            net.minecraft.sound.SoundEvent[] noise = {SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundEvents.BLOCK_AMETHYST_BLOCK_HIT, SoundEvents.ENTITY_ENDERMAN_TELEPORT,
+                    SoundEvents.BLOCK_SCULK_SENSOR_CLICKING, SoundEvents.ENTITY_ILLUSIONER_CAST_SPELL, SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE};
+            world.playSound(null, getX(), getEyeY(), getZ(), noise[random.nextInt(noise.length)], SoundCategory.HOSTILE, 1.2f, pitch);
+        }
+        if (g % 20 == 0) world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_ILLUSIONER_PREPARE_MIRROR, SoundCategory.HOSTILE, 2.0f, 0.4f + g / 150f);
+        if (g % 30 == 10) for (ServerPlayerEntity p : audience(world)) if (p.squaredDistanceTo(this) < 50 * 50) flash(p, 0.15f, 4);
+        world.spawnParticles(EnvyHazards.DEEP_GREEN, getX(), getY() + 1, getZ(), 2, 0.4, 0.8, 0.4, 0);
+    }
+
+    private void dismissEchoes(ServerWorld world) {
+        for (UUID id : echoes) {
+            Entity echo = world.getEntity(id);
+            if (echo != null) echo.discard();
+        }
+        echoes.clear();
+    }
 
     @Override
     public void onDeath(DamageSource source) {
-        if (getWorld() instanceof ServerWorld world) {
+        if (getWorld() instanceof ServerWorld world && deathTicks >= 0) {
+            // All that was his own death: nothing more
+            dismissEchoes(world);
+            clearAttacks(world);
+        } else if (getWorld() instanceof ServerWorld world) {
             clearAttacks(world);
             dataTracker.set(STARING, false);
             setInvisible(false);
@@ -2380,7 +2896,9 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
     }
 
     private void clearAttacks(ServerWorld world) {
+        dismissEchoes(world);
         endAscend(world);
+        endCovet(world);
         endGuise(world);
         for (EnvyHazards.Hazard h : hazards) h.remove();
         hazards.clear();

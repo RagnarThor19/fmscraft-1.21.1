@@ -48,6 +48,7 @@ import net.ragnar.fmscraft.boss.BossSong;
 import net.ragnar.fmscraft.boss.SinBossEntity;
 import net.ragnar.fmscraft.compat.MagicSpells;
 import net.ragnar.fmscraft.fight.Arenas;
+import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fight.Cinematics;
 import net.ragnar.fmscraft.network.BossScreenPayload;
 import net.ragnar.fmscraft.sin.Sin;
@@ -115,7 +116,9 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
     public static final BossSong PHASE_TWO = new BossSong("fmscraft:music.greed.phase_two", 86, 7);
 
     // ---- Tuning knobs ----
+    /** Full health, for 5-7 players; {@link GreedTimeline#healthScale} scales it. Over the 1024 cap he takes less damage instead. */
     public static final float MAX_HEALTH = 1000;
+    private static final float HEALTH_CAP = 1024f;
     public static final float PHASE_TWO_AT = 0.7f;
     public static final float FRENZY_AT = 0.3f;
     /** Damage he takes is multiplied by this per phase (on top of his armor), more while stunned, and capped per hit. */
@@ -133,7 +136,7 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
 
     // ---- Synced to the client for the model and the beams ----
     public static final int POSE_IDLE = 0, POSE_CAST = 1, POSE_AIM = 2, POSE_CROUCH = 3, POSE_STUNNED = 4, POSE_SLAM = 5,
-            POSE_SHAKE = 6, POSE_SMASH = 7, POSE_RAISE = 8;
+            POSE_SHAKE = 6, POSE_SMASH = 7, POSE_RAISE = 8, POSE_FAREWELL = 9;
     public static final int BEAM_SLOTS = 3;
     /** Beam stages, 2 bits per slot (plus a "low" bit: fired along the ground from his feet). */
     public static final int BEAM_OFF = 0, BEAM_CHARGE = 1, BEAM_LOCK = 2, BEAM_FIRE = 3;
@@ -156,7 +159,8 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
         ENTRANCE, CHASE, FALLING, STUNNED,
         BUBBLE_RIDE, BUBBLE_VOLLEY, DARTS, DASH, SPLASH,
         TRANSITION,
-        LASER, SWEEP, ANVIL_SLAM, BLINK, TIDAL_SLAM, WATER_SPROUT, DIVE, GIANT_SLAM, CHEST_RAIN, CLOUD_RIDE, TWISTER, DELUGE
+        LASER, SWEEP, ANVIL_SLAM, BLINK, TIDAL_SLAM, WATER_SPROUT, DIVE, GIANT_SLAM, CHEST_RAIN, CLOUD_RIDE, TWISTER, DELUGE,
+        DYING
     }
 
     private Action action = Action.ENTRANCE;
@@ -189,6 +193,9 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
     /** His size before a Giant Slam (0 when he isn't in one): he's always put back to it. */
     private float giantBase;
     private List<ServerPlayerEntity> fighters = List.of();
+    /** Whether his health has been set for the size of the group, and how much less damage he takes past the 1024 cap. */
+    private boolean scaled;
+    private float toughness = 1f;
     /** Client side: ticks he's been in {@link #POSE_RAISE}. */
     private int raiseTicks;
 
@@ -291,7 +298,7 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
     }
 
     public boolean isUntouchable() {
-        return untouchable;
+        return untouchable || action == Action.DYING;
     }
 
     public boolean isFrenzied() {
@@ -327,6 +334,7 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
         if (getWorld().isClient) return false;
         if (source.isOf(DamageTypes.OUT_OF_WORLD) || source.isOf(DamageTypes.GENERIC_KILL)) return super.damage(source, amount);
         Entity attacker = source.getAttacker();
+        if (action == Action.DYING) return false;
         if (untouchable || action == Action.ENTRANCE && !isBubbled()) {
             if (attacker instanceof PlayerEntity) {
                 getWorld().playSound(null, getX(), getEyeY(), getZ(), SoundEvents.BLOCK_AMETHYST_BLOCK_HIT, SoundCategory.HOSTILE, 1.5f, 0.6f);
@@ -338,12 +346,31 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
             if (attacker != null || source.getSource() instanceof ProjectileEntity) popBubble();
             return false;
         }
-        amount *= getPhase() == 1 ? DAMAGE_TAKEN_ONE : DAMAGE_TAKEN_TWO;
+        amount *= (getPhase() == 1 ? DAMAGE_TAKEN_ONE : DAMAGE_TAKEN_TWO) * toughness;
         if (action == Action.STUNNED) amount *= STUNNED_BONUS;
         amount = Math.min(amount, MAX_HIT);
         // Phase 1 can't be skipped by one big hit
         if (getPhase() == 1) amount = Math.min(amount, getHealth() - getMaxHealth() * PHASE_TWO_AT + 0.01f);
-        return super.damage(source, Math.max(0.01f, amount));
+        if (getPhase() == 1) return super.damage(source, Math.max(0.01f, amount));
+        // The blow that would kill him leaves him on his last health instead (setHealth), and he says goodbye
+        boolean hurt;
+        lethalGuard = true;
+        try {
+            hurt = super.damage(source, Math.max(0.01f, amount));
+        } finally {
+            lethalGuard = false;
+        }
+        if (pendingDeath && getWorld() instanceof ServerWorld world) startDying(world);
+        return hurt;
+    }
+
+    @Override
+    public void setHealth(float health) {
+        if (lethalGuard && health <= 0 && action != Action.DYING) {
+            health = 1f;
+            pendingDeath = true;
+        }
+        super.setHealth(health);
     }
 
     @Override
@@ -367,7 +394,10 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
     @Override
     public void tick() {
         super.tick();
-        if (getWorld().isClient) raiseTicks = poseState() == POSE_RAISE ? raiseTicks + 1 : 0;
+        if (getWorld().isClient) {
+            raiseTicks = poseState() == POSE_RAISE ? raiseTicks + 1 : 0;
+            farewellTicks = poseState() == POSE_FAREWELL ? farewellTicks + 1 : 0;
+        }
         if (getWorld() instanceof ServerWorld world && age % 5 == 0) shrugOffSpells(world);
     }
 
@@ -385,10 +415,27 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
         }
     }
 
+    /** Fewer players, less health; more, more (past the 1024 cap he takes less damage instead). Done once, when he arrives. */
+    private void scaleHealth(ServerWorld world) {
+        scaled = true;
+        int players = world.getPlayers(p -> p.isAlive() && !p.isSpectator() && !p.isCreative() && p.squaredDistanceTo(this) < 200 * 200).size();
+        float wanted = MAX_HEALTH * GreedTimeline.healthScale(players);
+        float max = Math.min(wanted, HEALTH_CAP);
+        toughness = max / wanted;
+        getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).setBaseValue(max);
+        setHealth(max);
+    }
+
+    /** How much damage it takes to beat him from full: his max health, and more past the 1024 cap for a big group. */
+    public float effectiveMaxHealth() {
+        return getMaxHealth() / toughness;
+    }
+
     @Override
     protected void tickPhase(int phase, int songTicks) {
         if (!(getWorld() instanceof ServerWorld world)) return;
         fighters = world.getPlayers(p -> p.isAlive() && !p.isSpectator() && !p.isCreative() && p.squaredDistanceTo(this) < 96 * 96);
+        if (!scaled) scaleHealth(world);
         boolean inArena = Arenas.sinOf(world) == Sin.GREED;
 
         if (rest > 0) rest--;
@@ -417,6 +464,7 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
             case CLOUD_RIDE -> tickCloudRide(world);
             case TWISTER -> tickTwister(world);
             case DELUGE -> tickDeluge(world);
+            case DYING -> tickDying(world);
         }
         tickBeams(world);
         tickRings(world);
@@ -426,7 +474,7 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
         if (inArena) {
             tickAmbience(world, phase);
             tickVoid(world);
-            if (phase == 2 && action != Action.TRANSITION) keepInGarden(world);
+            if (phase == 2 && action != Action.TRANSITION && action != Action.DYING) keepInGarden(world);
         }
     }
 
@@ -889,6 +937,11 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
         int t = actionTicks;
         boolean arena = Arenas.sinOf(world) == Sin.GREED;
         List<ServerPlayerEntity> audience = audience(world);
+        // While he's gone on ahead (the last few ticks before the tide carries them), they're still on the island
+        if (!manorBound.isEmpty() && t <= GreedTimeline.RESHAPE_AT) {
+            audience = new ArrayList<>();
+            for (UUID id : manorBound) if (world.getEntity(id) instanceof ServerPlayerEntity p) audience.add(p);
+        }
         setVelocity(Vec3d.ZERO);
         getNavigation().stop();
         if (tideBase == null) tideBase = getPos();
@@ -954,16 +1007,30 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
                 p.playSoundToPlayer(SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundCategory.MASTER, 0.8f, 0.6f + random.nextFloat() * 0.3f);
             }
         }
+        if (t == GreedTimeline.RESHAPE_AT - MANOR_AHEAD && arena) {
+            // Under the water, a moment before everyone else: he goes on ahead to the manor. Gone from them first, the
+            // server stops sending him to their clients, and sends him afresh once they're there too. (Carried there
+            // with them on the same tick, he stays tracked, and their clients, which only move what's in the chunks
+            // they have, leave him frozen back on the island: unseen, his beams coming from a mile off.)
+            manorBound.clear();
+            for (ServerPlayerEntity p : audience) manorBound.add(p.getUuid());
+            GreedManor.prepare(world);
+            tideBase = GreedManor.CENTER;
+            // Kept ticking there until the players arrive and load it themselves
+            world.getChunkManager().addTicket(net.minecraft.server.world.ChunkTicketType.POST_TELEPORT,
+                    new net.minecraft.util.math.ChunkPos(BlockPos.ofFloored(tideBase)), 2, getId());
+            requestTeleport(tideBase.x, tideBase.y + GreedTimeline.spoutLift(t), tideBase.z);
+        }
         if (t == GreedTimeline.RESHAPE_AT) {
-            // Under the water: he grows, and the tide carries everyone to the manor
+            // Under the water: he grows, and the tide carries everyone to the manor (he went on ahead)
             for (GreedWater.Piece piece : water) piece.remove();
             water.clear();
             getAttributeInstance(EntityAttributes.GENERIC_SCALE).setBaseValue(PHASE_TWO_SCALE);
             getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED).setBaseValue(0.32);
             getAttributeInstance(EntityAttributes.GENERIC_ATTACK_DAMAGE).setBaseValue(boosted(9));
             equipStack(EquipmentSlot.MAINHAND, MagicSpells.item(MagicSpells.NETHERITE_STAFF));
+            manorBound.clear();
             if (arena) {
-                GreedManor.prepare(world);
                 List<Vec3d> spots = GreedManor.arrivals(audience.size());
                 for (int i = 0; i < audience.size(); i++) {
                     ServerPlayerEntity p = audience.get(i);
@@ -972,8 +1039,6 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
                     p.setVelocity(Vec3d.ZERO);
                     p.fallDistance = 0;
                 }
-                tideBase = GreedManor.CENTER.subtract(0, 1, 0).add(0, 1, 0);
-                requestTeleport(tideBase.x, tideBase.y + GreedTimeline.spoutLift(t), tideBase.z);
             }
             setYaw(0);
             setBodyYaw(0);
@@ -2579,11 +2644,102 @@ public class RaggimelEntity extends SinBossEntity implements RaggimelLook {
         }
     }
 
-    // ---- Dying ----
+    // ---- Dying: he grows huge one last time, looks down, then up, and points at the sky ----
+
+    /**
+     * Ticks from the last blow: growing (2 s) with his head bowed, looking down, sad; then slowly looking up and raising
+     * his arm to point at the sky (2 s, from {@link #DEATH_LOOK_UP}), holding it; then gone in a splash (10 s). The
+     * model eases all of it on its own clock ({@link #farewellTime}). The portal and the wheel come 2 s after.
+     */
+    public static final int DEATH_GROW = 40, DEATH_HONOUR_AT = 40, DEATH_LOOK_UP = 100, DEATH_POINT = 140, DEATH_TICKS = 200,
+            DEATH_REWARDS_AFTER = 40;
+    public static final float DEATH_GROWTH = 3f;
+    private boolean lethalGuard, pendingDeath;
+    private int deathTicks = -1, farewellTicks;
+    private float deathBase;
+    /** Ticks before the players he goes on to the manor (see the transition). */
+    public static final int MANOR_AHEAD = 3;
+    /** Who the tide's carrying to the manor, while he's gone on ahead of them. */
+    private final List<UUID> manorBound = new ArrayList<>();
+
+    @Override
+    public float farewellTime(float tickDelta) {
+        return farewellTicks <= 0 ? 0 : farewellTicks + tickDelta;
+    }
+
+    /** Whether he's dying (beaten, not yet gone), and how far into it. */
+    public boolean isDying() {
+        return action == Action.DYING;
+    }
+
+    public int deathTicks() {
+        return Math.max(0, deathTicks);
+    }
+
+    private void startDying(ServerWorld world) {
+        pendingDeath = false;
+        clearAttacks(world);
+        action = Action.DYING;
+        actionTicks = 0;
+        deathTicks = 0;
+        untouchable = true;
+        setNoGravity(false);
+        getNavigation().stop();
+        setTarget(null);
+        setVelocity(0, Math.min(0, getVelocity().y), 0);
+        deathBase = (float) getAttributeInstance(EntityAttributes.GENERIC_SCALE).getBaseValue();
+        stopSong(60);
+        setPoseState(POSE_FAREWELL);
+        // The fight is won from here (nobody can lose it now); the portal and the wheel come after
+        BossFights.onBossDefeated(this, DEATH_TICKS + DEATH_REWARDS_AFTER);
+    }
+
+    private void tickDying(ServerWorld world) {
+        int t = ++deathTicks;
+        getNavigation().stop();
+        setVelocity(0, getVelocity().y, 0);
+        setHeadYaw(getBodyYaw());
+        if (t <= DEATH_GROW) {
+            // Huge one last time, slowly, water running off him
+            float u = t / (float) DEATH_GROW, eased = u * u * (3 - 2 * u);
+            getAttributeInstance(EntityAttributes.GENERIC_SCALE).setBaseValue(deathBase * (1 + (DEATH_GROWTH - 1) * eased));
+            if (t % 3 == 0) world.spawnParticles(ParticleTypes.FALLING_WATER, getX(), getY() + getHeight() * 0.6, getZ(), 4, getWidth() * 0.4, getHeight() * 0.3, getWidth() * 0.4, 0);
+            if (t % 10 == 1) world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.HOSTILE, 1.5f, 0.9f - u * 0.4f);
+        }
+        if (t == DEATH_HONOUR_AT) {
+            for (ServerPlayerEntity p : audience(world)) if (!p.isSpectator()) SinBossEntity.grantDefeated(p, Sin.GREED);
+        }
+        if (t == DEATH_LOOK_UP) world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.BLOCK_CONDUIT_DEACTIVATE, SoundCategory.HOSTILE, 1.5f, 0.6f);
+        if (t == DEATH_POINT) {
+            // Pointing up: the storm over him lifts
+            for (ServerPlayerEntity p : audience(world)) GreedIntro.sky(p, 1);
+            world.playSound(null, getX(), getEyeY(), getZ(), SoundEvents.BLOCK_BELL_RESONATE, SoundCategory.HOSTILE, 1.5f, 0.7f);
+        }
+        if (t > DEATH_POINT && t % 4 == 0) {
+            // A thread of light from his finger, up into the sky
+            Vec3d hand = getPos().add(0, getHeight() * 1.15, 0);
+            world.spawnParticles(ParticleTypes.END_ROD, hand.x, hand.y, hand.z, 0, 0, 1, 0, 0.12);
+        }
+        if (t < DEATH_TICKS) return;
+        // Gone, into the water he came from
+        Vec3d c = getPos().add(0, getHeight() * 0.5, 0);
+        world.spawnParticles(ParticleTypes.SPLASH, c.x, c.y, c.z, 160, getWidth() * 0.5, getHeight() * 0.4, getWidth() * 0.5, 0.4);
+        world.spawnParticles(ParticleTypes.CLOUD, c.x, c.y, c.z, 50, getWidth() * 0.5, getHeight() * 0.4, getWidth() * 0.5, 0.05);
+        world.spawnParticles(new ItemStackParticleEffect(ParticleTypes.ITEM, new ItemStack(Items.GOLD_NUGGET)), c.x, c.y, c.z, 50, 1, 1, 1, 0.25);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_GENERIC_SPLASH, SoundCategory.HOSTILE, 3.0f, 0.6f);
+        world.playSound(null, c.x, c.y, c.z, SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.HOSTILE, 2.0f, 0.6f);
+        setInvisible(true);
+        setSilent(true);
+        kill();
+    }
 
     @Override
     public void onDeath(DamageSource source) {
-        if (getWorld() instanceof ServerWorld world) {
+        if (getWorld() instanceof ServerWorld world && deathTicks >= 0) {
+            // All that was his own goodbye: nothing more
+            clearAttacks(world);
+            for (ServerPlayerEntity p : audience(world)) GreedIntro.sky(p, 1);
+        } else if (getWorld() instanceof ServerWorld world) {
             clearAttacks(world);
             for (ServerPlayerEntity p : audience(world)) {
                 Cinematics.flash(p, 0.8f, 30);

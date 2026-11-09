@@ -47,6 +47,8 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add("message.fmscraft.ornamix_pit", "The flames drive you back into the pit!");
         builder.add(ModBossEntities.GUMMSS, "GUMMSS");
         builder.add(ModBossEntities.GUMMSS_ILLUSION, "GUMMSS");
+        builder.add(ModBossEntities.GUMMSS_COLOSSUS, "GUMMSS");
+        builder.add("message.fmscraft.gummss_covet", "Everything you have, he wants.");
         builder.add("message.fmscraft.gummss_stare", "Don't look at him...");
         builder.add("message.fmscraft.gummss_caught", "GUMMSS drags you back. You leave when he says so.");
         builder.add("message.fmscraft.gummss_disguise", "GUMMSS is wearing your face. And you're wearing his.");
@@ -134,6 +136,20 @@ public class ModLanguageProvider extends FabricLanguageProvider {
         builder.add("advancements.fmscraft.root.title", "The Seven Sins");
         builder.add("advancements.fmscraft.root.description", "Obtain your first sin fragment");
         builder.add("advancements.fmscraft.true_ending.title", "True Ending");
+        builder.add("advancements.fmscraft.defeated_wrath.title", "Defeated ORNAMIX");
+        builder.add("advancements.fmscraft.defeated_wrath.description", "Watch the Sin of Wrath burn out");
+        builder.add("advancements.fmscraft.defeated_lust.title", "Defeated MUGEN");
+        builder.add("advancements.fmscraft.defeated_lust.description", "Let the Sin of Lust find his peace");
+        builder.add("advancements.fmscraft.defeated_envy.title", "Defeated GUMMSS");
+        builder.add("advancements.fmscraft.defeated_envy.description", "Leave the Sin of Envy wanting nothing");
+        builder.add("advancements.fmscraft.defeated_greed.title", "Defeated RAGGIMEL");
+        builder.add("advancements.fmscraft.defeated_greed.description", "See the Sin of Greed look up at last");
+        builder.add("advancements.fmscraft.defeated_sloth.title", "Defeated RICKY");
+        builder.add("advancements.fmscraft.defeated_sloth.description", "Watch the Sin of Sloth fall from the sky");
+        builder.add("advancements.fmscraft.defeated_gluttony.title", "Defeated LALLILARGE");
+        builder.add("advancements.fmscraft.defeated_gluttony.description", "Be seen by the Sin of Gluttony, at the last");
+        builder.add("advancements.fmscraft.defeated_pride.title", "Defeated LEONARD");
+        builder.add("advancements.fmscraft.defeated_pride.description", "Catch the Sin of Pride red-handed");
         builder.add("advancements.fmscraft.true_ending.description", "Place all seven souls");
     }
 }

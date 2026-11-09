@@ -1,0 +1,27 @@
+{
+  "parent": "fmscraft:wrath",
+  "criteria": {
+    "defeated": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "description": {
+      "translate": "advancements.fmscraft.defeated_wrath.description"
+    },
+    "frame": "challenge",
+    "icon": {
+      "count": 1,
+      "id": "fmscraft:soul_of_wrath"
+    },
+    "title": {
+      "translate": "advancements.fmscraft.defeated_wrath.title"
+    }
+  },
+  "requirements": [
+    [
+      "defeated"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

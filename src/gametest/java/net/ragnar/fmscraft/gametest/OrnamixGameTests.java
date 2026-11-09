@@ -101,6 +101,12 @@ public class OrnamixGameTests implements FabricGameTest {
                 e -> e.getCommandTags().contains(FLAME_TAG) && e.getBlockState().isOf(Blocks.FIRE) == burning).size();
     }
 
+    /** How many of the things he leaves when he burns out (the sword, the ash) are within {@code radius} of {@code at}. */
+    private static int remains(ServerWorld world, Vec3d at, double radius) {
+        return world.getEntitiesByClass(DisplayEntity.class, new Box(at, at).expand(radius),
+                e -> e.getCommandTags().contains(OrnamixEntity.REMAINS_TAG)).size();
+    }
+
     /** How many of his hazards of one kind (by class name) are still going. */
     private static int hazards(OrnamixEntity boss, String kind) {
         try {
@@ -128,7 +134,7 @@ public class OrnamixGameTests implements FabricGameTest {
         return !world.getBlockState(pos).getCollisionShape(world, pos).isEmpty();
     }
 
-    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 600)
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 1100)
     public void wrathFightPlaysTheIntroThenOrnamix(TestContext ctx) {
         ServerWorld world = ctx.getWorld();
         MinecraftServer server = world.getServer();
@@ -216,7 +222,7 @@ public class OrnamixGameTests implements FabricGameTest {
             ctx.assertFalse(boss.isUntouchable(), "and can be hurt once he's up");
             ctx.assertEquals(boss.getMaxHealth(), OrnamixEntity.MAX_HEALTH * OrnamixTimeline.healthScale(1), "health for one player");
             ctx.assertTrue(boss.getMainHandStack().isOf(Items.IRON_SWORD) || boss.getMainHandStack().isOf(Items.BOW), "his iron sword");
-            boss.setHealth(boss.getMaxHealth() * 0.39f);
+            boss.setHealth(boss.getMaxHealth() * (OrnamixEntity.RAGE_AT - 0.01f));
         });
 
         // Ragemode: he can't be hurt, everyone is frozen in the dark, the music stops
@@ -253,15 +259,42 @@ public class OrnamixGameTests implements FabricGameTest {
             ctx.assertTrue(BossFights.session(Sin.WRATH).song() == OrnamixEntity.PHASE_TWO, "Return to Zero starts");
         });
 
-        // Beating him wins the fight
-        ctx.runAtTick(landed + OrnamixTimeline.TRANSITION_END + 10, () -> {
+        // Beating him wins the fight, and he burns out
+        int dies = landed + OrnamixTimeline.TRANSITION_END + 10;
+        UUID[] bossId = new UUID[1];
+        ctx.runAtTick(dies, () -> {
             OrnamixEntity boss = (OrnamixEntity) arena.getEntity(BossFights.session(Sin.WRATH).bossId());
+            bossId[0] = boss.getUuid();
             ctx.assertFalse(boss.isUntouchable(), "the fight is on again");
-            boss.kill();
+            boss.setHealth(4);
+            boss.damage(arena.getDamageSources().magic(), 25);
+            ctx.assertTrue(boss.isAlive() && boss.isDying(), "the last blow: he burns out, at " + boss.getHealth());
             ctx.assertTrue(BossFights.session(Sin.WRATH).stage() == FightSession.Stage.WON, "fight should be won");
             ctx.assertTrue(FmsWorldState.get(server).isDefeated(Sin.WRATH), "Wrath should be marked defeated");
+            ctx.assertFalse(BossFights.rewarded(Sin.WRATH), "the portal and the wheel wait for his death");
+            float health = boss.getHealth();
+            boss.damage(arena.getDamageSources().playerAttack(player), 20);
+            ctx.assertEquals(boss.getHealth(), health, "nothing more reaches him");
         });
-        ctx.runAtTick(landed + OrnamixTimeline.TRANSITION_END + 14, () -> {
+        ctx.runAtTick(dies + 60, () -> {
+            OrnamixEntity boss = (OrnamixEntity) arena.getEntity(bossId[0]);
+            ctx.assertTrue(boss != null && boss.isAlive(), "still burning out");
+            ctx.assertEquals(boss.poseState(), OrnamixEntity.POSE_DYING, "on one knee, head bowed");
+            ctx.assertTrue(boss.getMainHandStack().isEmpty(), "his sword out of his hand");
+            ctx.assertTrue(remains(arena, boss.getPos(), 4) >= 1, "planted in the sand in front of him");
+            var advancement = server.getAdvancementLoader().get(Identifier.of(FmsCraft.MOD_ID, "defeated_wrath"));
+            ctx.assertTrue(advancement != null && player.getAdvancementTracker().getProgress(advancement).isDone(), "Defeated ORNAMIX, during it");
+            ctx.assertTrue(arena.getBlockState(WrathArena.EXIT_PORTAL).isAir(), "no portal yet");
+        });
+        ctx.runAtTick(dies + OrnamixEntity.DEATH_TICKS + 6, () -> {
+            ctx.assertTrue(arena.getEntity(bossId[0]) == null || !arena.getEntity(bossId[0]).isAlive(), "burnt out, and dead");
+            ctx.assertTrue(remains(arena, WrathArena.CENTER, 60) >= 3, "the sword and a little ash are left");
+            ctx.assertFalse(BossFights.rewarded(Sin.WRATH), "and a moment's quiet before the portal");
+            ctx.assertTrue(arena.getBlockState(WrathArena.EXIT_PORTAL).isAir(), "no portal yet");
+        });
+        ctx.runAtTick(dies + OrnamixEntity.DEATH_TICKS + OrnamixEntity.DEATH_REWARDS_AFTER + 4, () -> {
+            ctx.assertTrue(BossFights.rewarded(Sin.WRATH), "then the portal and the wheel");
+            ctx.assertTrue(arena.getBlockState(WrathArena.EXIT_PORTAL).isOf(net.ragnar.fmscraft.block.ModBlocks.SIN_PORTAL), "the portal home is open");
             ctx.assertEquals(flames(arena, WrathArena.CENTER, 60, false) + flames(arena, WrathArena.CENTER, 60, true), 0,
                     "none of his fire is left behind");
             BossFights.forceEnd(server, Sin.WRATH);
@@ -399,6 +432,158 @@ public class OrnamixGameTests implements FabricGameTest {
             ctx.complete();
         });
     }
+
+    /**
+     * Twin Twisters: he's gone, then hanging over the middle, flailing, untouchable, while two tornadoes of fire rise at
+     * either end; they drag you in, take you up, burn you and throw you far; he drops back down and fights on while they
+     * roam, then they burn out and leave nothing behind. (Off the colosseum they stand 3 blocks either side of him.)
+     */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 480, batchId = "ornamix_twisters")
+    public void twinTwistersRiseBurnAndThrowYouFar(TestContext ctx) {
+        floor(ctx, 8);
+        ServerWorld world = ctx.getWorld();
+        OrnamixEntity boss = spawn(ctx, new BlockPos(4, 1, 4));
+        Vec3d start = Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(4, 1, 4)));
+        ServerPlayerEntity player = survivalPlayer(world, Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(1, 1, 1))));
+        player.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.RESISTANCE, 500, 2));
+        try {
+            java.lang.reflect.Field join = ServerPlayerEntity.class.getDeclaredField("joinInvulnerabilityTicks");
+            join.setAccessible(true);
+            join.setInt(player, 0);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+        int vanish = OrnamixEntity.TWISTERS_VANISH, cast = OrnamixEntity.TWISTERS_CAST, at = 3;
+        ctx.runAtTick(at, () -> start(boss, "TWIN_TWISTERS"));
+        ctx.runAtTick(at + 4, () -> {
+            ctx.assertEquals(boss.currentAction(), "TWIN_TWISTERS", "his Twin Twisters");
+            ctx.assertTrue(boss.isInvisible() && boss.isUntouchable(), "gone, and can't be hurt");
+            ctx.assertEquals(boss.twisterCount(), 0, "nothing yet");
+        });
+        ctx.runAtTick(at + vanish + 5, () -> {
+            ctx.assertFalse(boss.isInvisible(), "back, over the middle");
+            ctx.assertTrue(boss.getY() > start.y + 3, "flying, at " + boss.getY());
+            ctx.assertEquals(boss.poseState(), OrnamixEntity.POSE_FLAIL, "flailing his arms");
+            ctx.assertTrue(boss.isUntouchable(), "still can't be hurt");
+            float health = boss.getHealth();
+            boss.damage(world.getDamageSources().playerAttack(player), 10);
+            ctx.assertEquals(boss.getHealth(), health, "nothing reaches him");
+            ctx.assertEquals(boss.twisterCount(), 2, "two tornadoes forming");
+            java.util.List<Vec3d> spots = boss.twisterSpots();
+            ctx.assertTrue(spots.get(0).distanceTo(spots.get(1)) > 5, "at either end, " + spots);
+            ctx.assertTrue(flames(world, start, 12, false) >= 150, "built of fire and glass, " + flames(world, start, 12, false));
+            ctx.assertTrue(flames(world, start, 12, true) >= 10, "and real flames, " + flames(world, start, 12, true));
+            long red = world.getEntitiesByClass(DisplayEntity.BlockDisplayEntity.class, new Box(start, start).expand(12),
+                    e -> e.getBlockState().isOf(Blocks.RED_STAINED_GLASS)).size();
+            ctx.assertTrue(red >= 20, "red, " + red);
+            // Into one of them
+            Vec3d spot = spots.get(0);
+            player.teleport(world, spot.x, spot.y, spot.z, 0, 0);
+        });
+        ctx.runAtTick(at + vanish + cast - 2, () -> {
+            ctx.assertEquals(boss.currentAction(), "TWIN_TWISTERS", "still casting: 5 s");
+            ctx.assertTrue(boss.lastPush(player).length() > 0.005, "dragged in first, " + boss.lastPush(player));
+            ctx.assertTrue(boss.twisterFlings() >= 1, "it took the player and threw them");
+            ctx.assertTrue(player.getHealth() < player.getMaxHealth(), "and it hurt");
+            ctx.assertTrue(player.getFireTicks() > 0, "and they're burning");
+            Vec3d fling = boss.lastTwisterFling();
+            ctx.assertTrue(fling.horizontalLength() > 2.5 && fling.y > 1, "thrown far, " + fling);
+            world.getServer().getPlayerManager().remove(player);
+        });
+        int landed = at + vanish + cast + OrnamixEntity.TWISTERS_FALL + 12;
+        ctx.runAtTick(landed, () -> {
+            ctx.assertFalse(boss.currentAction().equals("TWIN_TWISTERS"), "down and on with the fight");
+            ctx.assertFalse(boss.isUntouchable(), "and can be hurt again");
+            ctx.assertTrue(boss.getY() < start.y + 1, "on the ground, at " + boss.getY());
+            ctx.assertEquals(boss.twisterCount(), 2, "while the two of them roam");
+        });
+        ctx.runAtTick(at + vanish + cast + OrnamixEntity.TWISTERS_ROAM + 40, () -> {
+            ctx.assertEquals(boss.twisterCount(), 0, "they've burnt out");
+            ctx.assertEquals(flames(world, start, 30, false) + flames(world, start, 30, true), 0, "and every piece of them is gone");
+            boss.discard();
+            ctx.complete();
+        });
+    }
+
+    /**
+     * Burning Boulder: gone, then back with his arms raised while a meteor's worth of burning rock gathers over his head;
+     * thrown down, it rolls at the player, runs them over (hard, burning), and bursts against the wall, breaking nothing
+     * and leaving nothing behind. (Off the colosseum he stays where he is; here he throws it corner to corner.)
+     */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 300, batchId = "ornamix_boulder")
+    public void burningBoulderRollsOverYouIntoTheWall(TestContext ctx) {
+        floor(ctx, 8);
+        ServerWorld world = ctx.getWorld();
+        for (int y = 1; y <= 4; y++) {
+            for (int i = 0; i < 8; i++) {
+                ctx.setBlockState(new BlockPos(7, y, i), Blocks.GLASS);
+                ctx.setBlockState(new BlockPos(i, y, 7), Blocks.GLASS);
+            }
+        }
+        OrnamixEntity boss = spawn(ctx, new BlockPos(0, 1, 0));
+        Vec3d start = Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(0, 1, 0)));
+        Vec3d middle = Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(4, 1, 4)));
+        ServerPlayerEntity player = survivalPlayer(world, Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(5, 1, 5))));
+        // Enough health to show what it did
+        player.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).setBaseValue(200);
+        player.setHealth(200);
+        try {
+            java.lang.reflect.Field join = ServerPlayerEntity.class.getDeclaredField("joinInvulnerabilityTicks");
+            join.setAccessible(true);
+            join.setInt(player, 0);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+        int vanish = OrnamixEntity.BOULDER_VANISH, form = OrnamixEntity.BOULDER_FORM, at = 3;
+        ctx.runAtTick(at, () -> start(boss, "BOULDER"));
+        ctx.runAtTick(at + 2, () -> {
+            // At this test's player, not one from a test next door
+            try {
+                java.lang.reflect.Field focus = OrnamixEntity.class.getDeclaredField("focus");
+                focus.setAccessible(true);
+                focus.set(boss, player.getUuid());
+            } catch (ReflectiveOperationException e) {
+                throw new RuntimeException(e);
+            }
+            ctx.assertTrue(boss.isInvisible() && boss.isUntouchable(), "gone");
+        });
+        ctx.runAtTick(at + vanish + 25, () -> {
+            ctx.assertEquals(boss.currentAction(), "BOULDER", "gathering it");
+            ctx.assertFalse(boss.isInvisible(), "back");
+            ctx.assertEquals(boss.poseState(), OrnamixEntity.POSE_CAST, "arms raised");
+            ctx.assertTrue(boss.hasBoulder() && !boss.boulderRolling(), "a boulder held over him");
+            ctx.assertTrue(boss.boulderPos().y > boss.getY() + boss.getHeight(), "over his head, at " + boss.boulderPos());
+            long magma = world.getEntitiesByClass(DisplayEntity.BlockDisplayEntity.class, new Box(start, start).expand(8),
+                    e -> e.getBlockState().isOf(Blocks.MAGMA_BLOCK)).size();
+            ctx.assertTrue(magma >= 2, "burning rock, like a meteor, " + magma);
+            ctx.assertTrue(flames(world, start, 8, true) >= 4, "on fire");
+            ctx.assertEquals(player.getHealth(), player.getMaxHealth(), "nothing's hit yet");
+        });
+        ctx.runAtTick(at + vanish + form + 30, () -> {
+            ctx.assertTrue(boss.boulderHits() >= 1, "it ran the player over");
+            ctx.assertTrue(player.getMaxHealth() - player.getHealth() > 8, "hard, " + player.getHealth());
+            ctx.assertTrue(player.getFireTicks() > 0, "and set them alight");
+            ctx.assertEquals(boss.boulderBursts(), 1, "and burst against the wall");
+            ctx.assertTrue(boss.lastBoulderRoll() > 1, "after rolling along the ground, " + boss.lastBoulderRoll());
+            for (int y = 1; y <= 4; y++) {
+                for (int i = 0; i < 8; i++) {
+                    ctx.expectBlock(Blocks.GLASS, new BlockPos(7, y, i));
+                    ctx.expectBlock(Blocks.GLASS, new BlockPos(i, y, 7));
+                }
+            }
+            ctx.assertFalse(boss.currentAction().equals("BOULDER"), "on with the fight");
+            world.getServer().getPlayerManager().remove(player);
+        });
+        ctx.runAtTick(at + vanish + form + 30 + FLAME_GONE, () -> {
+            ctx.assertFalse(boss.hasBoulder(), "its pieces fallen and gone");
+            ctx.assertEquals(flames(world, middle, 8, false) + flames(world, middle, 8, true), 0, "nothing left behind, not even its trail of fire");
+            boss.discard();
+            ctx.complete();
+        });
+    }
+
+    /** Long enough for a boulder's pieces and its trail of fire to be gone. */
+    private static final int FLAME_GONE = 50;
 
     @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
     public void fireballsBreakNothingAndCanBeHitBack(TestContext ctx) {

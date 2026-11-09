@@ -106,6 +106,12 @@ RICKY; the stand-in `TestBossEntity` is only fought by the generic fight tests, 
   in the mod is in capitals too (the fight countdown, Drowsiness, the Wrath timer, the Gorged Brute, the Mother Warden).
 - **Phase 2 at half health** (`onPhaseTwo`; `phaseTwoHealth` to move it) — switch songs and behaviour here. A boss with
   a transition returns false from `startsPhaseTwoSongAtOnce` and calls `playSong(song, fadeTicks)` when it's ready.
+- **Death animation** (optional): a boss that wants one keeps the killing blow from killing it, calls
+  `BossFights.onBossDefeated(boss, rewardsIn)` (the fight is won at once, so nobody can lose it while it plays; the
+  message, the portal home and the wheel come `rewardsIn` ticks later), plays its death, then really dies (its real
+  death changes nothing more). It grants `fmscraft:defeated_<sin>` (`SinBossEntity.grantDefeated`; made in
+  `ModAdvancementProvider` for every sin). Killed outright (`/kill`, the void) it
+  just dies, as do the bosses without one (`onBossDied`: rewards at once).
 - **Beat clock**: each phase has a `BossSong(soundId, bpm, firstBeatTick)`; `onBeat(phase, beat)` fires on each beat so attacks can land on the music.
 - **Intro** (optional, `ModBossEntities.introFor`): a `fight/FightIntro` cutscene that plays in the arena while the
   portal is open, timed from the portal opening so late arrivals join it mid-way. A song it starts keeps playing into
@@ -144,7 +150,8 @@ Arena (phase 2): the Roswall manor and its gardens (a litematic by granolax_1, s
        exit frame stands on the path south of the garden (he's always beaten here). Wander more than 52 from the middle
        for 2 s and the water sets you back; fall off the grounds and you're gone. Built once at server start (about 25 s
        the first time); nothing in a fight breaks it. Positions: GreedManor.
-Health / armor: 1000 HP, 10 armor, 6 toughness; takes x0.75 damage in phase 1, x0.85 in phase 2, x1.5 while
+Health / armor: 1000 HP for 5-7 players (GreedTimeline.healthScale: 60% alone ... 124% for 10, at most double; past
+       the 1024 cap he takes proportionally less damage instead), 10 armor, 6 toughness; takes x0.75 damage in phase 1, x0.85 in phase 2, x1.5 while
        stunned, at most 30 per hit, and phase 1 can't be skipped by one big hit. Aimed at 3-4 minutes for 5-7 players.
 ```
 
@@ -223,6 +230,12 @@ Health / armor: 1000 HP, 10 armor, 6 toughness; takes x0.75 damage in phase 1, x
 - **Magic mod:** he holds its diamond staff (netherite in phase 2), can't be put to sleep or carried off in a
   player's bubble (he wakes / bursts it at once), and status effects don't stick to him. Without the mod his darts
   are plain arrows. The mod's built jar has to include Sleep Darts for those to work.
+- **His death (10 s):** the blow that would kill him leaves him on his last health, untouchable, and the fight is
+  won; Panzerknacker fades. He grows huge one last time (x3 over 2 s, water running off him) with his head bowing, and
+  stands looking down, arms hanging, sad (everyone gets **Defeated RAGGIMEL**, "See the Sin of Greed look up at
+  last"). Then slowly he lifts his head to the sky and raises his arm to point up at it; the storm over the manor lifts
+  and a thread of light rises from his finger. All of it is eased on each client (`RaggimelModel.farewell`), nothing
+  snaps. At 10 s he's gone in a splash of water and gold; 2 s later the portal home opens and the wheel spins.
 - Tuning knobs: `RaggimelEntity` (health, damage taken, `MAX_HIT`, rests, attack weights and gaps in
   `chooseAttack`, the Cloud Ride's `RIDE_*`), `GreedTimeline` (cutscene timings), `GreedArena` and `GreedManor`
   (positions), `GreedWater` (how the water looks and moves, the anvil's timings), `GreedSky` (the colours, the holes).
@@ -266,7 +279,7 @@ Health / armor: 900 HP for 5-7 players (60% alone, 70% for two... OrnamixTimelin
   nothing touches him until then). Timings: `OrnamixTimeline` (it keeps to the song's own clock).
 - **Always burning:** flames curl up round him, embers and smoke come off him, flames run along his sword's blade
   (drawn on each client from where the blade actually is, `OrnamixRenderer`). His cuts set you alight.
-- **Phase 1 (100-40%), the red sky:** bright blood-red sky, orange-red haze, ash and embers on the air. He runs people
+- **Phase 1 (100-50%), the red sky:** bright blood-red sky, orange-red haze, ash and embers on the air. He runs people
   down and cuts them, and on the beat picks one of: *Stab and Leap* (a lunge at whoever is closest, then a leap back),
   *Fire Wave* (sword raised, then a crescent wall of real flames, nearly three high, a glowing seam of magma under
   it, sweeping across the pit: too tall to jump, step aside; it breaks on the wall and sinks into the sand), *Flame
@@ -279,7 +292,7 @@ Health / armor: 900 HP for 5-7 players (60% alone, 70% for two... OrnamixTimelin
   charges straight through; into the wall and his sword sticks: stuck for 2.5 s, taking extra damage), *Floor
   Waves* (slams his sword down, three rings of real fire a block high roll out along the floor: jump each one or be
   stuck in the flames for 5 s, burning) and *Haymaker* (rushes someone and punches them across the pit).
-- **Ragemode (at 40%):** everything goes black, everyone freezes, the music cuts. Under the black the sky turns
+- **Ragemode (at 50%):** everything goes black, everyone freezes, the music cuts. Under the black the sky turns
   almost black red and he takes the middle of the pit, and after a second the black lifts on him **kneeling there,
   his sword driven into the sand**, eyes burning. A heartbeat, and with each beat the seams of magma spread further
   and a pulse of fire rolls out from him, the fires roaring louder. Then his voice line, "ragemode"
@@ -288,7 +301,7 @@ Health / armor: 900 HP for 5-7 players (60% alone, 70% for two... OrnamixTimelin
   As it ends he comes down like a hammer: the chunks are flung away, the seams erupt into walls of flame, a ring of
   fire rolls out, everyone is thrown back, and Return to Zero starts. Everyone stays held (but can look round) until
   he lands. Timings: `OrnamixTimeline`.
-- **Phase 2 (40-0%), Ragemode:** an almost black red sky, no sun, dimmer light, dark red fog closing in round the pit,
+- **Phase 2 (50-0%), Ragemode:** an almost black red sky, no sun, dimmer light, dark red fog closing in round the pit,
   thick ash, embers and flames on the air, and harmless geysers of flame from the sand. **The world blinks dark on
   every hit of the bass** (19.25 s, then every 0.6 s, through both stretches the bass plays: to 58.85 s and again
   76.85-116.45 s; when the song loops it waits for 19.25 s again), timed on each client from the song's own clock
@@ -299,7 +312,34 @@ Health / armor: 900 HP for 5-7 players (60% alone, 70% for two... OrnamixTimelin
   no loot, and they go with him), *Fireballs* (a stream of ghast fireballs that break nothing; punch or shoot one
   back into him for 24 damage) and *Inferno* (rises 6 blocks while a wall of real fire rises round a huge circle,
   then crashes down spinning: the wall roars up, the ground inside glows with rays of magma and five whirling arms of
-  flame fill it: the hardest hit of the fight, then he's dizzy, takes extra damage, and the storm sinks away).
+  flame fill it: the hardest hit of the fight, then he's dizzy, takes extra damage, and the storm sinks away) and
+  *Twin Twisters* (gone in a burst of flame, and a moment later he's hanging 9 blocks over the middle of the pit,
+  flailing his arms, nothing reaching him, fire pouring from his hands, while at either end of the pit (24 blocks out,
+  across from each other) a ring of fire opens on the sand and a tornado of fire climbs out of it over 5 s: RAGGIMEL's
+  Twister set alight (`FireTwister`), 24 blocks high, red and orange glass and magma, white hot at the foot, black
+  smoke on top raining embers and lava, real flames spiralling up it, a whirl of fire at its foot that sets you alight.
+  Once half up each drags you in from 18 blocks; too close and it takes you up and round, burning, and throws you a
+  long way (9, set alight 6 s). Then he drops back down onto the sand (throwing back whoever's under him, no damage)
+  and fights on while the two of them roam the pit for 12 s, then burn out) and *Burning Boulder* (the Tome of
+  Boulders, made worse, `FlamingBoulder`: gone in a burst of flame, and he's at the far end of the pit (by the wall, as
+  far from all of you as he can get), arms raised, while rock and fire are torn up off the sand into a boulder over his
+  head for 2 s: a meteor's worth of burning rock, a magma heart and crags of blackstone, netherrack and basalt, flames
+  licking off it, 5 blocks across. He throws it down at one of you and it rolls across the pit, faster and faster,
+  turning as it goes, throwing up sand and flame and leaving two lines of fire burning behind it, until it hits the
+  wall. Run over: 20 (x his damage: 33 in Ragemode), set alight 8 s and thrown; at the wall it bursts, its rock
+  flying apart, 12 down to 6 within 6 blocks. It breaks nothing).
+- **His death, Burnout (`OrnamixDeath`, about 9.5 s):** the blow that would kill him leaves him on his last health
+  point, untouchable, and the fight is won. The music fades, one last flash of firelight, and he staggers back,
+  burning; his sword slips out of his hand and comes down end over end, point first into the sand in front of him. He
+  sinks to one knee, head bowed, as he knelt when the fight began, and seams of magma spread out round him one last time.
+  Everyone gets **Defeated ORNAMIX** (a challenge, "Watch the Sin of Wrath burn out") as the red sky starts lightening
+  back from Ragemode's black. A heartbeat, slower and fainter each time: on each beat the glow pulls back towards him
+  (the outer seams go dark, to blackstone and basalt) and his fire gutters, roaring, flickering, a few small flames,
+  smoke. He reaches out for the sword, shaking, and can't reach it; the hand falls; the fire in his eyes goes out. He
+  crumbles from the feet up into ash, blown away on a wind, a little pile of ash left by the sword, and last of all a
+  single ember drifts up from where his head was, and goes out. Then he dies (unseen, silent: his soul and XP drop
+  there), and 2 s later the portal home opens and the wheel spins. Nothing in it hurts anyone (everyone's put out at
+  the start). The sword and the ash (`fmscraft.wrath_remains`) stay until the arena is next reset.
 - **Staying in the pit:** anyone over the wall or up in the stands for 2 s is thrown back down by the flames.
 - **Magic mod:** like RAGGIMEL, he can't be put to sleep or carried off in a bubble, and status effects don't stick to
   him. His Ignite, Sun and Meteor are the mod's spells cast by him (same look and sound), but they don't break or burn
@@ -312,9 +352,13 @@ Health / armor: 900 HP for 5-7 players (60% alone, 70% for two... OrnamixTimelin
   weights and gaps in `chooseAttack`, each attack's numbers in its `tick...` method), `OrnamixTimeline` (cutscene
   timings, the blink, `healthScale`), `WrathArena` (positions), `FlameRoot.TICKS`, `WrathFlames` (the solid fire: sizes, heights, timings).
 - Tests: `OrnamixGameTests` (the whole fight flow in the real colosseum: kneeling, the seams on the beats, the leap,
-  the slam on the drop hurting nobody, Ragemode's kneel, rise on the pillar and slam, nothing left behind; the phase 1
+  the slam on the drop hurting nobody, Ragemode's kneel, rise on the pillar and slam, his Burnout (won at the last
+  blow, untouchable, kneeling, the sword planted, Defeated ORNAMIX during it, dead after it, the portal only after
+  that), nothing of his fire left behind; the phase 1
   clamp, floor waves of real fire rooting only who doesn't jump, the fire wave a moving wall of real fire, the Inferno's
-  firestorm, fireballs breaking nothing and hurting him when returned, meteors breaking nothing, skeletons in
+  firestorm, the Twin Twisters (him untouchable overhead, two tornadoes of fire dragging, burning and throwing, him
+  back down, nothing left behind), the Burning Boulder (held over him, running the player over, bursting on the wall,
+  breaking nothing, leaving nothing behind), fireballs breaking nothing and hurting him when returned, meteors breaking nothing, skeletons in
   armor that leave with him, arena fire never spreading), `OrnamixTimelineTest`.
 
 ## GUMMSS (Envy) (built: `boss/envy/`)
@@ -324,7 +368,7 @@ Boss: Gudmundur Sigurdsson - Sin of Envy. Boss bar: GUMMSS (green). His own skin
        golden staff (a blaze rod without the mod). His eyes glow green while he casts (gummss_eyes.png).
 Song: Seekae - Test & Recognise (Flume re-work, slowed), 6:06, measured 90 BPM (0.667 s); the bass drops at 21.575 s
        and the beat grid is lined up on it (first beat tick 5, the drop is beat 32) (music.envy.theme). One song, no
-       phase 2.
+       phase 2 song (his Covet at half health silences it and brings it back, below).
 Arena: built in code (EnvyArena), not a template: a round floor 101 blocks across (radius 50) floating in a black void,
        blackstone, deepslate and obsidian, an island-like cone of blackstone and basalt underneath. Seen from above the
        floor is one great eye: a calcite, copper and obsidian eye 26 blocks long in the middle (with the three glints
@@ -341,7 +385,8 @@ Arena: built in code (EnvyArena), not a template: a round floor 101 blocks acros
 Health / armor: 950 HP for 5-7 players (60% alone, 70% for two..., and 8% more for each player past 7: 124% for 10,
        at most double; GummssTimeline.healthScale). Minecraft caps health at 1024, so past that he keeps 1024 and takes
        proportionally less damage instead (effectiveMaxHealth). 8 armor, 4 toughness; takes x0.8 damage, x0.35 during
-       Arrow Rain, x1.5 while reeling, at most 30 per hit. No phase 2 (only his fall from the sky at half health, below).
+       Arrow Rain, x1.5 while reeling, at most 30 per hit. His second half starts with his Covet (below); the boss bar
+       and song stay the same.
 Damage: every hit he deals is x1.2, rounded up (DAMAGE_DEALT): his staff (10), everything he throws, his slams, and
        his arrows and darts. Poison and other effects are unchanged.
 ```
@@ -417,16 +462,46 @@ Damage: every hit he deals is x1.2, rounded up (DAMAGE_DEALT): his staff (10), e
   *Tome of Upside Down* (motes fall upward off everyone, then the magic mod's own Tome of Upside Down flips everyone's
   gravity for 1 s, so they fall up into the dark with their view rolled over, then flips it back and they fall to the
   floor; without the mod he throws them up himself). Nobody is ever left flipped, even if the fight ends mid-spell.
-- **His fall from the sky (half health, once):** not a second phase (same song, same attacks), but something changes.
-  On the next beat after he drops below half, whatever his rest, he turns the Tome of Upside Down on himself: motes
-  fall upward off him, then he rolls over and falls up into the dark, 26 blocks, faster and faster, while the Tome of
-  Earthquake's fissures crack out over the floor where most of you stand, ringed in green (6 blocks) and shadow (25).
-  He hangs there, drifts over that spot, rights himself and comes straight down on it: 30 in the middle down to 14 at
-  6 blocks (x1.2, no shield helps), thrown out and up; then the quake rolls out through the floor to 25 blocks (8 down
-  to 3, jump it) and two light aftershocks. With the magic mod the quake is the mod's own (fissures, heaving ground,
-  flung earth); without it, particles. From then on seven small green blocks (verdant froglight, emerald, green glass,
-  moss) drift and tumble round him for the rest of the fight. His Mirror Images get them too, so they don't give the
-  real one away, and while he's unseen they vanish with him.
+- **His Covet (half health, once):** the moment he's between attacks after dropping below half, whatever his rest:
+  - He's gone in a burst of green smoke. The song fades to nothing over 3 s (turned down on each client, so it keeps
+    its place on the beat), and the void starts to blink: the light goes out and comes back, faster and faster, only
+    the eyes left glowing in the black, now and then a flare of green that makes every eye flinch shut. A heartbeat in
+    the dark.
+  - Four colossal GUMMSS (16 times his size, `GummssColossusEntity`) rise out of the void beyond the rim, one at each
+    quarter, arms already raised, eyes glowing green, and stand thigh-deep in it looking up. For 8 s they cast
+    together: a world of stolen blocks forms 34 blocks over the middle (grass, logs, ores, netherrack, end stone, ice,
+    wool, bookshelves, TNT... 206 block displays in two shells round a glowing froglight heart, 21 blocks across). Each
+    block is torn loose in a colossus' hands and flies in to its place while the ball turns, faster and faster; green
+    threads run from their hands to it, glyphs stream in, two rings of green storm round it, and its shadow spreads
+    over the floor inside a ring marking its reach. The fog closes in, the eyes widen and sicken, the screen's edges
+    throb, the heartbeat quickens, the ground shakes harder and harder, and the song swells back in.
+  - They bring it down (the cast is stretched to land on the beat, at most 0.7 s) as the song reaches full volume:
+    40 in the middle down to 24 at the edge of its reach, 40 blocks (80% of the arena), x1.2, no armour or shield
+    helps, everyone in it thrown out. Run for the rim (outside the pillars). It bursts across the floor, the blocks
+    sinking into it; everyone is flashed and shaken, hit or not.
+  - The colossi collapse into the void, and a second later he's back in the middle. He can't be found or hurt through
+    any of it (about 15 s).
+  - From then on seven small green blocks (verdant froglight, emerald, green glass, moss) drift and tumble round him
+    for the rest of the fight. His Mirror Images get them too, so they don't give the real one away, and while he's
+    unseen they vanish with him. And the void is awake: the fog breathes in and out, the eyes are bloodshot, drift and
+    twitch, 28 more open just past the rim at every height, a great eye 110 blocks wide opens in the fog overhead and
+    slowly turns, the dark blinks by itself every 20 s or so, and things move out in it (cave sounds, a warden's
+    breathing, tendrils clicking, from somewhere in the dark round you).
+- **His death (10 s):** the blow that would kill him leaves him on his last health, untouchable, and the fight is
+  won; the song fades. He looks up into the sky, quite still, for 3 s (everyone gets **Defeated GUMMSS**, "Leave the
+  Sin of Envy wanting nothing"). Then he glitches: copies of him burst out all round him, more and more (up to 28,
+  `GummssColossusEntity` at his size, now and then smaller), in every pose he has, at every angle, some in the air,
+  popping out and back somewhere else and flickering, to a noise like a broken record, while he twitches, his head
+  snapping about, still looking up, now and then gone himself for a moment. After 4.5 s the copies go, a handful at a
+  time, and it's quiet; he looks down at the floor, sad, wanting nothing, and after 2 s he's gone, green motes rising
+  off where he stood. 2 s later the portal home opens and the wheel spins.
+- **His fall from the sky (after his Covet, one of his attacks, at most every 23 s):** he turns the Tome of Upside Down
+  on himself: motes fall upward off him, then he rolls over and falls up into the dark, 26 blocks, faster and faster,
+  while the Tome of Earthquake's fissures crack out over the floor where most of you stand, ringed in green (6 blocks)
+  and shadow (25). He hangs there, drifts over that spot, rights himself and comes straight down on it: 30 in the middle
+  down to 14 at 6 blocks (x1.2, no shield helps), thrown out and up; then the quake rolls out through the floor to 25
+  blocks (8 down to 3, jump it) and two light aftershocks. With the magic mod the quake is the mod's own (fissures,
+  heaving ground, flung earth); without it, particles.
 - **Any number of players (1 to 10 and more):** the ring in the intro widens past 10 so nobody's crowded
   (`GummssTimeline.ringRadius`), his health scales as above, Tome of Judgement rains a sword on every player (a dozen
   at most, faster one after another past six), Venom Flasks throws one for every two players (3-6), and with six or
@@ -441,17 +516,20 @@ Damage: every hit he deals is x1.2, rounded up (DAMAGE_DEALT): his staff (10), e
   are built to look like the mod's (Swords, Judgement, the Moon, Reckoning, the Quiver, Swapping); without the mod they
   still work, with an enchanted book in place of the tome.
 - Tuning knobs: `GummssEntity` (health, damage taken, `MAX_HIT`, `CATCH_CHANCE`, `LIFT_BREAK`, `DESPERATE_AT`, rests,
-  the fall from the sky's `ASCEND_*` timing and `LANDING_*`/`QUAKE_*` damage,
+  the fall from the sky's `ASCEND_*` timing and `LANDING_*`/`QUAKE_*` damage, the Covet's `COLOSSUS_*`/`HOARD_HEIGHT`,
   distances, attack weights and gaps in `chooseAttack`, each attack's numbers in its `tick...` method),
-  `EnvyHazards` (the tomes' numbers), `GummssTimeline` (song timing, the fall, `healthScale`), `EnvyArena` (shape,
-  positions, the eyes).
+  `EnvyHazards` (the tomes' numbers), `GummssCovet` (the Covet's world: blocks, sizes, timings), `GummssTimeline` (song
+  timing, the fall, `healthScale`, the Covet's `COVET_*` timings, reach and damage, and how the song fades), `EnvyArena`
+  (shape, positions, the eyes, `awakeEyes`), `EnvySky` (the blinking, the awake void).
 - Tests: `GummssGameTests` (the whole fight flow in the real arena: the build, the fall, landing on the drop unhurt,
   the edge, no phase 2, winning; arrows caught and sent back; Reckoning catching only who's on the ground; the Evil
   Eye punishing only who looks; Mirror Images breaking and leaving with him; Swapping; Poison Slash; Levitation;
   the full Judgement crushing only the crowd it falls on; Upside Down flipping everyone and back, and never leaving
   anyone flipped; ten players falling in the ring and all landing unhurt; Rubble Barrage tearing up 6-12 blocks,
-  hurting, and mending the floor; the fall from the sky flipping him, landing heavy, leaving the green blocks and no
-  phase 2, and starting by itself at half health; Disguise hiding both, trading places, a hit knocking it off, wearing
+  hurting, and mending the floor; the fall from the sky flipping him and landing heavy; the Covet raising four
+  colossi he can't be hurt through, crushing only whoever stays inside its reach, landing on the beat, leaving him back,
+  awake, with the green blocks, starting by itself at half health, and leaving nothing behind if he dies in the middle
+  of it; Disguise hiding both, trading places, a hit knocking it off, wearing
   off after 10 s, never with two players), `GummssTimelineTest`.
 
 ## LalliLarge (Gluttony) (built: `boss/gluttony/`)
@@ -474,8 +552,8 @@ Arena: two worlds in one dimension (gluttony_arena: 512 high, its own frozen bio
        distance north, seven giant statues scattered round the fight (80-100 out). Exit frame (packed ice, blue ice corners) north of the snowfield's middle.
        Both are built whole once at server start (~15 s on a new world, while the chunks are made); before each fight
        only the patch round the pole and the snowfield's middle are wiped and put back. Positions: GluttonyArena.
-Health / armor: 1400 HP for 5-7 players (healthScale: 60% alone ... 124% for 10, at most double; past the 1024 cap he
-       takes proportionally less damage instead), 14 armor, 8 toughness; takes x0.7 damage in phase 1, x0.8 in
+Health / armor: 1350 HP for 5-7 players (healthScale: 60% alone ... 124% for 10, at most double; past the 1024 cap he
+       takes proportionally less damage instead), 12 armor, 6 toughness; takes x0.75 damage in phase 1, x0.85 in
        phase 2, x1.5 while open after a Jump Slam, at most 24 per hit; phase 1 can't be skipped by one big hit.
        Phase 2 hits x1.25. Walks at 0.2 (0.24 in phase 2), slow to turn while winding up.
 ```
@@ -537,6 +615,14 @@ Health / armor: 1400 HP for 5-7 players (healthScale: 60% alone ... 124% for 10,
   for every three, his health scales, the rings in the sky and round him in the snowfield widen.
 - **Magic mod:** he can't be put to sleep or carried off in a bubble, and status effects don't stick to him. His tomes
   are built to look like the mod's, all of ice, and work without it. None of his ice places or breaks a block.
+- **His death (9 s):** the blow that would kill him leaves him on his last breath, untouchable, and the fight is
+  won; the music fades and the glow goes out of his eyes. Slowly (2 s) he lifts his hands over his face, head bowed into
+  them, shaking a little, the ice on him dripping; then slowly lowers them, as if he suddenly knows you. He takes two
+  slow steps towards you, then looks at you, one after another (the nearest three of you, if there are three), his
+  head and then his body turning smoothly to each; it's too late, and he knows it: he lowers his head, and is gone in
+  a soft fall of snow and ice. Everyone gets **Defeated LALLILARGE** ("Be seen by the Sin of Gluttony, at the last")
+  as he covers his face. 2 s later the portal home opens and the wheel spins. His arms are eased on each client
+  (`LalliModel.farewell`); his head turns with vanilla's look control.
 - Tuning knobs: `LalliEntity` (health, damage taken and dealt, `MAX_HIT`, speeds, rests, `AURA_RADIUS`, attack weights
   and gaps in `chooseAttack`, each attack's numbers in its `tick...` method), `GluttonyHazards` (the tomes' numbers),
   `LalliTimeline` (song timings, the strums and how far the sky turns, the float down, the transition, the nod,
@@ -645,6 +731,13 @@ Health / armor: 900 HP for 5-7 players (healthScale: 60% alone ... 124% for 10, 
 - **The sky** (`LustSky`, from `LustSkyPayload`): phase 1 a deep violet night, stars and a great full moon 38 degrees
   up over the hall to the west (the way everyone faces as they arrive), a violet halo round it; cherry petals drifting down
   round everyone. Phase 2 the eclipse, at once under the black; it lifts back to the moonlit night when he's beaten.
+- **His death, at peace (8 s):** the blow that would kill him leaves him on his last breath, untouchable, and the
+  fight is won. All the anger goes out of him: his eyes go dark, his shadow and aura stop, the music fades away and the
+  eclipse slowly lifts off the moon. His knees give, his blades slip out of his hands and fall either side of him, and
+  he sits down on the ground, leaning back on his hands, head bowed. Everyone gets **Defeated MUGEN** ("Let the Sin of
+  Lust find his peace"). Then he slowly lifts his head and looks up at the moon, like he's finally at peace. No
+  particles, no sounds: just quiet. Then a poof of clouds and he's gone (his soul drops there); 2 s later
+  the portal home opens and the wheel spins. His blades (`fmscraft.lust_remains`) stay until the arena is next reset.
 - **The edge:** anyone over the compound's walls for half a second, or fallen through it, is dragged back into the
   courtyard by the shadows (4 damage).
 - **Any number of players:** health scales, one more clone past seven, Sword Rain one each (up to 10), a second Unseen
@@ -661,7 +754,9 @@ Health / armor: 900 HP for 5-7 players (healthScale: 60% alone ... 124% for 10, 
   Blackout, `healthScale`, clones), `LustArena` (positions, bounds), `LustSky` (colours, fog, the moon).
 - Tests: `MugenGameTests` (the whole fight in the real compound: the build, the entrance under the ground and up out
   of it, the blades drawn, the boom hurting nobody, the phase 1 clamp, the shadows dragging strays back, the black,
-  Toxic, hanging in the eclipse, the landing on the drop, winning, nothing left behind; kunai; the log and Phase;
+  Toxic, hanging in the eclipse, the landing on the drop, winning, his death (won at the last blow, untouchable, sat
+  looking up, eyes dark, his blades let go, Defeated MUGEN during it, gone after it, the portal only after that),
+  nothing left behind but his blades; kunai; the log and Phase;
   the chain dragging you in; the Unseen Hands holding and crushing; clones; the Blackout; the thrown blade coming
   back; Sword Rain and the Taunt breaking nothing; Void Spikes hitting hard, breaking nothing and sinking away; Iaido
   countering a hit and cutting its line; Shadow Bind holding for 3 s; Shadow Sneak bursting up under you; the Black
@@ -690,7 +785,7 @@ Arena: a round marble plaza 38 out, floating high over a sea of cloud, the class
 Health / armor: 800 HP for 5-7 players (healthScale: 60% alone ... 124% for 10, at most double; past the 1024 cap he
        takes proportionally less damage). LEONARD is the top half of it (x0.85 damage, at most 26 a hit, his bar empties
        at half; phase 1 can't be skipped by one big hit). CONEMAN gets all of it back, 14 armor and 8 toughness, takes
-       x0.6, at most 22 a hit, and hits x1.1. Every hit either of them deals is x0.81 of the numbers below (cut by 10%
+       x0.75, at most 22 a hit, and hits x1.1. Every hit either of them deals is x0.81 of the numbers below (cut by 10%
        twice), rounded (DAMAGE_DEALT): a 10 is an 8, Munch's 32 a 26.
 ```
 
@@ -753,6 +848,16 @@ Health / armor: 800 HP for 5-7 players (healthScale: 60% alone ... 124% for 10, 
   mod they're particle arcs. None of his lightning breaks, places or burns a block (the bolts are cosmetic).
 - **The traffic cone:** CONEMAN drops it when he's beaten. Worn on the head like a carved pumpkin.
 - **Damage:** his lightning can't be blocked; the thrown bolt, the boomerang and his fists can.
+- **His death (10 s):** the blow that would finish CONEMAN leaves him on his last breath, untouchable, and the fight is
+  won; the music stops dead. He stands there a moment, smoking, then poof: the cone flies off his head (it lands
+  somewhere near, yours to keep), and it's just LEONARD again, shades on, the storm breaking up into blue sky. For 6 s
+  he looks round, as guilty as anyone has ever looked: hunched, fidgeting with his hands, shifting his weight, glancing
+  about (and now and then at you, quickly, and away again), sweating, a nervous shuffle, whistling a little tune
+  (flute notes) twice. Then he's caught: he jumps out of his skin, arms flung up. And he runs for it, sprint-jumping,
+  arms waving over his head, legs going twice as fast as they need to, towards the middle of the plaza and on past it
+  away from you, never more than 12 blocks from the middle (so never off it), until he's gone in a poof mid-jump.
+  Everyone gets **Defeated LEONARD** ("Catch the Sin of Pride red-handed"). 2 s later the portal home opens and the
+  wheel spins.
 - Tuning knobs: `LeonardEntity` (health, damage taken and dealt, `MAX_HIT`, `DODGE`, speeds, rests, Munch's beam
   `BEAM_*`, `AURA_RADIUS`, `DAMAGE_DEALT`, attack weights and gaps in `chooseAttack`, each move's numbers in its `tick...` method),
   `LeonardHazards` (rings, strikes, bolts, rods, balls, the beam), `LeonardTimeline` (song timings, the silence, Munch's
@@ -787,8 +892,8 @@ Arena: the heart of the "Abandoned City" map (a 1.18.1 world save from Planet Mi
        sun a hand over the western horizon, the sky gold and red. The flooded plain is the dimension's own ground (a flat
        world of stone, gravel and water), so it runs on past the fog. Positions: SlothArena.
 Health / armor: 1000 HP for 5-7 players (healthScale: 60% alone ... 124% for 10, at most double; past the 1024 cap he
-       takes proportionally less damage instead), 8 armor, 4 toughness; takes x0.85 damage in phase 1, x0.9 as a Super
-       Saiyan, at most 26 a hit; phase 1 can't be skipped by one big hit. Super Saiyan he hits x1.15 (rounded up).
+       takes proportionally less damage instead), 8 armor, 4 toughness; takes x0.85 damage in phase 1, x0.94 as a Super
+       Saiyan, at most 26 a hit; phase 1 can't be skipped by one big hit (it ends at 40%, `SAIYAN_AT`). Super Saiyan he hits x1.15 (rounded up).
 ```
 
 - **Intro (the 30 s the portal is open):** frozen behind the Seven Deadly Sins wheel, zooming in on Sloth, with only the
@@ -824,7 +929,7 @@ Health / armor: 1000 HP for 5-7 players (healthScale: 60% alone ... 124% for 10,
   - *Dashpunch*: he crouches, fist drawn back, power gathering in it, a red line flickering on the ground to you; then
     he's on you at two blocks a tick, homing (it can only turn so fast: sidestep late). A crack like thunder, a sonic boom
     off his fist, a flash: 22 and **thrown clean across the city**. Into a wall and he stops dead.
-- **Half health, Super Saiyan:** his health stops at half, the music cuts, everyone is held still, and the sunset drains
+- **40% health, Super Saiyan:** his health stops at 40%, the music cuts, everyone is held still, and the sunset drains
   to black over three seconds: a black sky full of glowing red lights, big and small, twinkling, and a grey haze settling
   over the city. Kills starts. He lifts off the ground, rubble tearing loose all round him and rising, the dark drawn
   into him, sparks, the ground shaking (everyone can move again after 3 s; nothing touches him). The anime power-up
@@ -853,6 +958,14 @@ Health / armor: 1000 HP for 5-7 players (healthScale: 60% alone ... 124% for 10,
   - *Final beam* (under 25%, at most every 45 s): he stands, untouchable, a black ball growing in his hands for 3.5 s,
     "Get behind something!", then the black beam sweeps all the way round him: 16 to whoever it finds in the open.
     Only a wall (or a tree) between you and him saves you.
+- **His death (12 s):** the blow that would kill him leaves him on his last breath, untouchable, and the fight is
+  won; Kills fades. He tries to fly once more, arms reaching up, rising 5 blocks into the sky, slower and slower; his
+  form flickers (gold, himself, gold, less and less of it, sparking) until it's gone out of him and he's just himself
+  again, the black sky turning back to the sunset. Then he tips over onto his back and falls, very slowly, like an
+  angel falling from heaven: turning gently, rocking, arms and legs drifting out and back as if through water, the
+  last of the gold coming off him (everyone gets **Defeated RICKY**, "Watch the Sin of Sloth fall from the sky").
+  3 blocks from the ground he's gone in a poof; 2 s later the portal home opens and the wheel spins. The tipping and
+  turning are eased on each client (`RickyRenderer`, `fallTime`).
 - **The sky** (`SlothSky`, from `SlothSkyPayload`): vanilla's sunset in phase 1 (the dimension's clock); the black with
   its red lights and grey haze, no clouds, the light dim, from the transformation until he's beaten.
 - **Ideas of mine added:** the sleeping entrance (Sloth), the walking backwards, holding each tome as he casts it, the

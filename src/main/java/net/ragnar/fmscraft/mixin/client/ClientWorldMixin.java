@@ -49,7 +49,7 @@ public abstract class ClientWorldMixin {
         if (night > 0) cir.setReturnValue(MathHelper.lerp(night, cir.getReturnValue(), GreedSky.NIGHT_LIGHT));
         float rage = WrathSky.rage(tickDelta);
         if (rage > 0) cir.setReturnValue(MathHelper.lerp(rage, cir.getReturnValue(), WrathSky.RAGE_LIGHT));
-        if (EnvySky.active()) cir.setReturnValue(EnvySky.LIGHT);
+        if (EnvySky.active()) cir.setReturnValue(EnvySky.light(tickDelta));
         if (GluttonySky.space()) cir.setReturnValue(1.0f);
         if (GluttonySky.snow()) cir.setReturnValue(GluttonySky.SNOW_LIGHT);
         if (LustSky.active()) cir.setReturnValue(LustSky.light(tickDelta));

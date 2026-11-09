@@ -15,6 +15,32 @@ public class RaggimelModel<T extends LivingEntity & RaggimelLook> extends Player
 
     private float tickDelta;
 
+    private static float ease(float from, float to, float t, float start, float length) {
+        float u = MathHelper.clamp((t - start) / length, 0f, 1f);
+        return MathHelper.lerp(u * u * (3 - 2 * u), from, to);
+    }
+
+    /**
+     * His goodbye, all of it eased on its own clock: his head bowing as he grows, arms hanging; held there a while; then
+     * his head slowly lifting to the sky as his right arm rises to point up at it.
+     */
+    private void farewell(float t, float age) {
+        float breath = MathHelper.sin(age * 0.07f) * 0.02f;
+        float up = RaggimelEntity.DEATH_LOOK_UP, point = RaggimelEntity.DEATH_POINT - RaggimelEntity.DEATH_LOOK_UP;
+        float down = ease(0f, 0.75f, t, 0, 30);
+        head.pitch = ease(down, -0.85f, t, up, point) + breath;
+        head.yaw = 0;
+        head.roll = ease(0f, 0.05f, t, 10, 40) * (1 - MathHelper.clamp((t - up) / point, 0, 1));
+        rightArm.pitch = ease(0.05f, -2.95f, t, up + 8, point) + breath;
+        rightArm.yaw = ease(0f, -0.15f, t, up + 8, point);
+        rightArm.roll = ease(0.05f, 0.12f, t, up + 8, point);
+        leftArm.pitch = 0.05f + breath;
+        leftArm.yaw = 0;
+        leftArm.roll = -0.05f;
+        rightLeg.pitch = 0;
+        leftLeg.pitch = 0;
+    }
+
     @Override
     public void animateModel(T boss, float limbAngle, float limbDistance, float tickDelta) {
         super.animateModel(boss, limbAngle, limbDistance, tickDelta);
@@ -27,6 +53,10 @@ public class RaggimelModel<T extends LivingEntity & RaggimelLook> extends Player
         sneaking = pose == RaggimelEntity.POSE_CROUCH;
         super.setAngles(boss, limbAngle, limbDistance, age, headYaw, headPitch);
         float sway = MathHelper.cos(age * 0.6662f) * 0.15f;
+        if (pose == RaggimelEntity.POSE_FAREWELL) {
+            farewell(boss.farewellTime(tickDelta), age);
+            pose = -1;
+        }
         switch (pose) {
             case RaggimelEntity.POSE_CAST -> {
                 // Both arms up and out, like an evoker casting

@@ -115,6 +115,58 @@ public class RickyGameTests implements FabricGameTest {
         return boss;
     }
 
+
+    /**
+     * His death: the last blow (Super Saiyan) leaves him on his last breath, untouchable; up he goes, his form flickers
+     * out, and he falls on his back, very slowly, until 3 blocks off the ground he's gone in a poof (12 s), Defeated
+     * RICKY given on the way. (Put into phase 2 by hand, off his city.)
+     */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 800, batchId = "ricky_death")
+    public void heFallsFromTheSkyLikeAnAngel(TestContext ctx) {
+        floor(ctx);
+        RickyEntity boss = spawn(ctx, new BlockPos(3, 1, 3));
+        ServerPlayerEntity player = survivalPlayer(ctx.getWorld(), Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(6, 1, 6))), 0);
+        player.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 400, 4));
+        double floor = Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(3, 1, 3))).y;
+        double[] top = new double[1];
+        whenReady(ctx, boss, () -> {
+            try {
+                java.lang.reflect.Field phase = net.ragnar.fmscraft.boss.SinBossEntity.class.getDeclaredField("phase");
+                phase.setAccessible(true);
+                phase.setInt(boss, 2);
+            } catch (ReflectiveOperationException e) {
+                throw new RuntimeException(e);
+            }
+            boss.goSaiyan();
+            boss.setHealth(3);
+            boss.damage(ctx.getWorld().getDamageSources().magic(), 20);
+            ctx.assertTrue(boss.isAlive() && boss.isDying(), "the last blow: he falls, at " + boss.getHealth() + " (" + boss.describe() + ")");
+            float health = boss.getHealth();
+            boss.damage(ctx.getWorld().getDamageSources().playerAttack(player), 20);
+            ctx.assertEquals(boss.getHealth(), health, "nothing more reaches him");
+            ctx.waitAndRun(10, () -> ctx.assertTrue(boss.saiyan(), "still a Super Saiyan as he goes up"));
+            ctx.waitAndRun(RickyEntity.DEATH_PEAK + 2, () -> {
+                top[0] = boss.getY();
+                ctx.assertTrue(top[0] > floor + RickyEntity.DEATH_RISE - 0.5, "up into the sky one last time, at " + top[0]);
+                ctx.assertFalse(boss.saiyan(), "his form gone out of him");
+                ctx.assertEquals(boss.aura(), RickyEntity.AURA_NONE, "and the gold");
+                ctx.assertEquals(boss.poseState(), RickyEntity.POSE_FALLING, "falling on his back");
+                var advancement = ctx.getWorld().getServer().getAdvancementLoader().get(net.minecraft.util.Identifier.of(net.ragnar.fmscraft.FmsCraft.MOD_ID, "defeated_sloth"));
+                ctx.assertTrue(advancement != null && player.getAdvancementTracker().getProgress(advancement).isDone(), "Defeated RICKY, during it");
+            });
+            ctx.waitAndRun(150, () -> {
+                ctx.assertTrue(boss.isAlive(), "still falling");
+                ctx.assertTrue(boss.getY() < top[0] - 0.3 && boss.getY() > boss.deathEnd(), "slowly, at " + boss.getY());
+            });
+            ctx.waitAndRun(RickyEntity.DEATH_TICKS - 2, () ->
+                    ctx.assertTrue(Math.abs(boss.getY() - boss.deathEnd()) < 0.3, "three blocks off the ground, at " + boss.getY()));
+            ctx.waitAndRun(RickyEntity.DEATH_TICKS + 4, () -> {
+                ctx.assertFalse(boss.isAlive(), "a poof, and he's gone after 12 s");
+                ctx.getWorld().getServer().getPlayerManager().remove(player);
+                ctx.complete();
+            });
+        });
+    }
     /**
      * Runs {@code then} as soon as he's up and can be hurt (spawned here, he wakes at once). His waking stamp throws
      * everyone near back, and a test player keeps whatever velocity it's given: it's stilled again first, or he'd lead
@@ -230,21 +282,21 @@ public class RickyGameTests implements FabricGameTest {
                 player.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 4000, 4));
                 // Phase 1 can't be skipped by one big hit
                 boss.damage(arena.getDamageSources().playerAttack(player), Float.MAX_VALUE);
-                ctx.assertTrue(boss.getHealth() >= boss.getMaxHealth() * 0.5f - 0.01f, "one hit stops at half, at " + boss.getHealth());
+                ctx.assertTrue(boss.getHealth() >= boss.getMaxHealth() * RickyEntity.SAIYAN_AT - 0.01f, "one hit stops at 40%, at " + boss.getHealth());
                 // Wandered off, up a tower: the city drags you back
                 player.teleport(arena, -195.5, 234, -85.5, 0, 0);
             }));
             ctx.waitAndRun(fighting + 16, step(server, () -> {
                 ctx.assertTrue(SlothArena.inBounds(player.getPos()), "dragged back to the clearing, at " + player.getPos());
                 RickyEntity boss = boss(arena);
-                for (int k = 0; k < 400 && boss.getPhase() == 1 && boss.getHealth() > boss.getMaxHealth() * 0.5f; k++) {
+                for (int k = 0; k < 400 && boss.getPhase() == 1 && boss.getHealth() > boss.getMaxHealth() * RickyEntity.SAIYAN_AT; k++) {
                     boss.timeUntilRegen = 0;
                     boss.damage(arena.getDamageSources().playerAttack(player), 40f);
                 }
-                ctx.assertEquals(boss.getHealth(), boss.getMaxHealth() * 0.5f, "health stops exactly at half");
+                ctx.assertEquals(boss.getHealth(), boss.getMaxHealth() * RickyEntity.SAIYAN_AT, "health stops exactly at 40%");
             }));
 
-            // Half health: the music cuts, the sky turns, everyone's held, nothing touches him
+            // 40% health: the music cuts, the sky turns, everyone's held, nothing touches him
             int transition = fighting + 17;
             ctx.waitAndRun(transition + 10, step(server, () -> {
                 RickyEntity boss = boss(arena);

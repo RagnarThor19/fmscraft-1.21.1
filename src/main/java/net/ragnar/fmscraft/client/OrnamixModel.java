@@ -9,7 +9,7 @@ import net.ragnar.fmscraft.boss.wrath.OrnamixEntity;
 /**
  * ORNAMIX is a player (wide arms) with a sword in his right hand, whose arms follow what he's doing: drawing back to
  * stab, the sword raised overhead, casting, pointing a burning hand, drawing a bow, arms flung out to spin, a fist
- * pulled back for a haymaker, kneeling where he landed, roaring.
+ * pulled back for a haymaker, kneeling where he landed, roaring, flailing in the air while two tornadoes rise.
  */
 public class OrnamixModel extends PlayerEntityModel<OrnamixEntity> {
     public OrnamixModel(ModelPart root) {
@@ -19,7 +19,8 @@ public class OrnamixModel extends PlayerEntityModel<OrnamixEntity> {
     @Override
     public void setAngles(OrnamixEntity boss, float limbAngle, float limbDistance, float age, float headYaw, float headPitch) {
         int pose = boss.poseState();
-        sneaking = pose == OrnamixEntity.POSE_CROUCH || pose == OrnamixEntity.POSE_KNEEL;
+        sneaking = pose == OrnamixEntity.POSE_CROUCH || pose == OrnamixEntity.POSE_KNEEL || pose == OrnamixEntity.POSE_DYING
+                || pose == OrnamixEntity.POSE_REACH;
         rightArmPose = pose == OrnamixEntity.POSE_BOW ? BipedEntityModel.ArmPose.BOW_AND_ARROW : BipedEntityModel.ArmPose.ITEM;
         leftArmPose = BipedEntityModel.ArmPose.EMPTY;
         super.setAngles(boss, limbAngle, limbDistance, age, headYaw, headPitch);
@@ -135,6 +136,49 @@ public class OrnamixModel extends PlayerEntityModel<OrnamixEntity> {
                 leftLeg.pitch = -0.1f;
                 rightLeg.roll = 0.05f;
                 leftLeg.roll = -0.05f;
+            }
+            case OrnamixEntity.POSE_FLAIL -> {
+                // Hanging in the air, flailing his arms over his head, head thrown back, legs kicking
+                float a = MathHelper.sin(age * 0.85f), b = MathHelper.sin(age * 0.85f + 2.2f), c = MathHelper.cos(age * 1.3f);
+                head.pitch = -0.5f + c * 0.08f;
+                head.yaw += MathHelper.sin(age * 0.4f) * 0.25f;
+                rightArm.pitch = -2.6f + a * 0.85f;
+                rightArm.yaw = b * 0.45f;
+                rightArm.roll = 0.55f + b * 0.5f;
+                leftArm.pitch = -2.6f + b * 0.85f;
+                leftArm.yaw = -a * 0.45f;
+                leftArm.roll = -0.55f - a * 0.5f;
+                rightLeg.pitch = 0.3f + a * 0.25f;
+                leftLeg.pitch = -0.15f - a * 0.25f;
+                rightLeg.roll = 0.08f;
+                leftLeg.roll = -0.08f;
+            }
+            case OrnamixEntity.POSE_DYING -> {
+                // Burning out: down on one knee, head bowed low, arms hanging, breathing slow
+                float breath = MathHelper.sin(age * 0.08f) * 0.04f;
+                head.pitch = 0.85f + breath;
+                head.yaw *= 0.2f;
+                rightArm.pitch = 0.15f + breath;
+                rightArm.yaw = 0;
+                rightArm.roll = 0.12f;
+                leftArm.pitch = -0.35f + breath;
+                leftArm.yaw = 0.2f;
+                leftArm.roll = -0.1f;
+                rightLeg.pitch = -1.25f;
+                leftLeg.pitch = 0.45f;
+            }
+            case OrnamixEntity.POSE_REACH -> {
+                // Reaching for the sword in front of him, shaking, and not reaching it
+                float shake = MathHelper.sin(age * 2.3f) * 0.04f;
+                head.pitch = 0.35f;
+                head.yaw *= 0.2f;
+                rightArm.pitch = -1.15f + shake;
+                rightArm.yaw = -0.1f;
+                rightArm.roll = 0;
+                leftArm.pitch = -0.3f;
+                leftArm.roll = -0.15f;
+                rightLeg.pitch = -1.25f;
+                leftLeg.pitch = 0.45f;
             }
             case OrnamixEntity.POSE_ROAR -> {
                 head.pitch = -0.6f;

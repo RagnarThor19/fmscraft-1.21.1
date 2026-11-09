@@ -114,6 +114,65 @@ public class LeonardGameTests implements FabricGameTest {
         return boss;
     }
 
+
+    /**
+     * His death: the last blow on CONEMAN leaves him on his last breath, untouchable; poof, the cone flies off (yours to
+     * keep) and it's just LEONARD, shades on; he looks round, guilty, whistling; he's caught; he runs for it,
+     * sprint-jumping, a little way and no further (off the plaza: 2.5 blocks from where he was); and he's gone mid-jump
+     * (10 s), Defeated LEONARD given on the way.
+     */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 700, batchId = "leonard_death")
+    public void heGetsCaughtAndRunsForIt(TestContext ctx) {
+        floor(ctx);
+        LeonardEntity boss = spawn(ctx, new BlockPos(4, 1, 4));
+        ServerPlayerEntity player = player(ctx, new BlockPos(1, 1, 1), 0);
+        player.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(net.minecraft.entity.effect.StatusEffects.RESISTANCE, 600, 4));
+        whenReady(ctx, boss, () -> {
+            try {
+                java.lang.reflect.Field phase = net.ragnar.fmscraft.boss.SinBossEntity.class.getDeclaredField("phase");
+                phase.setAccessible(true);
+                phase.setInt(boss, 2);
+            } catch (ReflectiveOperationException e) {
+                throw new RuntimeException(e);
+            }
+            boss.goConeman();
+            Vec3d start = boss.getPos();
+            boss.setHealth(3);
+            boss.damage(ctx.getWorld().getDamageSources().magic(), 20);
+            ctx.assertTrue(boss.isAlive() && boss.isDying(), "the last blow: he's done, at " + boss.getHealth() + " (" + boss.describe() + ")");
+            float health = boss.getHealth();
+            boss.damage(ctx.getWorld().getDamageSources().playerAttack(player), 20);
+            ctx.assertEquals(boss.getHealth(), health, "nothing more reaches him");
+            ctx.assertTrue(boss.coned(), "still CONEMAN, for a moment");
+            ctx.waitAndRun(LeonardEntity.DEATH_POOF + 4, () -> {
+                ctx.assertFalse(boss.coned(), "poof: the cone's off");
+                ctx.assertTrue(boss.getScale() < 1.05f, "just LEONARD again, " + boss.getScale());
+                ctx.assertEquals(boss.poseState(), LeonardEntity.POSE_GUILTY, "looking very guilty");
+                ctx.assertFalse(ctx.getWorld().getEntitiesByClass(net.minecraft.entity.ItemEntity.class, boss.getBoundingBox().expand(8),
+                        e -> e.getStack().isOf(net.ragnar.fmscraft.item.ModItems.TRAFFIC_CONE)).isEmpty(), "and the cone's yours");
+            });
+            ctx.waitAndRun(LeonardEntity.DEATH_HONOUR_AT + 4, () -> {
+                var advancement = ctx.getWorld().getServer().getAdvancementLoader().get(net.minecraft.util.Identifier.of(net.ragnar.fmscraft.FmsCraft.MOD_ID, "defeated_pride"));
+                ctx.assertTrue(advancement != null && player.getAdvancementTracker().getProgress(advancement).isDone(), "Defeated LEONARD, during it");
+            });
+            ctx.waitAndRun(LeonardEntity.DEATH_CAUGHT + 3, () -> {
+                ctx.assertEquals(boss.poseState(), LeonardEntity.POSE_CAUGHT, "caught");
+                ctx.assertTrue(boss.runTo() != null && boss.runTo().subtract(start).horizontalLength() <= LeonardEntity.DEATH_RUN_OFF + 0.6,
+                        "he means to run, but not far, to " + boss.runTo());
+            });
+            ctx.waitAndRun(LeonardEntity.DEATH_FLEE + 25, () -> {
+                ctx.assertEquals(boss.poseState(), LeonardEntity.POSE_FLEE, "running for it, arms in the air");
+                ctx.assertTrue(boss.isSprinting(), "sprinting");
+                ctx.assertTrue(boss.getPos().subtract(start).horizontalLength() > 1, "away from where he was, at " + boss.getPos());
+            });
+            ctx.waitAndRun(LeonardEntity.DEATH_TICKS + 4, () -> {
+                ctx.assertFalse(boss.isAlive(), "gone, mid-jump, after 10 s");
+                ctx.assertTrue(boss.getPos().subtract(start).horizontalLength() < LeonardEntity.DEATH_RUN_OFF + 1.2, "and never ran off, at " + boss.getPos());
+                ctx.getWorld().getServer().getPlayerManager().remove(player);
+                ctx.complete();
+            });
+        });
+    }
     /** Runs {@code then} as soon as he's up and can be hurt (spawned here, his arrival is a quick strike). */
     private static void whenReady(TestContext ctx, LeonardEntity boss, Runnable then) {
         if (!boss.isUntouchable() && boss.currentAction().equals("MOVE")) then.run();

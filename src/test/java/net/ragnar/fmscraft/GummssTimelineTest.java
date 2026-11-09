@@ -88,4 +88,35 @@ class GummssTimelineTest {
             assertTrue(r + 1 < 40, "and the ring stays well over the floor");
         }
     }
+
+    @Test
+    void covetIsHeaviestInTheMiddleAndNothingPastItsReach() {
+        double reach = 40;
+        assertEquals(GummssTimeline.COVET_CENTER, GummssTimeline.covetDamage(0, reach), 1e-4);
+        assertEquals(GummssTimeline.COVET_EDGE, GummssTimeline.covetDamage(reach, reach), 1e-4);
+        float last = Float.MAX_VALUE;
+        for (double d = 0; d <= reach; d += 2) {
+            float now = GummssTimeline.covetDamage(d, reach);
+            assertTrue(now <= last, "less further out, at " + d);
+            last = now;
+        }
+        assertEquals(0, GummssTimeline.covetDamage(reach + 0.1, reach), 1e-6, "out past it: nothing");
+        assertEquals(40, 50 * GummssTimeline.COVET_SHARE, 1e-9, "80% of the arena's 50");
+    }
+
+    @Test
+    void covetSilencesTheSongThenBringsItBackAsItLands() {
+        int fade = GummssTimeline.COVET_FADE, impact = fade + GummssTimeline.COVET_CAST + GummssTimeline.COVET_DROP;
+        assertEquals(1f, GummssTimeline.covetVolume(0, 0), 1e-6, "before it");
+        assertTrue(GummssTimeline.covetVolume(fade / 2, 0) < 0.5f, "fading out");
+        assertTrue(GummssTimeline.covetVolume(fade + 1, impact) < 0.01f, "silent as they rise");
+        float last = 0;
+        for (int t = fade + 1; t <= impact; t += 5) {
+            float v = GummssTimeline.covetVolume(t, impact);
+            assertTrue(v >= last, "swelling back, at " + t);
+            last = v;
+        }
+        assertEquals(1f, GummssTimeline.covetVolume(impact, impact), 1e-6, "at its height as it lands");
+        assertEquals(1f, GummssTimeline.covetVolume(impact + 20, impact), 1e-6, "and stays there");
+    }
 }

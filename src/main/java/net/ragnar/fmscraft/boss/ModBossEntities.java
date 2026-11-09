@@ -9,6 +9,7 @@ import net.minecraft.util.Identifier;
 import net.ragnar.fmscraft.FmsCraft;
 import net.ragnar.fmscraft.boss.envy.EnvyIntro;
 import net.ragnar.fmscraft.boss.envy.GummssEntity;
+import net.ragnar.fmscraft.boss.envy.GummssColossusEntity;
 import net.ragnar.fmscraft.boss.envy.GummssIllusionEntity;
 import net.ragnar.fmscraft.boss.gluttony.GluttonyIntro;
 import net.ragnar.fmscraft.boss.gluttony.LalliEntity;
@@ -118,6 +119,18 @@ public class ModBossEntities {
                     .maxTrackingRange(10)
                     .disableSaving()
                     .build("gummss_illusion"));
+
+    /** The four colossal GUMMSS of his Covet: player-shaped, scaled up sixteen times, seen from right across the arena. */
+    public static final EntityType<GummssColossusEntity> GUMMSS_COLOSSUS = Registry.register(Registries.ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "gummss_colossus"),
+            EntityType.Builder.create(GummssColossusEntity::new, SpawnGroup.MISC)
+                    .dimensions(0.6f, 1.8f)
+                    .eyeHeight(1.62f)
+                    .makeFireImmune()
+                    .maxTrackingRange(16)
+                    .trackingTickInterval(1)
+                    .disableSaving()
+                    .build("gummss_colossus"));
 
     /** Gluttony. Three blocks tall (his scale attribute), slow and the toughest of them. */
     public static final EntityType<LalliEntity> LALLI = Registry.register(Registries.ENTITY_TYPE,
@@ -230,6 +243,7 @@ public class ModBossEntities {
         FabricDefaultAttributeRegistry.register(ORNAMIX, OrnamixEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(GUMMSS, GummssEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(GUMMSS_ILLUSION, GummssIllusionEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(GUMMSS_COLOSSUS, GummssColossusEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(LALLI, LalliEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(MUGEN, MugenEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(MUGEN_CLONE, MugenCloneEntity.createAttributes());
