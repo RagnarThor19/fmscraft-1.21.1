@@ -7,6 +7,7 @@ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.CommandSource;
 import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
@@ -24,6 +25,8 @@ import static net.minecraft.server.command.CommandManager.literal;
  * Temporary, for staging the title screen panoramas:
  *   /gummss_skin pose3 NoGravity   GUMMSS's skin in pose 3, floating where you stand, facing where you face
  *   /ragnar_skin pose2 Gravity     (Gravity is the default) drops to the ground
+ *   /raggimel2 pose26              the boss in his second phase: giant, eyes burning, his aura round him
+ *                                  (also /gummss2, /lalli2, /leonard2, /mugen2, /ornamix2, /ricky2)
  *   /skin_model_poses              lists the poses
  *   /skin_model_clear              removes every skin model within 128 blocks (or punch one)
  * Whatever you hold in your hands, the model holds too.
@@ -38,7 +41,7 @@ public final class SkinModelCommands {
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             for (SkinModelSkin skin : SkinModelSkin.values()) {
-                dispatcher.register(literal(skin.id() + "_skin").requires(source -> source.hasPermissionLevel(2))
+                dispatcher.register(literal(skin.command()).requires(source -> source.hasPermissionLevel(2))
                         .then(argument("pose", StringArgumentType.word())
                                 .suggests((ctx, builder) -> CommandSource.suggestMatching(
                                         IntStream.rangeClosed(1, SkinModelPose.POSES.length).mapToObj(i -> "pose" + i), builder))
@@ -84,11 +87,13 @@ public final class SkinModelCommands {
         model.setSkin(skin);
         model.setPoseIndex(pose);
         model.setNoGravity(noGravity);
+        var scale = model.getAttributeInstance(EntityAttributes.GENERIC_SCALE);
+        if (scale != null) scale.setBaseValue(skin.scale());
         model.equipStack(EquipmentSlot.MAINHAND, player.getMainHandStack().copy());
         model.equipStack(EquipmentSlot.OFFHAND, player.getOffHandStack().copy());
         player.getServerWorld().spawnEntity(model);
         String poseName = SkinModelPose.POSES[pose].name();
-        ctx.getSource().sendFeedback(() -> Text.literal("Placed " + skin.id() + " (" + poseName + ")"), false);
+        ctx.getSource().sendFeedback(() -> Text.literal("Placed " + skin.command() + " (" + poseName + ")"), false);
         return 1;
     }
 }

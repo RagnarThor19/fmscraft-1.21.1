@@ -83,6 +83,18 @@ public record SkinModelPose(String name, float[] head, float[] body, float[] rig
             limbs("laughing, doubled over", r(-30, 0, 8), r(-35, -25, 0), r(-35, 25, 0), r(-10, 0, 4), r(-10, 0, -4)).whole(0, 30, 0, 0.75f),
             limbs("hands behind your back", r(-6, 10, 0), r(22, 25, 0), r(22, -25, 0), r(0, 0, 3), r(0, 0, -3)),
             limbs("reaching out to grab a friend's hand", r(-10, 0, 0), r(-80, 8, 0), r(15, 0, -8), r(-30, 0, 0), r(30, 0, 0)).whole(-0.05f, 14, 0, 0),
+            // pose56+: boss poses, for /raggimel2 and the rest (they suit the friends too)
+            limbs("powering up, fists clenched, head thrown back", r(-35, 0, 0), r(-15, 0, 28), r(-15, 0, -28), r(0, 0, 10), r(0, 0, -10)),
+            limbs("casting, both hands thrust forward", r(12, 0, 0), r(-82, -14, 0), r(-82, 14, 0), r(-22, 0, 5), r(20, 0, -5)).whole(-0.03f, 6, 0, 0),
+            limbs("come at me, beckoning", r(-8, 0, 8), r(0, 0, 8), r(-62, 22, 0), r(0, 0, 4), r(-10, 0, -6)),
+            limbs("weapon raised overhead, about to strike", r(-18, 0, 0), r(-198, -10, 0), r(-195, 12, 0), r(-22, 0, 6), r(22, 0, -6)).whole(0, -8, 0, 0),
+            limbs("mid-slash, sword swung down", r(15, 0, 0), r(-48, 32, 0), r(38, 0, -18), r(-45, 0, 4), r(32, 0, -4)).whole(-0.08f, 16, 0, 0),
+            limbs("floating, arms spread, looking down on you (NoGravity)", r(22, 0, 0), r(-18, 0, 55), r(-18, 0, -55), r(10, 0, 4), r(18, 0, -4)).whole(0.5f, 0, 0, 0),
+            limbs("throwing a punch", r(5, 0, 0), r(-90, 12, 0), r(-112, -42, 0), r(-28, 0, 4), r(26, 0, -4)).whole(-0.03f, 8, 0, 0),
+            limbs("high kick", r(-5, 0, 0), r(-38, 0, 45), r(25, 0, -35), r(-105, 0, 0), r(0, 0, -6)).whole(0, -12, 0, 0),
+            limbs("on a throne, chin on your fist", r(8, 0, 6), r(-125, -28, 0), r(-38, 0, 8), r(-90, 10, 0), r(-78, -24, 0)),
+            limbs("hands behind your head, relaxed", r(-10, 0, 0), r(-165, 0, 38), r(-165, 0, -38), r(0, 0, 4), r(-8, -10, -6)),
+            limbs("arms open wide, welcoming", r(-12, 0, 0), r(-30, 0, 60), r(-30, 0, -60), r(-18, 0, 3), r(14, 0, -3)),
     };
 
     public static SkinModelPose get(int index) {

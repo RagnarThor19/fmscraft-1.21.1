@@ -7,7 +7,19 @@
         "stream": true
       },
       {
+        "name": "fmscraft:music/menu/art",
+        "stream": true
+      },
+      {
         "name": "fmscraft:music/menu/back_home",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/chinggis_khaanii_magtaal",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/clouds",
         "stream": true
       },
       {
@@ -20,6 +32,10 @@
       },
       {
         "name": "fmscraft:music/menu/ekki_nog",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/falla",
         "stream": true
       },
       {
@@ -43,11 +59,19 @@
         "stream": true
       },
       {
+        "name": "fmscraft:music/menu/nocturne",
+        "stream": true
+      },
+      {
         "name": "fmscraft:music/menu/passionfruit",
         "stream": true
       },
       {
         "name": "fmscraft:music/menu/somuleidis",
+        "stream": true
+      },
+      {
+        "name": "fmscraft:music/menu/wang_bu_liao",
         "stream": true
       }
     ]
