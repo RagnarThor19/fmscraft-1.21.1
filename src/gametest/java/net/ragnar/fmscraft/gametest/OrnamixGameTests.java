@@ -413,24 +413,34 @@ public class OrnamixGameTests implements FabricGameTest {
         ServerWorld world = ctx.getWorld();
         OrnamixEntity boss = spawn(ctx, new BlockPos(8, 1, 8));
         Vec3d middle = Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(8, 1, 8)));
-        ctx.runAtTick(3, () -> start(boss, "INFERNO"));
-        // Hanging over it: the wall of fire round the circle
-        ctx.runAtTick(3 + 30, () -> {
-            ctx.assertTrue(boss.getY() > middle.y + 4, "up in the air, at " + boss.getY());
-            ctx.assertTrue(flames(world, middle, 10, true) >= 30, "a wall of fire round the circle, got " + flames(world, middle, 10, true));
+        // Only once he's ticking: where this test's area lands depends on how many tests there are, and the chunk
+        // under it can take a few ticks to start ticking
+        whenTicking(ctx, boss, () -> {
+            start(boss, "INFERNO");
+            // Hanging over it: the wall of fire round the circle
+            ctx.waitAndRun(30, () -> {
+                ctx.assertTrue(boss.getY() > middle.y + 4, "up in the air, at " + boss.getY());
+                ctx.assertTrue(flames(world, middle, 10, true) >= 30, "a wall of fire round the circle, got " + flames(world, middle, 10, true));
+            });
+            // Down: the storm whirls (the wall, five arms of flame) and the ground inside glows
+            ctx.waitAndRun(70, () -> {
+                ctx.assertEquals(boss.currentAction(), "INFERNO", "still spinning");
+                ctx.assertTrue(flames(world, middle, 10, true) >= 60, "the firestorm, got " + flames(world, middle, 10, true));
+                ctx.assertTrue(flames(world, middle, 10, false) >= 10, "the ground glowing");
+            });
+            // Dizzy, and the storm dies down to nothing
+            ctx.waitAndRun(140, () -> {
+                ctx.assertEquals(hazards(boss, "Firestorm"), 0, "the storm's gone, and its fire with it");
+                boss.discard();
+                ctx.complete();
+            });
         });
-        // Down: the storm whirls (the wall, five arms of flame) and the ground inside glows
-        ctx.runAtTick(3 + 70, () -> {
-            ctx.assertEquals(boss.currentAction(), "INFERNO", "still spinning");
-            ctx.assertTrue(flames(world, middle, 10, true) >= 60, "the firestorm, got " + flames(world, middle, 10, true));
-            ctx.assertTrue(flames(world, middle, 10, false) >= 10, "the ground glowing");
-        });
-        // Dizzy, and the storm dies down to nothing
-        ctx.runAtTick(3 + 140, () -> {
-            ctx.assertEquals(hazards(boss, "Firestorm"), 0, "the storm's gone, and its fire with it");
-            boss.discard();
-            ctx.complete();
-        });
+    }
+
+    /** Runs {@code then} once the boss has been ticked a couple of times (his chunk is ticking). */
+    private static void whenTicking(TestContext ctx, OrnamixEntity boss, Runnable then) {
+        if (boss.age > 2) then.run();
+        else ctx.waitAndRun(1, () -> whenTicking(ctx, boss, then));
     }
 
     /**

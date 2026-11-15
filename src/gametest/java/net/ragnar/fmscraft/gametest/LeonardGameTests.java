@@ -136,6 +136,7 @@ public class LeonardGameTests implements FabricGameTest {
                 throw new RuntimeException(e);
             }
             boss.goConeman();
+            boss.setConeDropChance(1f);
             Vec3d start = boss.getPos();
             boss.setHealth(3);
             boss.damage(ctx.getWorld().getDamageSources().magic(), 20);
@@ -356,6 +357,7 @@ public class LeonardGameTests implements FabricGameTest {
             boss.timeUntilRegen = 0;
             boss.damage(arena.getDamageSources().playerAttack(player), 20f);
             ctx.assertTrue(before - boss.getHealth() < 20f * LeonardEntity.DAMAGE_TAKEN, "tankier, took " + (before - boss.getHealth()));
+            boss.setConeDropChance(1f);
             boss.damage(arena.getDamageSources().genericKill(), Float.MAX_VALUE);
             FightSession session = BossFights.session(Sin.PRIDE);
             ctx.assertTrue(session.stage() == FightSession.Stage.WON, "fight should be won");
@@ -542,6 +544,78 @@ public class LeonardGameTests implements FabricGameTest {
                 leave(ctx, target);
                 ctx.complete();
             });
+        });
+    }
+
+    /** Nine fights in ten the cone doesn't come off whole: it's gone in the poof, nothing left to pick up. */
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200, batchId = "leonard_death_no_cone")
+    public void mostFightsTheConeIsGoneInThePoof(TestContext ctx) {
+        floor(ctx);
+        LeonardEntity boss = spawn(ctx, new BlockPos(4, 1, 4));
+        whenReady(ctx, boss, () -> {
+            try {
+                java.lang.reflect.Field phase = net.ragnar.fmscraft.boss.SinBossEntity.class.getDeclaredField("phase");
+                phase.setAccessible(true);
+                phase.setInt(boss, 2);
+            } catch (ReflectiveOperationException e) {
+                throw new RuntimeException(e);
+            }
+            boss.goConeman();
+            boss.setConeDropChance(0f);
+            boss.setHealth(3);
+            boss.damage(ctx.getWorld().getDamageSources().magic(), 20);
+            ctx.waitAndRun(LeonardEntity.DEATH_POOF + 4, () -> {
+                ctx.assertFalse(boss.coned(), "poof: the cone's off");
+                ctx.assertTrue(ctx.getWorld().getEntitiesByClass(ItemEntity.class, boss.getBoundingBox().expand(8),
+                        e -> e.getStack().isOf(ModItems.TRAFFIC_CONE)).isEmpty(), "and gone");
+                boss.discard();
+                ctx.complete();
+            });
+        });
+    }
+
+    /** Worn, the cone is as good as a netherite helmet: 3 armor, 3 toughness, a tenth knockback resistance. */
+    @GameTest(templateName = EMPTY_STRUCTURE, batchId = "traffic_cone")
+    public void theConeIsANetheriteHelmet(TestContext ctx) {
+        ServerPlayerEntity player = player(ctx, new BlockPos(1, 1, 1), 0);
+        double armor = player.getAttributeValue(EntityAttributes.GENERIC_ARMOR);
+        double toughness = player.getAttributeValue(EntityAttributes.GENERIC_ARMOR_TOUGHNESS);
+        double knockback = player.getAttributeValue(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE);
+        player.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, new net.minecraft.item.ItemStack(ModItems.TRAFFIC_CONE));
+        player.getMainHandStack().use(ctx.getWorld(), player, net.minecraft.util.Hand.MAIN_HAND);
+        ctx.assertTrue(player.getEquippedStack(net.minecraft.entity.EquipmentSlot.HEAD).isOf(ModItems.TRAFFIC_CONE), "used in the air: on the head");
+        ctx.runAtTick(2, () -> {
+            // A mock player isn't ticked by a client: tick him once so what he's wearing counts
+            player.playerTick();
+            ctx.assertEquals(player.getAttributeValue(EntityAttributes.GENERIC_ARMOR) - armor, 3.0, "netherite helmet armor");
+            ctx.assertEquals(player.getAttributeValue(EntityAttributes.GENERIC_ARMOR_TOUGHNESS) - toughness, 3.0, "netherite helmet toughness");
+            ctx.assertTrue(Math.abs(player.getAttributeValue(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE) - knockback - 0.1) < 1e-6, "netherite helmet knockback resistance");
+            leave(ctx, player);
+            ctx.complete();
+        });
+    }
+
+    /** Used on a block, the cone is set down on it; broken, it drops itself, and an explosion can't take it. */
+    @GameTest(templateName = EMPTY_STRUCTURE, batchId = "traffic_cone")
+    public void theConeCanBeSetDown(TestContext ctx) {
+        floor(ctx);
+        ServerPlayerEntity player = player(ctx, new BlockPos(4, 1, 2), 0);
+        player.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, new net.minecraft.item.ItemStack(ModItems.TRAFFIC_CONE));
+        BlockPos ground = ctx.getAbsolutePos(new BlockPos(4, 0, 4)), on = ground.up();
+        var hit = new net.minecraft.util.hit.BlockHitResult(Vec3d.ofCenter(ground).add(0, 0.5, 0), Direction.UP, ground, false);
+        player.getMainHandStack().useOnBlock(new net.minecraft.item.ItemUsageContext(player, net.minecraft.util.Hand.MAIN_HAND, hit));
+        ctx.assertTrue(ctx.getWorld().getBlockState(on).isOf(ModBlocks.TRAFFIC_CONE), "set down on the ground");
+        ctx.assertTrue(player.getMainHandStack().isEmpty(), "out of the hand");
+        ctx.assertTrue(player.getEquippedStack(net.minecraft.entity.EquipmentSlot.HEAD).isEmpty(), "and not worn");
+        Vec3d c = Vec3d.ofCenter(on);
+        ctx.getWorld().createExplosion(null, c.x + 1.5, c.y, c.z, 3f, net.minecraft.world.World.ExplosionSourceType.TNT);
+        ctx.assertTrue(ctx.getWorld().getBlockState(on).isOf(ModBlocks.TRAFFIC_CONE), "an explosion can't take it");
+        ctx.getWorld().breakBlock(on, true, player);
+        ctx.runAtTick(2, () -> {
+            ctx.assertFalse(ctx.getWorld().getEntitiesByClass(ItemEntity.class, new Box(on).expand(3),
+                    e -> e.getStack().isOf(ModItems.TRAFFIC_CONE)).isEmpty(), "broken: back as an item");
+            leave(ctx, player);
+            ctx.complete();
         });
     }
 

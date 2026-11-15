@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [{"type": "minecraft:item", "name": "fmscraft:traffic_cone"}]
+    }
+  ],
+  "random_sequence": "fmscraft:blocks/traffic_cone"
+}

@@ -99,8 +99,9 @@ public class GluttonyHallStructure extends Structure {
     }
 
     /**
-     * Whether the hall fits facing {@code rotation}: lava under nearly all of its terrace, open air through nearly all
-     * of the cathedral up to the top of its walls, and over at least half of it up to its ridge.
+     * Whether the hall fits facing {@code rotation}: lava under nearly all of its terrace and along nearly all of both its
+     * sides, open air through nearly all of the cathedral up to the top of its walls, and over at least half of it up to
+     * its ridge.
      */
     private static boolean fits(Context context, BlockPos center, BlockRotation rotation, Map<Long, VerticalBlockSample> columns) {
         int lava = 0, total = 0, open = 0, roof = 0;
@@ -115,7 +116,16 @@ public class GluttonyHallStructure extends Structure {
                 if (sample.getState(FLOOR_Y + GluttonyHallShape.RIDGE).isAir()) roof++;
             }
         }
-        return lava >= total * MIN_LAVA && open >= total * MIN_OPEN && roof >= total * MIN_ROOF;
+        if (lava < total * MIN_LAVA || open < total * MIN_OPEN || roof < total * MIN_ROOF) return false;
+        // And lava along both its sides, just past the terrace: in the lake, not up against its shore
+        int rim = 0, rimLava = 0;
+        for (int x = GluttonyHallShape.TERRACE_WEST - 4; x <= GluttonyHallShape.TERRACE_EAST + 4; x += 6) {
+            for (int z : new int[]{-GluttonyHallShape.TERRACE_HALF - 2, GluttonyHallShape.TERRACE_HALF + 2}) {
+                rim++;
+                if (openLava(sample(context, center, rotation, x, z, columns))) rimLava++;
+            }
+        }
+        return rimLava >= rim * MIN_LAVA;
     }
 
     private static VerticalBlockSample sample(Context context, BlockPos center, BlockRotation rotation, int lx, int lz, Map<Long, VerticalBlockSample> columns) {

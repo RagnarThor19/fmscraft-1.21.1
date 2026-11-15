@@ -4,8 +4,8 @@
   ],
   "placement": {
     "type": "minecraft:random_spread",
-    "spacing": 110,
-    "separation": 55,
+    "spacing": 143,
+    "separation": 71,
     "salt": 1592043877,
     "exclusion_zone": {
       "other_set": "fmscraft:greed_vault",

@@ -49,7 +49,7 @@ Bosses should read like the Wither, Ender Dragon or Warden: telegraphed attacks 
   `tools/structures/pride_arena.py` from `pride_arena_source.nbt`. Positions (and Munch's) in `PrideArena`. His skin, the
   shades glint, Munch's skin and eyes, the lightning bolt and the traffic cone's texture come from
   `tools/textures/leonard_textures.py` (sources `leonard_skin.png`, `munch.png`); the cone's cube model is hand-written
-  (`models/item/traffic_cone.json`). His sky, the cloud sea and banks, and Munch are drawn client-side by `PrideSky`.
+  (`models/block/traffic_cone.json`; `models/item/traffic_cone.json` adds how it's held and worn). His sky, the cloud sea and banks, and Munch are drawn client-side by `PrideSky`.
 - RICKY's arena (Sloth): `structure/arena/sloth.nbt` (the heart of the Abandoned City) is cut straight out of the world
   save by `tools/structures/sloth_arena.py` (needs numpy; the save is at `~/for boss fights/Ricky/Abandoned_City`). Positions
   in `SlothArena`; the flooded plain round it is the dimension's own flat ground. His skins and the glow come from

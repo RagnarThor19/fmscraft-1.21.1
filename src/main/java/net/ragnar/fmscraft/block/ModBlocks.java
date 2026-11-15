@@ -2,6 +2,7 @@ package net.ragnar.fmscraft.block;
 
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
+import net.minecraft.block.MapColor;
 import net.minecraft.block.piston.PistonBehavior;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
@@ -32,6 +33,17 @@ public class ModBlocks {
             .nonOpaque()
             .dropsNothing()
             .sounds(BlockSoundGroup.POINTED_DRIPSTONE)));
+
+    /**
+     * CONEMAN's traffic cone, set down. Quick to pick back up with anything, but nothing blows it up: there's only
+     * ever one in ten fights.
+     */
+    public static final Block TRAFFIC_CONE = register("traffic_cone", new TrafficConeBlock(AbstractBlock.Settings.create()
+            .mapColor(MapColor.ORANGE)
+            .strength(0.5f, 1200.0f)
+            .nonOpaque()
+            .sounds(BlockSoundGroup.WOOL)
+            .pistonBehavior(PistonBehavior.DESTROY)));
 
     private static Block register(String name, Block block) {
         return Registry.register(Registries.BLOCK, Identifier.of(FmsCraft.MOD_ID, name), block);

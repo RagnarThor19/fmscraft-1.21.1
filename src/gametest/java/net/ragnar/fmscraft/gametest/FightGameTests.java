@@ -357,6 +357,12 @@ public class FightGameTests implements FabricGameTest {
         });
     }
 
+    /** Runs {@code then} once {@code player} has been ticked {@code age} times, or after {@code limit} ticks regardless. */
+    private static void whenAged(TestContext ctx, ServerPlayerEntity player, int age, int limit, Runnable then) {
+        if (player.age >= age || limit <= 0) then.run();
+        else ctx.waitAndRun(1, () -> whenAged(ctx, player, age, limit - 1, then));
+    }
+
     /** With canDie off a bot is left on half a heart, the fight goes on, and it eats a golden apple. */
     @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 4500, batchId = "fight_bots_undying")
     public void undyingBotSurvivesAndEats(TestContext ctx) {
@@ -368,12 +374,16 @@ public class FightGameTests implements FabricGameTest {
             BossFights.open(Sin.SLOTH, world, base, Direction.Axis.X, join);
             FightBot bot = FightBots.start(world, ctx.getAbsolute(new net.minecraft.util.math.Vec3d(1.5, 1, 1.5)), 0f, Sin.SLOTH, 1, true, false).get(0);
 
-            // Past the 3 seconds of protection every player gets on joining
-            ctx.waitAndRun(join + 40, () -> {
+            // Past the 3 seconds of protection every player gets on joining: counted in the bot's own ticks, which can
+            // start late when the server is busy
+            whenAged(ctx, bot, 65, 200, () -> {
                 // (just after a hit from the boss, damage() reports false but still deals the difference)
                 bot.damage(bot.getDamageSources().generic(), 1000f);
+                boolean online = server.getPlayerManager().getPlayer(bot.getUuid()) == bot;
+                if (!(bot.isAlive() && bot.getHealth() == 1f)) BossFights.forceEnd(server, Sin.SLOTH);
                 ctx.assertTrue(bot.isAlive() && bot.getHealth() == 1f, "bot that can't die should be left on half a heart, health " + bot.getHealth()
-                        + " (mode " + bot.interactionManager.getGameMode() + ", teleporting " + bot.isInTeleportationState() + ", age " + bot.age + ")");
+                        + " (mode " + bot.interactionManager.getGameMode() + ", teleporting " + bot.isInTeleportationState() + ", age " + bot.age
+                        + ", online " + online + ", removed " + bot.isRemoved() + ", in " + bot.getWorld().getRegistryKey().getValue() + ")");
                 FightSession session = BossFights.session(Sin.SLOTH);
                 ctx.assertTrue(session != null && session.stage() == FightSession.Stage.ACTIVE, "fight goes on");
 

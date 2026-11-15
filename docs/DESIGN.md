@@ -1035,7 +1035,7 @@ Health / armor: 1000 HP for 5-7 players (healthScale: 60% alone ... 124% for 10,
 - **Where:** overworld only, fully buried (floor at y = -40, no entrance: dig in). Caves are carved before
   structures, and the maze is generated after mineshafts, trial chambers, strongholds and ores, replacing every block
   in its box; a 2-block deepslate tile shell above and below seals it. Nothing generates into it. Rare: one per roughly
-  100x100 chunks, about 1600 blocks apart (`worldgen/structure_set/envy_maze.json`), kept away from ancient cities.
+  121x121 chunks, about 1900 blocks apart (`worldgen/structure_set/envy_maze.json`), kept away from ancient cities.
   The maze is centered on the chunk it starts in: the game only builds a structure up to 8 chunks from its start,
   and the maze is 10 chunks across (mazes from before this fix are missing their east and south edges; statues
   there spawn on the nearest built cell instead). `/locate structure fmscraft:envy_maze`.
@@ -1079,7 +1079,7 @@ Health / armor: 1000 HP for 5-7 players (healthScale: 60% alone ... 124% for 10,
 
 `structure/greed/` + `entity/GreedStatueEntity`. Built in-game in the Builds world.
 - **Where:** the twilight dimension only (`tags/worldgen/biome/has_structure/greed_vault.json`), rare: one chance per
-  80x80 chunks, about 1280 blocks apart (`worldgen/structure_set/greed_vault.json`). Buried just under the surface:
+  92x92 chunks, about 1470 blocks apart (`worldgen/structure_set/greed_vault.json`). Buried just under the surface:
   only the **pipe** sticks up out of the ground (3-4 blocks), and the rooms stay at least a block under the ground
   everywhere above them. Turned to a random side, centered on its start chunk. It generates after all the twilight
   features (trees, graves...) so nothing grows into it, and anything over the pipe's mouth is cleared. No mobs spawn
@@ -1127,7 +1127,7 @@ Health / armor: 1000 HP for 5-7 players (healthScale: 60% alone ... 124% for 10,
 ### Pride: the Tower of Pride (built)
 
 `structure/pride/`. After Bruegel's *Tower of Babel* and the spiral minaret of Samarra.
-- **Where:** overworld, very rare: one chance per 300x300 chunks (~4800 blocks apart, `worldgen/structure_set/tower_of_pride.json`),
+- **Where:** overworld, very rare: one chance per 229x229 chunks (~3700 blocks apart, `worldgen/structure_set/tower_of_pride.json`),
   and only where the ground is dry and level (within 20 blocks) in plains, sunflower plains, meadow, savanna,
   desert, badlands, snowy plains, forest, birch forest or taiga (`tags/worldgen/biome/has_structure/tower_of_pride.json`),
   so in practice further apart than that. Kept 8 chunks from villages. `/locate structure fmscraft:tower_of_pride`.
@@ -1194,7 +1194,7 @@ Health / armor: 1000 HP for 5-7 players (healthScale: 60% alone ... 124% for 10,
 
 `structure/lust/` + `entity/LustStatueEntity`. Preview from above: `docs/lusts-garden.png`.
 - **Where:** the twilight's plains only (`tags/worldgen/biome/has_structure/lusts_garden.json`), on the surface. Very
-  rare: one chance per 110x110 chunks, about 1760 blocks apart (`worldgen/structure_set/lusts_garden.json`), kept
+  rare: one chance per 143x143 chunks, about 2290 blocks apart (`worldgen/structure_set/lusts_garden.json`), kept
   12 chunks from Greed Vaults and 10 from the twilight mod's temples (read from the registry by id, so it can't bury
   a temple portal). It needs the ground level (within 12 blocks) and in its biome all the way out to the hedge; the
   twilight is flat enough that it takes ~95% of its chances. Generates last, clearing whatever stood there. No mobs
@@ -1271,8 +1271,8 @@ bottom: cut through the middle from the gate (right) to the portal room (left)).
   solid ground (60% of the points sampled round its shell), and its entrance tunnel has to reach an open cave: for each
   of the four ways it can face it looks out from the gate, takes the nearest cave (4 to 40 blocks past the wall), and
   the tunnel runs exactly that far, so it always opens out of a cave wall. Kept 8 chunks from fortresses and bastions.
-  One chance per 67x67 chunks (`worldgen/structure_set/den_of_wrath.json`), and about one chance in seven finds room,
-  so roughly 2500 to 3000 blocks apart (20,000 to 24,000 in the overworld), as rare as the Hall of Gluttony. Generates last; no mobs spawn in it. `/locate structure fmscraft:den_of_wrath` (in the
+  One chance per 74x74 chunks (`worldgen/structure_set/den_of_wrath.json`), and about one chance in seven finds room,
+  so roughly 2800 to 3300 blocks apart (22,000 to 26,000 in the overworld), as rare as the Hall of Gluttony. Generates last; no mobs spawn in it. `/locate structure fmscraft:den_of_wrath` (in the
   Nether).
 - **Shape** (`WrathDenShape`, pure logic, unit tested; built by `WrathDenPiece`): one round hall 88 blocks across,
   straight walls 40 high and a dome up to 66, in a 4-thick shell (netherrack outside so it reads as rock). You come in
@@ -1345,8 +1345,8 @@ and under it the floor plan, the bridge on the right, the chapel on the left).
   roof, as a fortress runs into the rock. Then its bridge has to reach land: for each of the four ways it can face it
   looks out from the front of the terrace for the nearest shore (ground between the lava's surface and the bridge's
   deck, air over it) within 80 blocks, and turns to the closest. Kept 8 chunks from fortresses and bastions. One
-  chance per 24x24 chunks (`worldgen/structure_set/hall_of_gluttony.json`), and only about one in 50 of those finds
-  a lake big enough, so roughly 2500 to 3000 blocks apart (20,000 to 24,000 in the overworld), as rare as the Den of Wrath. Generates last; no monsters spawn in
+  chance per 26x26 chunks (`worldgen/structure_set/hall_of_gluttony.json`), and only about one in 65 of those finds
+  a lake big enough (lava under the terrace and along both its sides), so roughly 3000 to 3500 blocks apart (24,000 to 28,000 in the overworld), as rare as the Den of Wrath. Generates last; no monsters spawn in
   it. `/locate structure fmscraft:hall_of_gluttony` (in the Nether).
 - **Shape** (`GluttonyHallShape`, pure logic, unit tested; built by `GluttonyHallPiece`): a cathedral built the way the
   piglins build bastions, on a paved terrace (105 x 53) with a crenellated parapet, its foundations going down into the

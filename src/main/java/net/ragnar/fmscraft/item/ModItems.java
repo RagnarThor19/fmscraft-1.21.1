@@ -46,8 +46,12 @@ public class ModItems {
 
     // LEONARD's lightning bolt: held, thrown and flung back by him, drawn by item displays. Not obtainable
     public static final Item LIGHTNING_BOLT = register("lightning_bolt", new Item(new Item.Settings()));
-    /** The traffic cone that makes him CONEMAN. He drops it when he's beaten; it's worn on the head like a carved pumpkin. */
-    public static final Item TRAFFIC_CONE = register("traffic_cone", new TrafficConeItem(new Item.Settings().maxCount(1).rarity(Rarity.RARE)));
+    /**
+     * The traffic cone that makes him CONEMAN. He drops it one time in ten when he's beaten; it's worn on the head
+     * (netherite helmet armor) or set down as a block, like a carved pumpkin.
+     */
+    public static final Item TRAFFIC_CONE = register("traffic_cone", new TrafficConeItem(ModBlocks.TRAFFIC_CONE,
+            new Item.Settings().maxCount(1).rarity(Rarity.EPIC).fireproof()));
 
     private static Item register(String name, Item item) {
         return Registry.register(Registries.ITEM, Identifier.of(FmsCraft.MOD_ID, name), item);

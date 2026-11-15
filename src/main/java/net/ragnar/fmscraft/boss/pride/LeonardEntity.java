@@ -2054,14 +2054,30 @@ public class LeonardEntity extends SinBossEntity implements LeonardLook {
         }
     }
 
-    /** Poof: the cone flies off his head (yours to keep), and he's just LEONARD again, shades and all. */
+    /** One fight in ten, the cone is left behind when he's beaten: the hardest thing in the game to get. */
+    public static final float CONE_DROP_CHANCE = 0.1f;
+    private float coneDropChance = CONE_DROP_CHANCE;
+
+    /** For game tests: the chance this LEONARD leaves his cone behind. */
+    public void setConeDropChance(float chance) {
+        coneDropChance = chance;
+    }
+
+    private boolean rollsCone() {
+        return random.nextFloat() < coneDropChance;
+    }
+
+    /**
+     * Poof: the cone flies off his head (yours to keep, one time in ten; otherwise it's gone in the smoke), and he's
+     * just LEONARD again, shades and all.
+     */
     private void unCone(ServerWorld world) {
         Vec3d top = getPos().add(0, getHeight() * 0.9, 0), mid = getPos().add(0, getHeight() * 0.5, 0);
         world.spawnParticles(ParticleTypes.CLOUD, mid.x, mid.y, mid.z, 90, getWidth() * 0.5, getHeight() * 0.4, getWidth() * 0.5, 0.08);
         world.spawnParticles(ParticleTypes.POOF, mid.x, mid.y, mid.z, 40, getWidth() * 0.4, getHeight() * 0.4, getWidth() * 0.4, 0.06);
         world.playSound(null, mid.x, mid.y, mid.z, SoundEvents.ENTITY_BREEZE_WIND_BURST.value(), SoundCategory.HOSTILE, 2.0f, 1.0f);
         world.playSound(null, mid.x, mid.y, mid.z, SoundEvents.ENTITY_ITEM_PICKUP, SoundCategory.HOSTILE, 2.0f, 0.5f);
-        if (dataTracker.get(CONED)) {
+        if (dataTracker.get(CONED) && rollsCone()) {
             net.minecraft.entity.ItemEntity cone = new net.minecraft.entity.ItemEntity(world, top.x, top.y, top.z, new ItemStack(ModItems.TRAFFIC_CONE));
             double a = random.nextDouble() * MathHelper.TAU;
             cone.setVelocity(Math.cos(a) * 0.18, 0.55, Math.sin(a) * 0.18);
@@ -2192,7 +2208,7 @@ public class LeonardEntity extends SinBossEntity implements LeonardLook {
             world.spawnParticles(ParticleTypes.CLOUD, c.x, c.y, c.z, 80, 2, 2, 2, 0.1);
             world.playSound(null, c.x, c.y, c.z, SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, SoundCategory.HOSTILE, 4.0f, 0.6f);
             world.playSound(null, c.x, c.y, c.z, SoundEvents.BLOCK_BEACON_DEACTIVATE, SoundCategory.HOSTILE, 4.0f, 0.5f);
-            if (coned()) dropStack(new ItemStack(ModItems.TRAFFIC_CONE));
+            if (coned() && rollsCone()) dropStack(new ItemStack(ModItems.TRAFFIC_CONE));
         }
         super.onDeath(source);
     }

@@ -87,6 +87,12 @@ public class ModModelProvider extends FabricModelProvider {
             return model;
         });
 
+        // The traffic cone set down: its cubes are hand-written (models/block/traffic_cone.json), and so is its item model
+        // (models/item/traffic_cone.json: how it's held and worn)
+        generator.blockStateCollector.accept(BlockStateModelGenerator.createSingletonBlockState(ModBlocks.TRAFFIC_CONE,
+                Identifier.of(FmsCraft.MOD_ID, "block/traffic_cone")));
+        generator.excludeFromSimpleItemModelGeneration(ModBlocks.TRAFFIC_CONE);
+
         // MUGEN's void spike: pointed dripstone's model with our own textures, one per section (tools/textures/mugen_textures.py)
         Map<Thickness, Identifier> spike = new EnumMap<>(Thickness.class);
         for (Thickness thickness : new Thickness[]{Thickness.BASE, Thickness.MIDDLE, Thickness.FRUSTUM, Thickness.TIP}) {
@@ -112,8 +118,8 @@ public class ModModelProvider extends FabricModelProvider {
         generator.register(ModItems.SHURIKEN, Models.GENERATED);
         generator.register(ModItems.SHADOW_ORB, Models.GENERATED);
         generator.register(ModItems.SHADOW_CHARGE, Models.GENERATED);
-        // LEONARD's bolt (tools/textures/leonard_textures.py). The traffic cone's model is built of cubes by hand
-        // (resources/assets/fmscraft/models/item/traffic_cone.json), so it isn't generated here
+        // LEONARD's bolt (tools/textures/leonard_textures.py). The traffic cone's models are built of cubes by hand
+        // (resources/assets/fmscraft/models/block|item/traffic_cone.json), so they aren't generated here
         generator.register(ModItems.LIGHTNING_BOLT, Models.HANDHELD);
     }
 }
