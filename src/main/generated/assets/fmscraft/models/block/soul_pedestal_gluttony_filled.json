@@ -1,0 +1,9 @@
+{
+  "parent": "fmscraft:block/sin_portal_frame_keyed",
+  "textures": {
+    "bottom": "minecraft:block/tuff",
+    "key": "fmscraft:item/soul_of_gluttony",
+    "side": "fmscraft:block/soul_pedestal_gluttony_side",
+    "top": "fmscraft:block/soul_pedestal_gluttony_top_lit"
+  }
+}

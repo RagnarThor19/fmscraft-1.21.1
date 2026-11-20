@@ -69,6 +69,8 @@ public class FmsCraft implements ModInitializer {
 		PayloadTypeRegistry.playS2C().register(net.ragnar.fmscraft.network.MugenControlPayload.ID, net.ragnar.fmscraft.network.MugenControlPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(net.ragnar.fmscraft.network.PrideSkyPayload.ID, net.ragnar.fmscraft.network.PrideSkyPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(net.ragnar.fmscraft.network.SlothSkyPayload.ID, net.ragnar.fmscraft.network.SlothSkyPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(net.ragnar.fmscraft.network.CreditsPayload.ID, net.ragnar.fmscraft.network.CreditsPayload.CODEC);
+		PayloadTypeRegistry.playC2S().register(net.ragnar.fmscraft.network.CreditsDonePayload.ID, net.ragnar.fmscraft.network.CreditsDonePayload.CODEC);
 
 		FragmentTriggers.register();
 		BossFights.register();
@@ -88,6 +90,7 @@ public class FmsCraft implements ModInitializer {
 		WrathDens.register();
 		GluttonyHalls.register();
 		StructureAmbience.register();
+		net.ragnar.fmscraft.ending.TrueEnding.register();
 		FmsCommands.register();
 		net.ragnar.fmscraft.command.GurtCommand.register();
 		net.ragnar.fmscraft.photo.SkinModelCommands.register();

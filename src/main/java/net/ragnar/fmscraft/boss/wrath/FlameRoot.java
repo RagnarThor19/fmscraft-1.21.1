@@ -13,8 +13,6 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
@@ -59,7 +57,6 @@ public final class FlameRoot {
         player.velocityModified = true;
         player.setOnFireFor(ticks / 20f);
         if (fresh) {
-            player.sendMessage(Text.translatable("message.fmscraft.ornamix_rooted").formatted(Formatting.GOLD), true);
             player.getWorld().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ITEM_FIRECHARGE_USE, SoundCategory.HOSTILE, 1.0f, 0.6f);
             player.playSoundToPlayer(SoundEvents.BLOCK_CHAIN_PLACE, SoundCategory.HOSTILE, 1.0f, 0.6f);
         }

@@ -55,3 +55,10 @@ Bosses should read like the Wither, Ender Dragon or Warden: telegraphed attacks 
   in `SlothArena`; the flooded plain round it is the dimension's own flat ground. His skins and the glow come from
   `tools/textures/ricky_textures.py` (sources `ricky_skin.png`, `ricky_saiyan_skin.png`); his songs, power-up and teleport
   from `tools/sounds/sloth_sounds.py`. His sky is drawn client-side by `SlothSky`.
+- The True Ending shrine, `structure/fms_beams.nbt`, is built by `tools/structures/fms_beams.py` from `fms_beams` in the
+  Builds world (its Sin Portal Frames become Soul Pedestals). It's placed once per world near spawn by `TrueEnding`,
+  not by worldgen. The pedestal textures come from `tools/textures/pedestal_textures.py`.
+- The memories video after the credits, `video/memories.fmv`, is built by `tools/video/credits_video.py` from
+  `tools/video/source/memories.mp4` (needs ffmpeg; the hole's shape is drawn in the script, `--shape` previews it).
+  Its cracks and glow come from `tools/textures/credits_textures.py`. To see it in game without finishing the game:
+  `/fmscraft credits memories`, or `FMSCRAFT_CREDITS_PREVIEW=0 gradlew runClient` (screenshots to `run/screenshots`).

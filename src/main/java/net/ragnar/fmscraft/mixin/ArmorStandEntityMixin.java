@@ -11,9 +11,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ArmorStandEntity.class)
 public abstract class ArmorStandEntityMixin {
-    // Covers players, dispensers and commands: every way armor ends up on a stand goes through equipStack
+    // Covers players, dispensers and commands: everything that ends up on a stand goes through equipStack
     @Inject(method = "equipStack", at = @At("TAIL"))
     private void fmscraft$checkPride(EquipmentSlot slot, ItemStack stack, CallbackInfo ci) {
-        PrideTrigger.onEquipmentChanged((ArmorStandEntity) (Object) this);
+        PrideTrigger.onEquipped((ArmorStandEntity) (Object) this, slot);
     }
 }

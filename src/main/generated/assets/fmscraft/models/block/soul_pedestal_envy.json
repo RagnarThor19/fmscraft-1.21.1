@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/end_portal_frame",
+  "textures": {
+    "bottom": "minecraft:block/tuff",
+    "particle": "fmscraft:block/soul_pedestal_envy_side",
+    "side": "fmscraft:block/soul_pedestal_envy_side",
+    "top": "fmscraft:block/soul_pedestal_envy_top"
+  }
+}

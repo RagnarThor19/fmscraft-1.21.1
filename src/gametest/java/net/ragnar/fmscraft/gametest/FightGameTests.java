@@ -157,6 +157,29 @@ public class FightGameTests implements FabricGameTest {
         ctx.complete();
     }
 
+    /** The main and inner chests of every sin's dungeon hold a passive tome 5% of the time. */
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void dungeonChestsSometimesHavePassiveTomes(TestContext ctx) {
+        ServerWorld world = ctx.getWorld();
+        String[] tables = {"den_of_wrath", "den_of_wrath_sanctum", "envy_safe_room", "hall_of_gluttony", "hall_of_gluttony_sanctum",
+                "lusts_garden_crypt", "sphere_of_sloth", "sphere_of_sloth_core", "tower_of_pride", "tower_of_pride_summit"};
+        for (String name : tables) {
+            var key = net.minecraft.registry.RegistryKey.of(net.minecraft.registry.RegistryKeys.LOOT_TABLE,
+                    net.minecraft.util.Identifier.of("fmscraft", "chests/" + name));
+            var loot = world.getServer().getReloadableRegistries().getLootTable(key);
+            int[] found = {0};
+            for (int i = 0; i < 4000; i++) {
+                loot.generateLoot(new net.minecraft.loot.context.LootContextParameterSet.Builder(world)
+                        .add(net.minecraft.loot.context.LootContextParameters.ORIGIN, net.minecraft.util.math.Vec3d.ZERO)
+                        .build(net.minecraft.loot.context.LootContextTypes.CHEST), stack -> {
+                    if (MagicTomes.of(WheelTier.PASSIVE).contains(stack.getItem())) found[0]++;
+                });
+            }
+            ctx.assertTrue(found[0] >= 140 && found[0] <= 260, "expected ~5% passive tomes in " + name + ", got " + found[0] + "/4000");
+        }
+        ctx.complete();
+    }
+
     @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 4000)
     public void emptyPortalClosesWithoutAFight(TestContext ctx) {
         // One Sloth fight at a time, and other tests' batches overlap this one: wait for Sloth to be free

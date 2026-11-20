@@ -3,6 +3,7 @@ package net.ragnar.fmscraft.block;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.MapColor;
+import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.block.piston.PistonBehavior;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
@@ -26,6 +27,19 @@ public class ModBlocks {
             .luminance(state -> state.get(SinPortalFrameBlock.KEY) ? 10 : 1)
             .sounds(BlockSoundGroup.GLASS)
             .pistonBehavior(PistonBehavior.BLOCK)));
+
+    /** The seven sockets of the True Ending shrine. Unbreakable, like the frames, so a soul can't be dug back out. */
+    public static final Block SOUL_PEDESTAL = register("soul_pedestal", new SoulPedestalBlock(AbstractBlock.Settings.create()
+            .mapColor(MapColor.TERRACOTTA_GRAY)
+            .strength(-1.0f, 3600000.0f)
+            .dropsNothing()
+            .luminance(state -> state.get(SoulPedestalBlock.SOUL) ? 15 : 3)
+            .sounds(BlockSoundGroup.POLISHED_TUFF)
+            .pistonBehavior(PistonBehavior.BLOCK)));
+
+    public static final BlockEntityType<SoulPedestalBlockEntity> SOUL_PEDESTAL_ENTITY = Registry.register(Registries.BLOCK_ENTITY_TYPE,
+            Identifier.of(FmsCraft.MOD_ID, "soul_pedestal"),
+            BlockEntityType.Builder.create(SoulPedestalBlockEntity::new, SOUL_PEDESTAL).build());
 
     /** MUGEN's void spikes, shown by block displays only: never placed, no item. */
     public static final Block VOID_SPIKE = register("void_spike", new VoidSpikeBlock(AbstractBlock.Settings.create()

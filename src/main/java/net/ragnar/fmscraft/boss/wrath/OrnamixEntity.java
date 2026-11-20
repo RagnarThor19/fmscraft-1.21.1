@@ -37,7 +37,6 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -2192,7 +2191,6 @@ public class OrnamixEntity extends SinBossEntity {
                 continue;
             }
             int out = outOfPit.merge(p.getUuid(), 1, Integer::sum);
-            if (out == 10) p.sendMessage(Text.translatable("message.fmscraft.ornamix_pit").formatted(Formatting.GOLD), true);
             if (out < OUT_OF_PIT_TICKS) continue;
             outOfPit.remove(p.getUuid());
             Vec3d from = p.getPos().subtract(WrathArena.CENTER).multiply(1, 0, 1);

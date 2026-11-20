@@ -59,8 +59,9 @@ public final class MagicTomes {
         } catch (ReflectiveOperationException | ClassCastException e) {
             FmsCraft.LOGGER.warn("Couldn't read Ragnars Magic Mod tomes; the tome wheel is disabled", e);
         }
-        FmsCraft.LOGGER.info("Tome wheel pools: {} beginner, {} advanced, {} master",
-                tomes.get(WheelTier.BEGINNER).size(), tomes.get(WheelTier.ADVANCED).size(), tomes.get(WheelTier.MASTER).size());
+        FmsCraft.LOGGER.info("Tome wheel pools: {} beginner, {} advanced, {} master, {} passive",
+                tomes.get(WheelTier.BEGINNER).size(), tomes.get(WheelTier.ADVANCED).size(), tomes.get(WheelTier.MASTER).size(),
+                tomes.get(WheelTier.PASSIVE).size());
         return freeze(tomes);
     }
 

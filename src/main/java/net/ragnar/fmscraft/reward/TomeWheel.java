@@ -20,8 +20,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * After a sin is defeated, everyone in the fight spins their own wheel: 50% beginner, 30% advanced, 20% master,
- * then a random tome of that tier. The spin lasts 10 seconds. The server rolls everything up front and hands the tome over when the spin
+ * After a sin is defeated, everyone in the fight spins their own wheel (5/12 beginner, 3/12 advanced,
+ * 2/12 master, 2/12 passive), then a random tome of that tier. The spin lasts 10 seconds. The server rolls everything up front and hands the tome over when the spin
  * ends; the client only animates. So lag, a closed game or a missing client mod can never change or lose a prize.
  */
 public final class TomeWheel {

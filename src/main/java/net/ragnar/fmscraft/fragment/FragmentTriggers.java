@@ -4,9 +4,9 @@ package net.ragnar.fmscraft.fragment;
  * How each sin's fragments are obtained (full rules in docs/DESIGN.md). The "first fragment" advancement is
  * data-driven (inventory_changed), so a trigger only has to put the fragment into the world.
  *
- *  - GREED    bought from a villager (sometimes, at Expert)             {@link GreedTrade} (mixin)
+ *  - GREED    lucky strike: 1% mining diamond/debris, 0.5% gold/redstone/lapis   {@link LuckyStrike} (mixin)
  *  - WRATH    3 warden kills within 4 minutes, any players               {@link WrathTrigger}
- *  - PRIDE    full netherite armor on an armor stand -> 5                 {@link PrideTrigger} (mixin)
+ *  - PRIDE    a mob skull on an armor stand, once per skull              {@link PrideTrigger} (mixin)
  *  - GLUTTONY eat an enchanted golden apple                              {@link GluttonyTrigger} (mixin)
  *  - ENVY     rare loot in end cities, bastions, woodland mansions        {@link LootFragments}
  *  - LUST     one player breeds every animal in Two by Two -> 5           {@link LustTrigger} (mixin)
@@ -20,5 +20,6 @@ public final class FragmentTriggers {
         LootFragments.register();
         WrathTrigger.register();
         SlothTrigger.register();
+        PrideTrigger.register();
     }
 }

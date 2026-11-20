@@ -37,14 +37,15 @@ class TomeWheelTest {
     }
 
     @Test
-    void rollsAreFiftyThirtyTwenty() {
+    void rollsFollowTheSlices() {
         Random random = new Random(7);
         Map<WheelTier, Integer> count = new EnumMap<>(WheelTier.class);
         int rolls = 200_000;
         for (int i = 0; i < rolls; i++) count.merge(WheelTier.fromRoll(random.nextDouble()), 1, Integer::sum);
-        assertEquals(0.50, count.get(WheelTier.BEGINNER) / (double) rolls, 0.01);
-        assertEquals(0.30, count.get(WheelTier.ADVANCED) / (double) rolls, 0.01);
-        assertEquals(0.20, count.get(WheelTier.MASTER) / (double) rolls, 0.01);
+        assertEquals(5 / 12.0, count.get(WheelTier.BEGINNER) / (double) rolls, 0.01);
+        assertEquals(3 / 12.0, count.get(WheelTier.ADVANCED) / (double) rolls, 0.01);
+        assertEquals(2 / 12.0, count.get(WheelTier.MASTER) / (double) rolls, 0.01);
+        assertEquals(2 / 12.0, count.get(WheelTier.PASSIVE) / (double) rolls, 0.01);
     }
 
     @Test

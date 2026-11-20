@@ -28,7 +28,6 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
@@ -399,7 +398,6 @@ public class LeonardEntity extends SinBossEntity implements LeonardLook {
             }
         }
         hazards.add(new LeonardHazards.Paralysis(player, ticks));
-        player.sendMessage(Text.translatable("message.fmscraft.leonard_paralysed").formatted(Formatting.YELLOW), true);
     }
 
     /** Everyone in the arena near him, fighting or not. */
@@ -1655,7 +1653,6 @@ public class LeonardEntity extends SinBossEntity implements LeonardLook {
         if (t == 1) {
             setPoseState(POSE_RAISE);
             world.playSound(null, getX(), getY(), getZ(), SoundEvents.ITEM_TRIDENT_THUNDER.value(), SoundCategory.HOSTILE, 2.5f, 0.6f);
-            for (ServerPlayerEntity p : fighters) p.sendMessage(Text.translatable("message.fmscraft.leonard_grid").formatted(Formatting.YELLOW), true);
         }
         for (int round = 0; round < 2; round++) {
             int start = 4 + round * (GRID_MARK + 6), strikeAt = start + GRID_MARK;
@@ -1855,11 +1852,6 @@ public class LeonardEntity extends SinBossEntity implements LeonardLook {
         addHazard(beam);
         beamsFired++;
         sky(world, PrideSkyPayload.MUNCH_CHARGING, BEAM_CHARGE, at);
-        for (ServerPlayerEntity p : fighters) {
-            if (LeonardHazards.flatDistance(p.getPos(), at) < BEAM_RADIUS + 4) {
-                p.sendMessage(Text.translatable("message.fmscraft.munch_beam").formatted(Formatting.GOLD), true);
-            }
-        }
     }
 
     // ---- The hazards, his aura, the world round the fight ----
@@ -1940,7 +1932,6 @@ public class LeonardEntity extends SinBossEntity implements LeonardLook {
             p.velocityModified = true;
             LeonardHazards.lightning(world, to);
             shock(p, 4);
-            p.sendMessage(Text.translatable("message.fmscraft.leonard_caught").formatted(Formatting.YELLOW), true);
         }
     }
 

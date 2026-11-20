@@ -374,6 +374,9 @@ public final class BossFights {
         session.rewarded = true;
         server.getPlayerManager().broadcast(Text.translatable("message.fmscraft.boss_defeated",
                 session.sin.bossName(), session.sin.displayName()).formatted(Formatting.GOLD), false);
+        // Where its soul goes
+        server.getPlayerManager().broadcast(net.ragnar.fmscraft.ending.TrueEnding.whereTheShrineIs(server)
+                .copy().formatted(Formatting.GRAY, Formatting.ITALIC), false);
         for (ServerPlayerEntity player : online(server, session)) {
             player.playSoundToPlayer(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, SoundCategory.MASTER, 1.0f, 1.0f);
         }

@@ -13,6 +13,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.ragnar.fmscraft.ending.TrueEnding;
 import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fight.FightBots;
 import net.ragnar.fmscraft.sin.Sin;
@@ -34,6 +35,11 @@ import static net.minecraft.server.command.CommandManager.literal;
  *   /fmscraft end <sin>       end a running fight, everyone sent back
  *   /fmscraft status          which sins are defeated
  *   /fmscraft undefeat <sin>  clear a sin's defeated flag
+ *   /fmscraft shrine          where the True Ending shrine is (building it if the world has none yet)
+ *   /fmscraft shrine build    build a new shrine where you stand, facing you (the old one stays, but the souls
+ *                             and the win are forgotten)
+ *   /fmscraft shrine reset    take every soul back out of the shrine and forget the win
+ *   /fmscraft credits         roll the True Ending credits for yourself
  */
 public final class FmsCommands {
     private FmsCommands() {
@@ -56,7 +62,25 @@ public final class FmsCommands {
                             FmsWorldState.get(ctx.getSource().getServer()).clearDefeated(sin(ctx));
                             return 1;
                         })))
-                        .then(literal("status").executes(FmsCommands::status))));
+                        .then(literal("status").executes(FmsCommands::status))
+                        .then(literal("shrine").executes(FmsCommands::shrine)
+                                .then(literal("build").executes(FmsCommands::buildShrine))
+                                .then(literal("reset").executes(ctx -> {
+                                    TrueEnding.reset(ctx.getSource().getServer());
+                                    ctx.getSource().sendFeedback(() -> Text.literal("Emptied the shrine's pedestals"), true);
+                                    return 1;
+                                })))
+                        .then(literal("credits").executes(ctx -> {
+                            ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+                            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, TrueEnding.credits(ctx.getSource().getServer()));
+                            return 1;
+                        })
+                                .then(literal("memories").executes(ctx -> {
+                                    ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+                                    net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player,
+                                            new net.ragnar.fmscraft.network.CreditsPayload(java.util.List.of(), java.util.List.of(), true));
+                                    return 1;
+                                })))));
     }
 
     private static com.mojang.brigadier.builder.RequiredArgumentBuilder<ServerCommandSource, String> sinArgument() {
@@ -107,6 +131,29 @@ public final class FmsCommands {
         int joined = FightBots.start(player.getServerWorld(), near, player.getYaw(), sin, count, ai, canDie).size();
         ctx.getSource().sendFeedback(() -> Text.literal(joined + (ai ? " AI" : " NoAI") + " bot" + (joined == 1 ? "" : "s")
                 + " joining you" + (canDie ? " (they can die)" : " (they can't die)")), true);
+        return 1;
+    }
+
+    private static int shrine(CommandContext<ServerCommandSource> ctx) {
+        BlockPos pos = TrueEnding.ensureShrine(ctx.getSource().getServer());
+        int placed = FmsWorldState.get(ctx.getSource().getServer()).soulsPlaced().size();
+        ctx.getSource().sendFeedback(() -> Text.literal("The shrine is at " + pos.toShortString() + " (" + placed + "/7 souls)"), false);
+        return 1;
+    }
+
+    private static int buildShrine(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        if (player.getServerWorld() != ctx.getSource().getServer().getOverworld()) {
+            ctx.getSource().sendError(Text.literal("The shrine belongs in the overworld"));
+            return 0;
+        }
+        Direction facing = player.getHorizontalFacing().getOpposite();
+        BlockPos site = player.getBlockPos().offset(player.getHorizontalFacing(), 8);
+        BlockPos center = TrueEnding.place(player.getServerWorld(), site, facing);
+        FmsWorldState state = FmsWorldState.get(ctx.getSource().getServer());
+        state.setShrine(center);
+        state.clearSouls();
+        ctx.getSource().sendFeedback(() -> Text.literal("Built the shrine at " + center.toShortString()), true);
         return 1;
     }
 

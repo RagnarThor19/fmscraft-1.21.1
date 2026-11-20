@@ -1,0 +1,228 @@
+{
+  "variants": {
+    "facing=east,sin=envy,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_envy",
+      "y": 90
+    },
+    "facing=east,sin=envy,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_envy_filled",
+      "y": 90
+    },
+    "facing=east,sin=gluttony,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_gluttony",
+      "y": 90
+    },
+    "facing=east,sin=gluttony,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_gluttony_filled",
+      "y": 90
+    },
+    "facing=east,sin=greed,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_greed",
+      "y": 90
+    },
+    "facing=east,sin=greed,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_greed_filled",
+      "y": 90
+    },
+    "facing=east,sin=lust,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_lust",
+      "y": 90
+    },
+    "facing=east,sin=lust,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_lust_filled",
+      "y": 90
+    },
+    "facing=east,sin=pride,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_pride",
+      "y": 90
+    },
+    "facing=east,sin=pride,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_pride_filled",
+      "y": 90
+    },
+    "facing=east,sin=sloth,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_sloth",
+      "y": 90
+    },
+    "facing=east,sin=sloth,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_sloth_filled",
+      "y": 90
+    },
+    "facing=east,sin=wrath,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_wrath",
+      "y": 90
+    },
+    "facing=east,sin=wrath,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_wrath_filled",
+      "y": 90
+    },
+    "facing=north,sin=envy,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_envy",
+      "y": 0
+    },
+    "facing=north,sin=envy,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_envy_filled",
+      "y": 0
+    },
+    "facing=north,sin=gluttony,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_gluttony",
+      "y": 0
+    },
+    "facing=north,sin=gluttony,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_gluttony_filled",
+      "y": 0
+    },
+    "facing=north,sin=greed,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_greed",
+      "y": 0
+    },
+    "facing=north,sin=greed,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_greed_filled",
+      "y": 0
+    },
+    "facing=north,sin=lust,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_lust",
+      "y": 0
+    },
+    "facing=north,sin=lust,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_lust_filled",
+      "y": 0
+    },
+    "facing=north,sin=pride,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_pride",
+      "y": 0
+    },
+    "facing=north,sin=pride,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_pride_filled",
+      "y": 0
+    },
+    "facing=north,sin=sloth,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_sloth",
+      "y": 0
+    },
+    "facing=north,sin=sloth,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_sloth_filled",
+      "y": 0
+    },
+    "facing=north,sin=wrath,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_wrath",
+      "y": 0
+    },
+    "facing=north,sin=wrath,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_wrath_filled",
+      "y": 0
+    },
+    "facing=south,sin=envy,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_envy",
+      "y": 180
+    },
+    "facing=south,sin=envy,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_envy_filled",
+      "y": 180
+    },
+    "facing=south,sin=gluttony,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_gluttony",
+      "y": 180
+    },
+    "facing=south,sin=gluttony,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_gluttony_filled",
+      "y": 180
+    },
+    "facing=south,sin=greed,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_greed",
+      "y": 180
+    },
+    "facing=south,sin=greed,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_greed_filled",
+      "y": 180
+    },
+    "facing=south,sin=lust,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_lust",
+      "y": 180
+    },
+    "facing=south,sin=lust,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_lust_filled",
+      "y": 180
+    },
+    "facing=south,sin=pride,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_pride",
+      "y": 180
+    },
+    "facing=south,sin=pride,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_pride_filled",
+      "y": 180
+    },
+    "facing=south,sin=sloth,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_sloth",
+      "y": 180
+    },
+    "facing=south,sin=sloth,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_sloth_filled",
+      "y": 180
+    },
+    "facing=south,sin=wrath,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_wrath",
+      "y": 180
+    },
+    "facing=south,sin=wrath,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_wrath_filled",
+      "y": 180
+    },
+    "facing=west,sin=envy,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_envy",
+      "y": 270
+    },
+    "facing=west,sin=envy,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_envy_filled",
+      "y": 270
+    },
+    "facing=west,sin=gluttony,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_gluttony",
+      "y": 270
+    },
+    "facing=west,sin=gluttony,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_gluttony_filled",
+      "y": 270
+    },
+    "facing=west,sin=greed,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_greed",
+      "y": 270
+    },
+    "facing=west,sin=greed,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_greed_filled",
+      "y": 270
+    },
+    "facing=west,sin=lust,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_lust",
+      "y": 270
+    },
+    "facing=west,sin=lust,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_lust_filled",
+      "y": 270
+    },
+    "facing=west,sin=pride,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_pride",
+      "y": 270
+    },
+    "facing=west,sin=pride,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_pride_filled",
+      "y": 270
+    },
+    "facing=west,sin=sloth,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_sloth",
+      "y": 270
+    },
+    "facing=west,sin=sloth,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_sloth_filled",
+      "y": 270
+    },
+    "facing=west,sin=wrath,soul=false": {
+      "model": "fmscraft:block/soul_pedestal_wrath",
+      "y": 270
+    },
+    "facing=west,sin=wrath,soul=true": {
+      "model": "fmscraft:block/soul_pedestal_wrath_filled",
+      "y": 270
+    }
+  }
+}

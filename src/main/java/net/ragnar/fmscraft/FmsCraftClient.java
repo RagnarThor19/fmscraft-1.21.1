@@ -77,6 +77,10 @@ public class FmsCraftClient implements ClientModInitializer {
                 ModBlocks.SIN_PORTAL);
         // The key standing in the frame is cut out of its item texture
         BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.SIN_PORTAL_FRAME, RenderLayer.getCutout());
+        // The same for the soul standing in a filled Soul Pedestal; its beam is drawn by SoulPedestalRenderer
+        BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.SOUL_PEDESTAL, RenderLayer.getCutout());
+        net.minecraft.client.render.block.entity.BlockEntityRendererFactories.register(ModBlocks.SOUL_PEDESTAL_ENTITY,
+                net.ragnar.fmscraft.client.SoulPedestalRenderer::new);
         // MUGEN's void spikes are cut out of their textures, like pointed dripstone
         BlockRenderLayerMap.INSTANCE.putBlock(ModBlocks.VOID_SPIKE, RenderLayer.getCutout());
         // Picks the frame item's model override for its sin: 0 without one, (ordinal + 1) / 10 with
@@ -153,6 +157,15 @@ public class FmsCraftClient implements ClientModInitializer {
                 (payload, context) -> context.client().execute(() -> net.ragnar.fmscraft.client.SlothSky.receive(payload)));
         ClientPlayNetworking.registerGlobalReceiver(MugenControlPayload.ID,
                 (payload, context) -> context.client().execute(() -> MugenControl.receive(payload)));
+        net.ragnar.fmscraft.client.credits.CreditsPreview.register();
+        // A skull that has already given its Pride Fragment says so
+        net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback.EVENT.register((stack, context, type, lines) -> {
+            if (net.ragnar.fmscraft.fragment.PrideTrigger.isSpent(stack)) {
+                lines.add(net.minecraft.text.Text.translatable("item.fmscraft.pride_spent.tooltip").formatted(net.minecraft.util.Formatting.GRAY));
+            }
+        });
+        ClientPlayNetworking.registerGlobalReceiver(net.ragnar.fmscraft.network.CreditsPayload.ID, (payload, context) -> context.client().execute(
+                () -> context.client().setScreen(new net.ragnar.fmscraft.client.FmsCreditsScreen(payload))));
         ClientPlayNetworking.registerGlobalReceiver(TomeWheelPayload.ID,
                 (payload, context) -> context.client().execute(() -> TomeWheelHud.start(payload)));
         ClientPlayNetworking.registerGlobalReceiver(VaultFogPayload.ID,

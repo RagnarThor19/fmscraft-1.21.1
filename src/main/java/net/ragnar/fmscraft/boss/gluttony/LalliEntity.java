@@ -24,7 +24,6 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -1786,7 +1785,6 @@ public class LalliEntity extends SinBossEntity {
             chill(p, 60);
             world.spawnParticles(ParticleTypes.SNOWFLAKE, to.x, to.y + 1, to.z, 40, 0.4, 0.8, 0.4, 0.1);
             world.playSound(null, to.x, to.y, to.z, SoundEvents.ENTITY_BREEZE_WIND_BURST.value(), SoundCategory.HOSTILE, 1.5f, 0.6f);
-            p.sendMessage(Text.translatable("message.fmscraft.lalli_caught").formatted(Formatting.AQUA), true);
         }
     }
 

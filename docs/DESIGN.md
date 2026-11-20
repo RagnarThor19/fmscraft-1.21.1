@@ -30,15 +30,17 @@ part of vanilla Minecraft:
 
 | Sin | Boss (friend) | How to get fragments | Fragments per success | Portal structure dimension | Status |
 |---|---|---|---|---|---|
-| Greed | Ragnar Thor | Bought from a villager: any villager reaching Expert has a 20% chance to add one extra trade, a Greed Fragment for **one** of 32 diamonds, 8 emerald blocks or 16 gold blocks (picked at random; 3 uses before it restocks; never replaces a vanilla trade) | 1 | Twilight (`ragnarstwilightdimension:twilight`) | Done |
+| Greed | Ragnar Thor | **Lucky strike**: mining an ore sometimes drops a fragment alongside its usual drops: 1% for diamond ore and ancient debris, 0.5% for gold, redstone and lapis ore (not nether gold ore). Only ore the world made, mined in survival with a tool that can harvest it and without Silk Touch; ores players place are remembered and never count. (Villagers used to sell them; any old Greed trade is removed when the villager loads.) | 1 | Twilight (`ragnarstwilightdimension:twilight`) | Done |
 | Wrath | Aron Eggert | Kill 3 wardens within **4 minutes** (any players). A red boss bar counts down for everyone online; the 3rd warden drops the fragment | 1 | Nether | Done |
-| Pride | Leo Gunnlaugsson | Put full netherite armor on an armor stand. The armor crumbles into 5 fragments (so one set can't be reused forever) | 5 | Overworld | Done |
+| Pride | Leo Gunnlaugsson | Put a mob's skull or head (skeleton, wither skeleton, zombie, creeper, piglin, dragon; not a player head) on an armor stand: a fragment drops. Each skull works once: it's marked "Its pride is spent", and keeps the mark even placed as a block and broken again | 1 | Overworld | Done |
 | Gluttony | Larus Armann | Eat an enchanted golden apple | 1 | Nether | Done |
 | Envy | Gudmundur Sigurdsson | Rare chest loot: end city 5%, bastion treasure 8%, other bastion chests 3%, woodland mansion 8% | 1 | Overworld | Done |
 | Lust | Karl Phillip | The same player breeds all 25 "Two by Two" animals (tag `fmscraft:lust_breedables`). Progress shows in the action bar and resets after the reward, so it can be repeated | 5 | Twilight | Done |
 | Sloth | Patrik Atanaia | A tamed wolf (or tome summon from Ragnars Magic Mod) kills a mob: 5% chance | 1 | End | Done |
 
-Tuning knobs: chances in `fragment/LootFragments.java`, `GreedTrade` (`CHANCE`, `LEVEL`, prices, `MAX_USES`), `SlothTrigger.CHANCE`, `WrathTracker.WINDOW_TICKS`.
+Tuning knobs: chances in `fragment/LootFragments.java`, `LuckyStrike` (`RARE_CHANCE`, `CHANCE`; which ores: tags
+`fmscraft:lucky_strike_rare` and `fmscraft:lucky_strike`), `PrideTrigger` (which skulls: tag `fmscraft:pride_skulls`),
+`SlothTrigger.CHANCE`, `WrathTracker.WINDOW_TICKS`.
 
 Open questions:
 - Wrath: the timer currently shows for everyone online. Change to nearby players only?
@@ -46,7 +48,8 @@ Open questions:
 ## Advancements
 
 - One per sin, titled just the sin name ("Greed"), granted the first time you hold that sin's fragment. Done (data-driven, `inventory_changed`).
-- "True Ending", granted from code when all 7 souls are placed. Advancement exists; the trigger is TODO.
+- "True Ending", granted from code (`ending/TrueEnding.java`) to everyone online when the 7th soul is placed, and to
+  anyone who logs in after. Done.
 
 ## Boss fight rules (built: `fight/BossFights.java`)
 
@@ -67,11 +70,12 @@ Open questions:
   inside hear the bell and chimes too.
 - **On a win**: XP + Soul of <Sin>, the sin is marked defeated (`FmsWorldState`), a server-wide message, and an
   exit portal opens in the arena to go home.
-- **Tome wheel** (`reward/TomeWheel.java`): everyone in the fight spins their own wheel, 50% Beginner / 30%
-  Advanced / 20% Master, then gets a random Ragnars Magic Mod tome of that tier. 10 slices (5/3/2), drawn as pixel art, clicks as
+- **Tome wheel** (`reward/TomeWheel.java`): everyone in the fight spins their own wheel, 5/12 Beginner / 3/12
+  Advanced / 2/12 Master / 2/12 Passive (gold), then gets a random Ragnars Magic Mod tome of that tier. 12 slices (5/3/2/2), drawn as pixel art, clicks as
   slices pass, tier sound on landing. The server rolls the result first and gives the tome itself when the 10-second spin ends;
   the wheel only animates toward it, so lag or quitting can't change or lose the prize. Tomes are found by reading
-  the magic mod's `TomeItem` tiers at runtime (`compat/MagicTomes.java`).
+  the magic mod's `TomeItem` tiers at runtime (`compat/MagicTomes.java`), so new tomes join automatically. The main and
+  inner chest of every dungeon also hold a passive tome 5% of the time.
 - Defeated bosses can be fought again with another key.
 - Only one boss per arena: bosses are never saved with the world, and any boss in an arena that isn't the running
   fight's boss removes itself (so one left over from a crash can't become a second boss).
@@ -1025,7 +1029,48 @@ Health / armor: 1000 HP for 5-7 players (healthScale: 60% alone ... 124% for 10,
   eat past a challenge and open it for everyone. A chorus fruit that would land in one just lands somewhere else.
 - Statues, the Mother Warden and the Gorged Brute are only put in once their chunk's entities have loaded
   (`shouldTickEntity`), or one put in too early is lost track of and a second is put in beside it.
-- 1 overworld True Ending structure with 7 end-gateway-like soul pedestals.
+- 1 overworld True Ending shrine with 7 Soul Pedestals (built, see below).
+
+### The True Ending shrine (built)
+
+`ending/TrueEnding.java`, `block/SoulPedestalBlock.java`. The template is `structure/fms_beams.nbt`, from the
+`fms_beams` build in the Builds world (`tools/structures/fms_beams.py`): a small overgrown tuff ruin, a curving wall
+with seven sockets in a row, each on a glazed terracotta in its sin's color.
+- **Soul Pedestal**: the end portal frame's shape again, but in tuff with trim in its sin's color
+  (`tools/textures/pedestal_textures.py`). In the build they're Sin Portal Frames; the script swaps each for that
+  sin's pedestal. Use that sin's soul on it: the soul stands in the socket for good, the socket lights up (light 15)
+  and a **beacon beam in the sin's color** rises out of it, drawn exactly like the vanilla beacon's and seen as far.
+  The wrong soul doesn't fit. Unbreakable. A server-wide message: "X laid the Soul of Greed to rest (3/7)".
+- **One per world, always near spawn**: not left to world generation (which can't promise one near spawn, and never
+  reaches the chunks round spawn on a world already being played). The first time the server starts, the world
+  generator's terrain and biomes round the spawn are scored (80 to 300 blocks out, best about 170): flat, dry land,
+  above the sea, open pleasant biomes first (plains, meadow, cherry grove, flower forest), never water, swamps or
+  jungle. The best few are checked against the real world, so ground players have built on or dug up is passed over.
+  The spot is cleared of plants and trees, dips are filled, the shrine is set into the ground facing back toward
+  spawn. Its position is saved (`FmsWorldState`), so it's never built twice.
+- **Finding it**: every boss win also says "Its soul belongs in the shrine near the world spawn, to the north-east."
+  (the real direction). The empty sockets glow faintly; every filled one is a beam in the sky.
+- **The 7th soul**: fireworks rise from each pedestal in its sin's color, then all seven colors at once; "True
+  Ending" on everyone's screen, the advancement, and after 7 s the **credits** roll for everyone online: the vanilla
+  end credits' look (logo with FMS EDITION, the end portal's starfield, vignette, credits music): "Fimm manna sofi"
+  (the seven sins, their bosses and who laid each soul to rest), **Fun Facts**, "Made For You Guys" (the seven
+  friends), and "Thank you for playing." held in the middle for 15 s before it fades. Then **the memories**: the void
+  cracks like a block being mined (vanilla's breaking stages, glowing), bursts, and through a hole of blocks blasted
+  out of it the friends' video plays (two minutes, the music carrying on under it), chunks of void tumbling away and
+  the rim crumbling now and then. As it ends everything fades to black with the music. While they roll, players
+  are kept from harm (hidden Resistance V, Fire Resistance, Water Breathing; removed when the credits close).
+- **Fun Facts** (`ending/CreditsFacts`, texts there too): up to 20, from vanilla's saved stats and advancement dates
+  for everyone who ever played, offline or not (`world/stats`, `world/advancements`): most creepers killed, a turtle
+  killed, km walked, deaths, first into the Nether, never mined a diamond... Spread so everyone gets one before anyone
+  gets two; anyone with under 10 minutes played is left out, and a fact needs a minimum to count (none if nobody did
+  anything).
+- Commands: `/fmscraft shrine` (where it is), `/fmscraft shrine build` (a new one in front of you),
+  `/fmscraft shrine reset` (empty the pedestals, forget the win), `/fmscraft credits` (watch them),
+  `/fmscraft credits memories` (just the video at the end).
+- The memories: `tools/video/credits_video.py` crops, grades and packs `tools/video/source/memories.mp4` into
+  `video/memories.fmv` (JPEG frames plus the hole's shape, drawn by hand in the script); the client streams it
+  (`client/credits/CreditsVideo`) and draws the hole (`MemoryHole`). The credits play their own music
+  (`CreditsMusic`) so it can fade.
 
 ### Envy: the buried maze (built)
 
@@ -1441,7 +1486,7 @@ Suggested order: start with the simplest idea to learn the workflow, save the mo
 
 **Phase 4: Structures**
 12. Seven portal structures plus worldgen in their dimensions (can be built in-game in parallel with phase 3).
-13. True Ending structure, soul pedestals, credits and music, "True Ending" advancement.
+13. True Ending structure, soul pedestals, credits and music, "True Ending" advancement. Done.
 
 **Phase 5: Release**
 14. Full playthrough on a test server with all three mods, balancing, then the real server.

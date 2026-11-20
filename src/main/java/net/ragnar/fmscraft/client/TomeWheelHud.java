@@ -112,6 +112,10 @@ public final class TomeWheelHud {
                     sound(SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, 1.0f, 1.0f);
                 }
                 case MASTER -> sound(SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 0.8f);
+                case PASSIVE -> {
+                    sound(SoundEvents.ENTITY_PLAYER_LEVELUP, 1.1f, 0.6f);
+                    sound(SoundEvents.BLOCK_BEACON_POWER_SELECT, 1.4f, 0.5f);
+                }
             }
         }
         if (age > spin.spinTicks() + HOLD + FADE) spin = null;

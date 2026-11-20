@@ -4,13 +4,14 @@ package net.ragnar.fmscraft.reward;
  * Geometry of the reward wheel, shared by server and client so the animation always stops on the slice the
  * server already picked. Angles are degrees clockwise from the pointer at the top.
  *
- * 10 slices of 36 degrees: 5 beginner, 3 advanced, 2 master (exactly 50/30/20), spread out so equal tiers
- * never touch.
+ * 12 slices of 30 degrees: 5 beginner, 3 advanced, 2 master, 2 passive (matching {@link WheelTier#chance}),
+ * spread out so equal tiers never touch; the two master and the two passive slices sit opposite each other.
  */
 public final class WheelMath {
     public static final WheelTier[] SLICES = {
             WheelTier.BEGINNER, WheelTier.ADVANCED, WheelTier.BEGINNER, WheelTier.MASTER, WheelTier.BEGINNER,
-            WheelTier.ADVANCED, WheelTier.BEGINNER, WheelTier.ADVANCED, WheelTier.BEGINNER, WheelTier.MASTER};
+            WheelTier.PASSIVE, WheelTier.BEGINNER, WheelTier.ADVANCED, WheelTier.BEGINNER, WheelTier.MASTER,
+            WheelTier.ADVANCED, WheelTier.PASSIVE};
     public static final float SLICE_DEGREES = 360f / SLICES.length;
     public static final int FULL_SPINS = 4;
 

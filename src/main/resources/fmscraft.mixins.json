@@ -5,12 +5,14 @@
 	"mixins": [
 		"ArmorStandEntityMixin",
 		"BellBlockMixin",
+		"BlockMixin",
 		"BlockItemMixin",
 		"BredAnimalsCriterionMixin",
 		"BucketItemMixin",
 		"FireBlockMixin",
 		"ItemStackMixin",
 		"LivingEntityMixin",
+		"MerchantEntityAccessor",
 		"PlayerEntityMixin",
 		"ServerWorldMixin",
 		"VillagerEntityMixin"

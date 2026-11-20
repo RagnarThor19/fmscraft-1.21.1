@@ -30,7 +30,6 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -1415,7 +1414,6 @@ public class MugenEntity extends SinBossEntity implements MugenLook {
         }
         if (step == 0) {
             step = 1;
-            hooked.sendMessage(Text.translatable("message.fmscraft.mugen_get_over_here").formatted(Formatting.DARK_PURPLE, Formatting.BOLD), true);
             world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_FISHING_BOBBER_RETRIEVE, SoundCategory.HOSTILE, 2.0f, 0.5f);
             world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_CHAIN_BREAK, SoundCategory.HOSTILE, 2.0f, 0.5f);
         }
@@ -1971,9 +1969,6 @@ public class MugenEntity extends SinBossEntity implements MugenLook {
                 step = 1;
                 setPoseState(POSE_DIVE);
                 world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_PHANTOM_SWOOP, SoundCategory.HOSTILE, 2.5f, 0.6f);
-                if (chain.hooked != null) {
-                    chain.hooked.sendMessage(Text.translatable("message.fmscraft.mugen_grappled").formatted(Formatting.DARK_RED, Formatting.BOLD), true);
-                }
             } else if (failed) {
                 step = 1;
                 if (chain != null) chain.release();
@@ -2459,7 +2454,6 @@ public class MugenEntity extends SinBossEntity implements MugenLook {
             }
         }
         hazards.add(new MugenHazards.Bound(p, ticks));
-        p.sendMessage(Text.translatable("message.fmscraft.mugen_bound").formatted(Formatting.DARK_PURPLE), true);
     }
 
     void flash(ServerPlayerEntity p, float strength, int ticks) {
@@ -2591,7 +2585,6 @@ public class MugenEntity extends SinBossEntity implements MugenLook {
     private void control(ServerWorld world, ServerPlayerEntity p, int ticks) {
         controlled.put(p.getUuid(), ticks);
         sendControl(p, ticks);
-        p.sendMessage(Text.translatable("message.fmscraft.mugen_strings").formatted(Formatting.DARK_PURPLE, Formatting.ITALIC), true);
         p.playSoundToPlayer(SoundEvents.ENTITY_ENDERMAN_STARE, SoundCategory.HOSTILE, 0.6f, 0.8f);
         world.playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.ENTITY_EVOKER_CAST_SPELL, SoundCategory.HOSTILE, 1.2f, 0.5f);
     }
@@ -2672,7 +2665,6 @@ public class MugenEntity extends SinBossEntity implements MugenLook {
             world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_WARDEN_SONIC_CHARGE, SoundCategory.HOSTILE, 2.0f, 0.5f);
             for (ServerPlayerEntity p : audience(world)) {
                 p.playSoundToPlayer(SoundEvents.AMBIENT_SOUL_SAND_VALLEY_MOOD.value(), SoundCategory.HOSTILE, 1.5f, 0.5f);
-                p.sendMessage(Text.translatable("message.fmscraft.mugen_black_hole").formatted(Formatting.DARK_PURPLE, Formatting.BOLD), true);
             }
         }
         ServerPlayerEntity target = fighter(focus);
@@ -2841,7 +2833,6 @@ public class MugenEntity extends SinBossEntity implements MugenLook {
             world.spawnParticles(ParticleTypes.SQUID_INK, to.x, to.y + 1, to.z, 30, 0.4, 0.8, 0.4, 0.1);
             world.spawnParticles(MugenHazards.SHADOW, to.x, to.y + 0.2, to.z, 20, 0.6, 0.1, 0.6, 0);
             world.playSound(null, to.x, to.y, to.z, SoundEvents.ENTITY_WARDEN_ATTACK_IMPACT, SoundCategory.HOSTILE, 1.0f, 0.6f);
-            p.sendMessage(Text.translatable("message.fmscraft.mugen_caught").formatted(Formatting.DARK_PURPLE), true);
         }
     }
 

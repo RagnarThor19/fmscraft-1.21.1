@@ -40,7 +40,6 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -1833,7 +1832,6 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
             dataTracker.set(STARING, true);
             for (ServerPlayerEntity p : audience(world)) {
                 p.playSoundToPlayer(SoundEvents.ENTITY_ELDER_GUARDIAN_CURSE, SoundCategory.HOSTILE, 1.0f, 0.7f);
-                p.sendMessage(Text.translatable("message.fmscraft.gummss_stare").formatted(Formatting.DARK_GREEN, Formatting.ITALIC), true);
             }
             world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.HOSTILE, 2.0f, 0.5f);
         }
@@ -2285,7 +2283,6 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
         for (ServerPlayerEntity p : audience(world)) {
             p.playSoundToPlayer(SoundEvents.ENTITY_WITHER_SPAWN, SoundCategory.MASTER, 0.7f, 0.5f);
             p.playSoundToPlayer(SoundEvents.BLOCK_END_PORTAL_SPAWN, SoundCategory.MASTER, 0.6f, 0.6f);
-            p.sendMessage(Text.translatable("message.fmscraft.gummss_covet").formatted(Formatting.DARK_GREEN, Formatting.ITALIC), true);
         }
     }
 
@@ -2490,7 +2487,6 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
                     openCups();
                     setGuise(GUISE_WORN);
                     Cinematics.unfreeze(wearer);
-                    wearer.sendMessage(Text.translatable("message.fmscraft.gummss_disguise").formatted(Formatting.DARK_GREEN), true);
                     setPoseState(POSE_IDLE);
                     guiseStep = 2;
                     stageTicks = 0;
@@ -2683,7 +2679,6 @@ public class GummssEntity extends SinBossEntity implements GummssLook {
             crush(p, 4);
             world.spawnParticles(EnvyHazards.PSYCHIC, back.x, back.y + 1, back.z, 30, 0.3, 0.8, 0.3, 0);
             world.playSound(null, back.x, back.y, back.z, SoundEvents.ENTITY_ILLUSIONER_MIRROR_MOVE, SoundCategory.HOSTILE, 1.5f, 0.6f);
-            p.sendMessage(Text.translatable("message.fmscraft.gummss_caught").formatted(Formatting.DARK_GREEN), true);
         }
     }
 

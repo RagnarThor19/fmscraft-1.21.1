@@ -20,6 +20,7 @@ import net.minecraft.util.Identifier;
 import net.ragnar.fmscraft.FmsCraft;
 import net.ragnar.fmscraft.block.ModBlocks;
 import net.ragnar.fmscraft.block.SinPortalFrameBlock;
+import net.ragnar.fmscraft.block.SoulPedestalBlock;
 import net.ragnar.fmscraft.block.VoidSpikeBlock;
 import net.ragnar.fmscraft.item.ModItems;
 import net.ragnar.fmscraft.item.SinPortalFrameItem;
@@ -62,6 +63,37 @@ public class ModModelProvider extends FabricModelProvider {
                 BlockStateVariantMap.create(SinPortalFrameBlock.FACING, SinPortalFrameBlock.SIN, SinPortalFrameBlock.KEY)
                         .register((facing, sin, key) -> BlockStateVariant.create()
                                 .put(VariantSettings.MODEL, key ? keyed.get(sin) : empty.get(sin))
+                                .put(VariantSettings.Y, switch (facing) {
+                                    case EAST -> VariantSettings.Rotation.R90;
+                                    case SOUTH -> VariantSettings.Rotation.R180;
+                                    case WEST -> VariantSettings.Rotation.R270;
+                                    default -> VariantSettings.Rotation.R0;
+                                }))));
+
+        // Soul Pedestal: the same end portal frame shape in the shrine's tuff (tools/textures/pedestal_textures.py).
+        // A filled one reuses the keyed frame model, the sin's soul standing in the lit socket.
+        Map<Sin, Identifier> pedestal = new EnumMap<>(Sin.class);
+        Map<Sin, Identifier> pedestalFilled = new EnumMap<>(Sin.class);
+        for (Sin sin : Sin.values()) {
+            String name = "block/soul_pedestal_" + sin.id();
+            TextureMap textures = new TextureMap()
+                    .put(TextureKey.PARTICLE, Identifier.of(FmsCraft.MOD_ID, name + "_side"))
+                    .put(TextureKey.TOP, Identifier.of(FmsCraft.MOD_ID, name + "_top"))
+                    .put(TextureKey.SIDE, Identifier.of(FmsCraft.MOD_ID, name + "_side"))
+                    .put(TextureKey.BOTTOM, Identifier.ofVanilla("block/tuff"));
+            pedestal.put(sin, frameParent.upload(Identifier.of(FmsCraft.MOD_ID, name), textures, generator.modelCollector));
+            pedestalFilled.put(sin, keyedParent.upload(Identifier.of(FmsCraft.MOD_ID, name + "_filled"),
+                    new TextureMap()
+                            .put(TextureKey.TOP, Identifier.of(FmsCraft.MOD_ID, name + "_top_lit"))
+                            .put(TextureKey.SIDE, Identifier.of(FmsCraft.MOD_ID, name + "_side"))
+                            .put(TextureKey.BOTTOM, Identifier.ofVanilla("block/tuff"))
+                            .put(KEY, Identifier.of(FmsCraft.MOD_ID, "item/soul_of_" + sin.id())),
+                    generator.modelCollector));
+        }
+        generator.blockStateCollector.accept(VariantsBlockStateSupplier.create(ModBlocks.SOUL_PEDESTAL).coordinate(
+                BlockStateVariantMap.create(SoulPedestalBlock.FACING, SoulPedestalBlock.SIN, SoulPedestalBlock.SOUL)
+                        .register((facing, sin, soul) -> BlockStateVariant.create()
+                                .put(VariantSettings.MODEL, soul ? pedestalFilled.get(sin) : pedestal.get(sin))
                                 .put(VariantSettings.Y, switch (facing) {
                                     case EAST -> VariantSettings.Rotation.R90;
                                     case SOUTH -> VariantSettings.Rotation.R180;

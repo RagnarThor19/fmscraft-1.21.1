@@ -38,6 +38,12 @@ public class FmsWorldState extends PersistentState {
     private final Map<UUID, GlobalPos> returnPositions = new HashMap<>();
     // Envy mazes (keyed by their corner position) and the statues that roam each one
     private final Map<Long, Set<UUID>> envyStatues = new HashMap<>();
+    // The True Ending shrine: where it was built (null until then), who placed each soul, and whether the game is won
+    private BlockPos shrine;
+    private final Map<Sin, String> soulsPlaced = new java.util.EnumMap<>(Sin.class);
+    private boolean finished;
+    /** Ore blocks players put down, by dimension: they don't count for Greed's lucky strike (LuckyStrike). */
+    private final Map<String, it.unimi.dsi.fastutil.longs.LongSet> placedOres = new HashMap<>();
 
     public static FmsWorldState get(MinecraftServer server) {
         return server.getWorld(World.OVERWORLD).getPersistentStateManager().getOrCreate(TYPE, FmsCraft.MOD_ID);
@@ -96,6 +102,57 @@ public class FmsWorldState extends PersistentState {
         if (statues != null && statues.remove(statue)) markDirty();
     }
 
+    public Optional<BlockPos> shrine() {
+        return Optional.ofNullable(shrine);
+    }
+
+    public void setShrine(BlockPos pos) {
+        shrine = pos == null ? null : pos.toImmutable();
+        markDirty();
+    }
+
+    /** Who placed each soul in the shrine so far, in sin order. */
+    public Map<Sin, String> soulsPlaced() {
+        return java.util.Collections.unmodifiableMap(soulsPlaced);
+    }
+
+    public void placeSoul(Sin sin, String player) {
+        soulsPlaced.put(sin, player);
+        markDirty();
+    }
+
+    public boolean allSoulsPlaced() {
+        return soulsPlaced.size() == Sin.values().length;
+    }
+
+    public boolean isFinished() {
+        return finished;
+    }
+
+    public void setFinished(boolean finished) {
+        this.finished = finished;
+        markDirty();
+    }
+
+    /** Forgets the shrine's souls and the win (the blocks are put back separately). */
+    public void clearSouls() {
+        soulsPlaced.clear();
+        finished = false;
+        markDirty();
+    }
+
+    public void rememberPlacedOre(net.minecraft.registry.RegistryKey<net.minecraft.world.World> dimension, BlockPos pos) {
+        if (placedOres.computeIfAbsent(dimension.getValue().toString(), d -> new it.unimi.dsi.fastutil.longs.LongOpenHashSet()).add(pos.asLong())) markDirty();
+    }
+
+    /** Whether a player had placed the ore here; either way it's forgotten. */
+    public boolean forgetPlacedOre(net.minecraft.registry.RegistryKey<net.minecraft.world.World> dimension, BlockPos pos) {
+        it.unimi.dsi.fastutil.longs.LongSet set = placedOres.get(dimension.getValue().toString());
+        if (set == null || !set.remove(pos.asLong())) return false;
+        markDirty();
+        return true;
+    }
+
     public void clearDefeated(Sin sin) {
         if (defeated.remove(sin)) markDirty();
     }
@@ -130,6 +187,20 @@ public class FmsWorldState extends PersistentState {
             mazes.put(Long.toString(maze), ids);
         });
         nbt.put("envy_statues", mazes);
+
+        NbtCompound ending = new NbtCompound();
+        if (shrine != null) ending.putLong("shrine", shrine.asLong());
+        NbtCompound souls = new NbtCompound();
+        soulsPlaced.forEach((sin, player) -> souls.putString(sin.id(), player));
+        ending.put("souls", souls);
+        ending.putBoolean("finished", finished);
+        nbt.put("true_ending", ending);
+
+        NbtCompound ores = new NbtCompound();
+        placedOres.forEach((dimension, set) -> {
+            if (!set.isEmpty()) ores.putLongArray(dimension, set.toLongArray());
+        });
+        nbt.put("placed_ores", ores);
         return nbt;
     }
 
@@ -163,6 +234,20 @@ public class FmsWorldState extends PersistentState {
             Set<UUID> statues = new HashSet<>();
             for (int i = 0; i < ids.size(); i++) statues.add(UUID.fromString(ids.getString(i)));
             state.envyStatues.put(Long.parseLong(key), statues);
+        }
+
+        NbtCompound ending = nbt.getCompound("true_ending");
+        if (ending.contains("shrine")) state.shrine = BlockPos.fromLong(ending.getLong("shrine"));
+        NbtCompound souls = ending.getCompound("souls");
+        for (String key : souls.getKeys()) {
+            Sin sin = Sin.byId(key);
+            if (sin != null) state.soulsPlaced.put(sin, souls.getString(key));
+        }
+        state.finished = ending.getBoolean("finished");
+
+        NbtCompound ores = nbt.getCompound("placed_ores");
+        for (String dimension : ores.getKeys()) {
+            state.placedOres.put(dimension, new it.unimi.dsi.fastutil.longs.LongOpenHashSet(ores.getLongArray(dimension)));
         }
         return state;
     }

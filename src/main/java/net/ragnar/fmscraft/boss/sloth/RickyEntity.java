@@ -29,7 +29,6 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
@@ -1469,7 +1468,6 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
             hold(null);
             world.playSound(null, getX(), getY(), getZ(), SoundEvents.ENTITY_WARDEN_ROAR, SoundCategory.HOSTILE, 1.2f, 1.4f);
             world.playSound(null, getX(), getY(), getZ(), SoundEvents.AMBIENT_CAVE.value(), SoundCategory.HOSTILE, 2.0f, 0.5f);
-            for (ServerPlayerEntity p : fighters) p.sendMessage(Text.translatable("message.fmscraft.ricky_hand").formatted(Formatting.DARK_RED), true);
         }
         Vec3d h = getPos().add(0, getHeight() + 0.3, 0);
         world.spawnParticles(RickyHazards.SHADOW, h.x, h.y, h.z, 3, 0.4, 0.3, 0.4, 0);
@@ -1710,7 +1708,6 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
             }
             world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundCategory.HOSTILE, 2.5f, 1.4f);
             for (ServerPlayerEntity p : audience(world)) {
-                p.sendMessage(Text.translatable("message.fmscraft.ricky_spirit_bomb").formatted(Formatting.WHITE, Formatting.BOLD), true);
                 p.playSoundToPlayer(SoundEvents.BLOCK_BEACON_AMBIENT, SoundCategory.HOSTILE, 2.0f, 1.8f);
             }
         }
@@ -2020,7 +2017,6 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
                 cupBall.setViewRange(10f);
             }
             for (ServerPlayerEntity p : audience(world)) {
-                p.sendMessage(Text.translatable("message.fmscraft.ricky_final_beam").formatted(Formatting.DARK_RED, Formatting.BOLD), true);
                 p.playSoundToPlayer(SoundEvents.ENTITY_WITHER_SPAWN, SoundCategory.HOSTILE, 1.0f, 0.7f);
             }
             world.playSound(null, getX(), getY(), getZ(), SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundCategory.HOSTILE, 3.0f, 0.4f);
@@ -2154,7 +2150,6 @@ public class RickyEntity extends SinBossEntity implements RickyLook {
             world.spawnParticles(RickyHazards.DARK_RED, to.x, to.y + 1, to.z, 30, 0.4, 0.8, 0.4, 0);
             world.playSound(null, to.x, to.y, to.z, ModSounds.RICKY_TELEPORT, SoundCategory.HOSTILE, 1.0f, 0.8f);
             crush(p, 4);
-            p.sendMessage(Text.translatable("message.fmscraft.ricky_caught").formatted(Formatting.DARK_RED), true);
         }
     }
 
