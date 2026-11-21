@@ -14,6 +14,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.ragnar.fmscraft.ending.TrueEnding;
+import net.ragnar.fmscraft.fragment.EnvyTrigger;
 import net.ragnar.fmscraft.fight.BossFights;
 import net.ragnar.fmscraft.fight.FightBots;
 import net.ragnar.fmscraft.sin.Sin;
@@ -40,6 +41,7 @@ import static net.minecraft.server.command.CommandManager.literal;
  *                             and the win are forgotten)
  *   /fmscraft shrine reset    take every soul back out of the shrine and forget the win
  *   /fmscraft credits         roll the True Ending credits for yourself
+ *   /fmscraft envyskeleton    spawn Envy's shivering Bogged a few blocks in front of you
  */
 public final class FmsCommands {
     private FmsCommands() {
@@ -63,6 +65,7 @@ public final class FmsCommands {
                             return 1;
                         })))
                         .then(literal("status").executes(FmsCommands::status))
+                        .then(literal("envyskeleton").executes(FmsCommands::envySkeleton))
                         .then(literal("shrine").executes(FmsCommands::shrine)
                                 .then(literal("build").executes(FmsCommands::buildShrine))
                                 .then(literal("reset").executes(ctx -> {
@@ -92,6 +95,17 @@ public final class FmsCommands {
         Sin sin = Sin.byId(StringArgumentType.getString(ctx, "sin"));
         if (sin == null) throw new com.mojang.brigadier.exceptions.SimpleCommandExceptionType(Text.literal("Unknown sin")).create();
         return sin;
+    }
+
+    private static int envySkeleton(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        Vec3d at = player.getPos().add(Vec3d.fromPolar(0, player.getYaw()).multiply(3));
+        if (EnvyTrigger.spawn(player.getServerWorld(), at, player.getYaw() + 180) == null) {
+            ctx.getSource().sendError(Text.literal("Couldn't spawn the shivering Bogged"));
+            return 0;
+        }
+        ctx.getSource().sendFeedback(() -> Text.literal("Spawned a shivering Bogged"), true);
+        return 1;
     }
 
     private static int fight(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {

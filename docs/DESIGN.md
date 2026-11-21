@@ -30,16 +30,16 @@ part of vanilla Minecraft:
 
 | Sin | Boss (friend) | How to get fragments | Fragments per success | Portal structure dimension | Status |
 |---|---|---|---|---|---|
-| Greed | Ragnar Thor | **Lucky strike**: mining an ore sometimes drops a fragment alongside its usual drops: 1% for diamond ore and ancient debris, 0.5% for gold, redstone and lapis ore (not nether gold ore). Only ore the world made, mined in survival with a tool that can harvest it and without Silk Touch; ores players place are remembered and never count. (Villagers used to sell them; any old Greed trade is removed when the villager loads.) | 1 | Twilight (`ragnarstwilightdimension:twilight`) | Done |
+| Greed | Ragnar Thor | **Lucky strike**: mining an ore sometimes drops a fragment alongside its usual drops: 2.5% for gold ore, 2% for diamond ore, emerald ore and ancient debris, 1% for redstone and lapis ore (not nether gold ore). Only ore the world made, mined in survival with a tool that can harvest it and without Silk Touch; ores players place are remembered and never count. (Villagers used to sell them; any old Greed trade is removed when the villager loads.) | 1 | Twilight (`ragnarstwilightdimension:twilight`) | Done |
 | Wrath | Aron Eggert | Kill 3 wardens within **4 minutes** (any players). A red boss bar counts down for everyone online; the 3rd warden drops the fragment | 1 | Nether | Done |
 | Pride | Leo Gunnlaugsson | Put a mob's skull or head (skeleton, wither skeleton, zombie, creeper, piglin, dragon; not a player head) on an armor stand: a fragment drops. Each skull works once: it's marked "Its pride is spent", and keeps the mark even placed as a block and broken again | 1 | Overworld | Done |
 | Gluttony | Larus Armann | Eat an enchanted golden apple | 1 | Nether | Done |
-| Envy | Gudmundur Sigurdsson | Rare chest loot: end city 5%, bastion treasure 8%, other bastion chests 3%, woodland mansion 8% | 1 | Overworld | Done |
+| Envy | Gudmundur Sigurdsson | Kill a **shivering Bogged**: a rare mossy skeleton that spawns anywhere in the Overworld a skeleton can (1.5% of natural skeleton spawns come out as one instead, a bit more common than a spider jockey; never from spawners or spawn eggs). It wears a carved pumpkin, carries an iron sword (so it fights in melee) and shivers like a freezing skeleton whenever it isn't after a player. It drops its pumpkin, and a fragment when a player kills it. To try one: `/fmscraft envyskeleton` spawns one in front of you. (It used to be rare chest loot in end cities, bastions, mansions and the Envy maze; that's gone.) | 1 | Overworld | Done |
 | Lust | Karl Phillip | The same player breeds all 25 "Two by Two" animals (tag `fmscraft:lust_breedables`). Progress shows in the action bar and resets after the reward, so it can be repeated | 5 | Twilight | Done |
 | Sloth | Patrik Atanaia | A tamed wolf (or tome summon from Ragnars Magic Mod) kills a mob: 5% chance | 1 | End | Done |
 
-Tuning knobs: chances in `fragment/LootFragments.java`, `LuckyStrike` (`RARE_CHANCE`, `CHANCE`; which ores: tags
-`fmscraft:lucky_strike_rare` and `fmscraft:lucky_strike`), `PrideTrigger` (which skulls: tag `fmscraft:pride_skulls`),
+Tuning knobs: `EnvyTrigger.CHANCE`, `LuckyStrike` (`GOLD_CHANCE`, `RARE_CHANCE`, `CHANCE`; which ores: tags
+`fmscraft:lucky_strike_gold`, `fmscraft:lucky_strike_rare` and `fmscraft:lucky_strike`), `PrideTrigger` (which skulls: tag `fmscraft:pride_skulls`),
 `SlothTrigger.CHANCE`, `WrathTracker.WINDOW_TICKS`.
 
 Open questions:
@@ -1091,7 +1091,7 @@ with seven sockets in a row, each on a glazed terracotta in its sin's color.
   the walls, moss and mossy cobble floors, vines and glow lichen along the walls and ceiling only (walkways stay
   clear), verdant froglights.
 - **Loot:** up to 10 chests in dead ends (`loot_table/chests/envy_maze.json`): emeralds, gold, diamonds,
-  golden apples, enchanted books, XP, a rare god apple, and a 15% Envy Fragment.
+  golden apples, enchanted books, XP and a rare god apple (no Envy Fragment any more: those come from the shivering Bogged).
 - **Safe room:** 3x3 units in the middle, double-walled, reached only through a 1-wide, 2-high, 10-block tunnel
   the statue can't fit through. The room is built in-game and saved as the template
   `data/fmscraft/structure/envy_portal_room.nbt` (17x7x17: the 15x15 room plus its wall ring, doorway in the middle

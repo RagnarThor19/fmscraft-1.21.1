@@ -21,7 +21,10 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.decoration.ArmorStandEntity;
+import net.minecraft.entity.mob.BoggedEntity;
+import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.WardenEntity;
+import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.passive.ChickenEntity;
 import net.minecraft.entity.passive.CowEntity;
 import net.minecraft.entity.passive.WolfEntity;
@@ -45,6 +48,7 @@ import net.minecraft.test.TestContext;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
+import net.ragnar.fmscraft.fragment.EnvyTrigger;
 import net.ragnar.fmscraft.fragment.LuckyStrike;
 import net.ragnar.fmscraft.fragment.LustTrigger;
 import net.ragnar.fmscraft.fragment.PrideTrigger;
@@ -169,14 +173,18 @@ public class FragmentGameTests implements FabricGameTest {
 
     @GameTest(templateName = EMPTY_STRUCTURE)
     public void greedLuckyStrikeChances(TestContext ctx) {
-        ctx.assertTrue(LuckyStrike.chance(Blocks.DIAMOND_ORE.getDefaultState()) == 0.01f, "diamond ore 1%");
-        ctx.assertTrue(LuckyStrike.chance(Blocks.DEEPSLATE_DIAMOND_ORE.getDefaultState()) == 0.01f, "deepslate diamond ore 1%");
-        ctx.assertTrue(LuckyStrike.chance(Blocks.ANCIENT_DEBRIS.getDefaultState()) == 0.01f, "ancient debris 1%");
-        for (Block ore : List.of(Blocks.GOLD_ORE, Blocks.DEEPSLATE_GOLD_ORE, Blocks.REDSTONE_ORE, Blocks.DEEPSLATE_REDSTONE_ORE,
-                Blocks.LAPIS_ORE, Blocks.DEEPSLATE_LAPIS_ORE)) {
-            ctx.assertTrue(LuckyStrike.chance(ore.getDefaultState()) == 0.005f, ore + " 0.5%");
+        for (Block ore : List.of(Blocks.GOLD_ORE, Blocks.DEEPSLATE_GOLD_ORE)) {
+            ctx.assertTrue(LuckyStrike.chance(ore.getDefaultState()) == 0.025f, ore + " 2.5%");
         }
-        for (Block other : List.of(Blocks.STONE, Blocks.NETHER_GOLD_ORE, Blocks.IRON_ORE, Blocks.COAL_ORE, Blocks.EMERALD_ORE, Blocks.DIAMOND_BLOCK)) {
+        for (Block ore : List.of(Blocks.DIAMOND_ORE, Blocks.DEEPSLATE_DIAMOND_ORE, Blocks.EMERALD_ORE, Blocks.DEEPSLATE_EMERALD_ORE,
+                Blocks.ANCIENT_DEBRIS)) {
+            ctx.assertTrue(LuckyStrike.chance(ore.getDefaultState()) == 0.02f, ore + " 2%");
+        }
+        for (Block ore : List.of(Blocks.REDSTONE_ORE, Blocks.DEEPSLATE_REDSTONE_ORE, Blocks.LAPIS_ORE, Blocks.DEEPSLATE_LAPIS_ORE)) {
+            ctx.assertTrue(LuckyStrike.chance(ore.getDefaultState()) == 0.01f, ore + " 1%");
+        }
+        for (Block other : List.of(Blocks.STONE, Blocks.NETHER_GOLD_ORE, Blocks.IRON_ORE, Blocks.COAL_ORE, Blocks.COPPER_ORE,
+                Blocks.NETHER_QUARTZ_ORE, Blocks.DIAMOND_BLOCK)) {
             ctx.assertTrue(LuckyStrike.chance(other.getDefaultState()) == 0, other + " doesn't count");
         }
         ctx.complete();
@@ -189,7 +197,7 @@ public class FragmentGameTests implements FabricGameTest {
         int[] diamond = new int[2];
         mineOverTicks(ctx, player, Blocks.DIAMOND_ORE, pos, 3000, false, diamond, () -> {
             leave(ctx, player);
-            ctx.assertTrue(diamond[0] >= 12 && diamond[0] <= 52, "expected ~30 Greed fragments from 3000 diamond ores (1%), got " + diamond[0]);
+            ctx.assertTrue(diamond[0] >= 35 && diamond[0] <= 88, "expected ~60 Greed fragments from 3000 diamond ores (2%), got " + diamond[0]);
             ctx.assertEquals(diamond[1], 3000, "every diamond ore still drops its diamond");
             ctx.complete();
         });
@@ -249,11 +257,112 @@ public class FragmentGameTests implements FabricGameTest {
     }
 
     @GameTest(templateName = EMPTY_STRUCTURE)
-    public void envyIsRareInEndCitiesAndBastions(TestContext ctx) {
-        int endCity = lootRolls(ctx, LootTables.END_CITY_TREASURE_CHEST, Sin.ENVY, 2000);
-        ctx.assertTrue(endCity >= 55 && endCity <= 150, "expected ~100 Envy fragments in 2000 end city chests, got " + endCity);
-        int bastion = lootRolls(ctx, LootTables.BASTION_TREASURE_CHEST, Sin.ENVY, 2000);
-        ctx.assertTrue(bastion >= 110 && bastion <= 220, "expected ~160 Envy fragments in 2000 bastion treasure chests, got " + bastion);
+    public void envyIsNoLongerInChests(TestContext ctx) {
+        for (RegistryKey<LootTable> table : List.of(LootTables.END_CITY_TREASURE_CHEST, LootTables.BASTION_TREASURE_CHEST,
+                LootTables.BASTION_OTHER_CHEST, LootTables.WOODLAND_MANSION_CHEST,
+                RegistryKey.of(RegistryKeys.LOOT_TABLE, Identifier.of("fmscraft", "chests/envy_maze")))) {
+            ctx.assertTrue(lootRolls(ctx, table, Sin.ENVY, 500) == 0, "Envy fragment in " + table.getValue());
+        }
+        ctx.complete();
+    }
+
+    // ---- Envy: the shivering Bogged ----
+
+    /** How many of {@code spawns} natural spawns of {@code type} came out as the shivering Bogged. */
+    private static int shiveringOf(TestContext ctx, EntityType<? extends MobEntity> type, int spawns) {
+        ServerWorld world = ctx.getWorld();
+        int shivering = 0;
+        for (int i = 0; i < spawns; i++) {
+            MobEntity swap = EnvyTrigger.rollSpawn(world, type.create(world), world.getRandom());
+            if (swap instanceof BoggedEntity bogged && EnvyTrigger.isShivering(bogged)) shivering++;
+            else ctx.assertTrue(swap == null, "only ever swapped for the shivering Bogged");
+        }
+        return shivering;
+    }
+
+    @GameTest(templateName = EMPTY_STRUCTURE, tickLimit = 200)
+    public void envyShiveringBoggedReplacesRareSkeletons(TestContext ctx) {
+        int skeletons = shiveringOf(ctx, EntityType.SKELETON, 4000);
+        ctx.assertTrue(skeletons >= 30 && skeletons <= 95, "expected ~60 shivering Bogged in 4000 skeleton spawns, got " + skeletons);
+        ctx.assertEquals(shiveringOf(ctx, EntityType.BOGGED, 1000), 0, "a Bogged spawn is never swapped");
+        ctx.assertEquals(shiveringOf(ctx, EntityType.STRAY, 1000), 0, "a stray is never swapped");
+        ctx.assertEquals(shiveringOf(ctx, EntityType.ZOMBIE, 1000), 0, "a zombie is never swapped");
+
+        // Spawned, it trades the bow it'd get for the sword and pumpkin
+        BoggedEntity bogged;
+        do {
+            bogged = (BoggedEntity) EnvyTrigger.rollSpawn(ctx.getWorld(), EntityType.SKELETON.create(ctx.getWorld()), ctx.getWorld().getRandom());
+        } while (bogged == null);
+        BlockPos at = ctx.getAbsolutePos(new BlockPos(2, 1, 2));
+        bogged.refreshPositionAndAngles(at, 0, 0);
+        bogged.initialize(ctx.getWorld(), ctx.getWorld().getLocalDifficulty(at), SpawnReason.NATURAL, null);
+        ctx.assertTrue(bogged.getMainHandStack().isOf(Items.IRON_SWORD), "holds an iron sword, not a bow");
+        ctx.assertTrue(bogged.getEquippedStack(EquipmentSlot.HEAD).isOf(Items.CARVED_PUMPKIN), "wears a carved pumpkin");
+
+        BoggedEntity plain = EntityType.BOGGED.create(ctx.getWorld());
+        plain.refreshPositionAndAngles(at, 0, 0);
+        plain.initialize(ctx.getWorld(), ctx.getWorld().getLocalDifficulty(at), SpawnReason.NATURAL, null);
+        ctx.assertFalse(EnvyTrigger.isShivering(plain), "an ordinary Bogged spawn stays ordinary");
+        ctx.complete();
+    }
+
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void envySkeletonCommandSpawnsOne(TestContext ctx) {
+        BoggedEntity bogged = EnvyTrigger.spawn(ctx.getWorld(), Vec3d.ofBottomCenter(ctx.getAbsolutePos(new BlockPos(2, 1, 2))), 0);
+        ctx.assertTrue(bogged != null && bogged.isAlive() && EnvyTrigger.isShivering(bogged), "a shivering Bogged in the world");
+        ctx.assertTrue(bogged.getMainHandStack().isOf(Items.IRON_SWORD), "with its iron sword");
+        ctx.assertTrue(bogged.getEquippedStack(EquipmentSlot.HEAD).isOf(Items.CARVED_PUMPKIN), "and its pumpkin");
+        bogged.discard();
+        ctx.complete();
+    }
+
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void envyShiveringBoggedLooksThePart(TestContext ctx) {
+        BoggedEntity bogged = ctx.spawnEntity(EntityType.BOGGED, 2, 2, 2);
+        bogged.setAiDisabled(true);
+        ctx.assertFalse(bogged.isShaking(), "an ordinary Bogged doesn't shiver");
+        EnvyTrigger.makeShivering(bogged);
+        ctx.assertTrue(bogged.getEquippedStack(EquipmentSlot.HEAD).isOf(Items.CARVED_PUMPKIN), "wears a carved pumpkin");
+        ctx.assertTrue(bogged.getMainHandStack().isOf(Items.IRON_SWORD), "holds an iron sword");
+        ctx.assertTrue(bogged.isShaking(), "shivers with nobody to chase");
+
+        PlayerEntity player = ctx.createMockPlayer(GameMode.SURVIVAL);
+        bogged.setTarget(player);
+        ctx.assertFalse(bogged.isShaking(), "stops shivering when after a player");
+        bogged.setTarget(null);
+
+        NbtCompound saved = new NbtCompound();
+        bogged.writeNbt(saved);
+        BoggedEntity loaded = EntityType.BOGGED.create(ctx.getWorld());
+        loaded.readNbt(saved);
+        ctx.assertTrue(EnvyTrigger.isShivering(loaded), "still the shivering one after saving and loading");
+        bogged.discard();
+        ctx.complete();
+    }
+
+    private static int dropped(TestContext ctx, Item item) {
+        return ctx.getWorld().getEntitiesByClass(ItemEntity.class, ctx.getTestBox().expand(2), e -> e.getStack().isOf(item))
+                .stream().mapToInt(e -> e.getStack().getCount()).sum();
+    }
+
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void envyShiveringBoggedDropsAFragment(TestContext ctx) {
+        BoggedEntity first = ctx.spawnEntity(EntityType.BOGGED, 2, 2, 2);
+        EnvyTrigger.makeShivering(first);
+        first.damage(ctx.getWorld().getDamageSources().generic(), Float.MAX_VALUE);
+        ctx.assertEquals(dropped(ctx, Items.CARVED_PUMPKIN), 1, "its pumpkin drops");
+        ctx.assertEquals(droppedFragments(ctx, Sin.ENVY), 0, "no fragment unless a player killed it");
+
+        PlayerEntity player = ctx.createMockPlayer(GameMode.SURVIVAL);
+        BoggedEntity second = ctx.spawnEntity(EntityType.BOGGED, 3, 2, 3);
+        EnvyTrigger.makeShivering(second);
+        second.damage(ctx.getWorld().getDamageSources().playerAttack(player), Float.MAX_VALUE);
+        ctx.assertEquals(dropped(ctx, Items.CARVED_PUMPKIN), 2, "one pumpkin each");
+        ctx.assertEquals(droppedFragments(ctx, Sin.ENVY), 1, "a fragment for the player's kill");
+
+        BoggedEntity plain = ctx.spawnEntity(EntityType.BOGGED, 4, 2, 4);
+        plain.damage(ctx.getWorld().getDamageSources().playerAttack(player), Float.MAX_VALUE);
+        ctx.assertEquals(droppedFragments(ctx, Sin.ENVY), 1, "an ordinary Bogged gives none");
         ctx.complete();
     }
 

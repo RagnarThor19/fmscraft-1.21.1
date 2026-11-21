@@ -24,11 +24,6 @@
         { "type": "minecraft:item", "name": "minecraft:music_disc_otherside", "weight": 1 },
         { "type": "minecraft:item", "name": "minecraft:diamond_horse_armor", "weight": 2 }
       ]
-    },
-    {
-      "rolls": 1,
-      "conditions": [{ "condition": "minecraft:random_chance", "chance": 0.15 }],
-      "entries": [{ "type": "minecraft:item", "name": "fmscraft:envy_fragment" }]
     }
   ]
 }

@@ -19,8 +19,9 @@ import net.ragnar.fmscraft.world.FmsWorldState;
 
 /**
  * Greed: a lucky strike. Mining an ore now and then turns up a Greed Fragment too, dropped alongside what the ore
- * gives (never instead of it): {@link #RARE_CHANCE} for diamond ore and ancient debris, {@link #CHANCE} for gold,
- * redstone and lapis ore (the tags {@code fmscraft:lucky_strike_rare} and {@code fmscraft:lucky_strike}).
+ * gives (never instead of it): {@link #GOLD_CHANCE} for gold ore, {@link #RARE_CHANCE} for diamond ore, emerald ore and
+ * ancient debris, {@link #CHANCE} for redstone and lapis ore (the tags {@code fmscraft:lucky_strike_gold},
+ * {@code fmscraft:lucky_strike_rare} and {@code fmscraft:lucky_strike}). Not nether gold ore.
  *
  * <p>Only ore the world made counts, mined properly: not in creative, not with a tool that can't harvest it, not with
  * Silk Touch, and not ore a player placed (so a block of ancient debris, which drops itself, can't be placed and mined
@@ -28,8 +29,11 @@ import net.ragnar.fmscraft.world.FmsWorldState;
  * The roll happens in BlockMixin, after the block has dropped its own loot with the tool that broke it.
  */
 public final class LuckyStrike {
-    public static final float RARE_CHANCE = 0.01f;
-    public static final float CHANCE = 0.005f;
+    public static final float GOLD_CHANCE = 0.025f;
+    public static final float RARE_CHANCE = 0.02f;
+    public static final float CHANCE = 0.01f;
+    public static final TagKey<net.minecraft.block.Block> GOLD_ORES =
+            TagKey.of(RegistryKeys.BLOCK, Identifier.of(FmsCraft.MOD_ID, "lucky_strike_gold"));
     public static final TagKey<net.minecraft.block.Block> RARE_ORES =
             TagKey.of(RegistryKeys.BLOCK, Identifier.of(FmsCraft.MOD_ID, "lucky_strike_rare"));
     public static final TagKey<net.minecraft.block.Block> ORES =
@@ -39,6 +43,7 @@ public final class LuckyStrike {
     }
 
     public static float chance(BlockState state) {
+        if (state.isIn(GOLD_ORES)) return GOLD_CHANCE;
         if (state.isIn(RARE_ORES)) return RARE_CHANCE;
         if (state.isIn(ORES)) return CHANCE;
         return 0;

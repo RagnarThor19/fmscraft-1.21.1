@@ -3,10 +3,12 @@
 	"package": "net.ragnar.fmscraft.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
+		"AbstractSkeletonEntityMixin",
 		"ArmorStandEntityMixin",
 		"BellBlockMixin",
 		"BlockMixin",
 		"BlockItemMixin",
+		"BoggedEntityMixin",
 		"BredAnimalsCriterionMixin",
 		"BucketItemMixin",
 		"FireBlockMixin",
@@ -15,6 +17,7 @@
 		"MerchantEntityAccessor",
 		"PlayerEntityMixin",
 		"ServerWorldMixin",
+		"SpawnHelperMixin",
 		"VillagerEntityMixin"
 	],
 	"client": [
