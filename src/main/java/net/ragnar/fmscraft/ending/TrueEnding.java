@@ -360,18 +360,6 @@ public final class TrueEnding {
         if (state.allSoulsPlaced() && !state.isFinished()) finale(world, pos);
     }
 
-    /** Where to look, told when a sin is beaten: "...near the world spawn, to the north-east." */
-    public static Text whereTheShrineIs(MinecraftServer server) {
-        BlockPos spawn = server.getOverworld().getSpawnPos();
-        BlockPos shrine = FmsWorldState.get(server).shrine().orElse(null);
-        if (shrine == null) return Text.translatable("message.fmscraft.shrine_hint_somewhere");
-        int dx = shrine.getX() - spawn.getX(), dz = shrine.getZ() - spawn.getZ();
-        double angle = Math.toDegrees(Math.atan2(dx, -dz)); // 0 = north, clockwise
-        String[] names = {"north", "north_east", "east", "south_east", "south", "south_west", "west", "north_west"};
-        String direction = names[Math.floorMod(Math.round(angle / 45.0), 8)];
-        return Text.translatable("message.fmscraft.shrine_hint", Text.translatable("direction.fmscraft." + direction));
-    }
-
     private static void finale(ServerWorld world, BlockPos lastPedestal) {
         MinecraftServer server = world.getServer();
         FmsWorldState state = FmsWorldState.get(server);

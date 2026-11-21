@@ -41,7 +41,7 @@ public enum Sin implements StringIdentifiable {
         return displayName;
     }
 
-    /** The friend this sin's boss is named after. */
+    /** The friend this sin's boss is named after. Only shown in the credits; in game the boss goes by its own name. */
     public String bossName() {
         return bossName;
     }

@@ -1048,8 +1048,8 @@ with seven sockets in a row, each on a glazed terracotta in its sin's color.
   jungle. The best few are checked against the real world, so ground players have built on or dug up is passed over.
   The spot is cleared of plants and trees, dips are filled, the shrine is set into the ground facing back toward
   spawn. Its position is saved (`FmsWorldState`), so it's never built twice.
-- **Finding it**: every boss win also says "Its soul belongs in the shrine near the world spawn, to the north-east."
-  (the real direction). The empty sockets glow faintly; every filled one is a beam in the sky.
+- **Finding it**: no hint. Players find it themselves while exploring. The empty sockets glow faintly; every filled
+  one is a beam in the sky.
 - **The 7th soul**: fireworks rise from each pedestal in its sin's color, then all seven colors at once; "True
   Ending" on everyone's screen, the advancement, and after 7 s the **credits** roll for everyone online: the vanilla
   end credits' look (logo with FMS EDITION, the end portal's starfield, vignette, credits music): "Fimm manna sofi"
