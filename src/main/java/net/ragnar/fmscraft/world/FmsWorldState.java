@@ -36,6 +36,8 @@ public class FmsWorldState extends PersistentState {
     private final Map<UUID, Set<String>> lustProgress = new HashMap<>();
     // Where each player in a boss arena goes back to (the overworld-side portal), kept across restarts
     private final Map<UUID, GlobalPos> returnPositions = new HashMap<>();
+    // Where each player last died and left their things lying (DeathMarks), until they get back to them
+    private final Map<UUID, GlobalPos> deathMarks = new HashMap<>();
     // Envy mazes (keyed by their corner position) and the statues that roam each one
     private final Map<Long, Set<UUID>> envyStatues = new HashMap<>();
     // The True Ending shrine: where it was built (null until then), who placed each soul, and whether the game is won
@@ -87,6 +89,19 @@ public class FmsWorldState extends PersistentState {
 
     public void clearReturn(UUID player) {
         if (returnPositions.remove(player) != null) markDirty();
+    }
+
+    public void setDeathMark(UUID player, GlobalPos pos) {
+        deathMarks.put(player, pos);
+        markDirty();
+    }
+
+    public Optional<GlobalPos> getDeathMark(UUID player) {
+        return Optional.ofNullable(deathMarks.get(player));
+    }
+
+    public void clearDeathMark(UUID player) {
+        if (deathMarks.remove(player) != null) markDirty();
     }
 
     public Set<UUID> envyStatues(long maze) {
@@ -180,6 +195,15 @@ public class FmsWorldState extends PersistentState {
         });
         nbt.put("returns", returns);
 
+        NbtCompound marks = new NbtCompound();
+        deathMarks.forEach((player, pos) -> {
+            NbtCompound entry = new NbtCompound();
+            entry.putString("dimension", pos.dimension().getValue().toString());
+            entry.putLong("pos", pos.pos().asLong());
+            marks.put(player.toString(), entry);
+        });
+        nbt.put("death_marks", marks);
+
         NbtCompound mazes = new NbtCompound();
         envyStatues.forEach((maze, statues) -> {
             NbtList ids = new NbtList();
@@ -226,6 +250,14 @@ public class FmsWorldState extends PersistentState {
             RegistryKey<net.minecraft.world.World> dimension =
                     RegistryKey.of(RegistryKeys.WORLD, Identifier.of(entry.getString("dimension")));
             state.returnPositions.put(UUID.fromString(key), GlobalPos.create(dimension, BlockPos.fromLong(entry.getLong("pos"))));
+        }
+
+        NbtCompound marks = nbt.getCompound("death_marks");
+        for (String key : marks.getKeys()) {
+            NbtCompound entry = marks.getCompound(key);
+            RegistryKey<net.minecraft.world.World> dimension =
+                    RegistryKey.of(RegistryKeys.WORLD, Identifier.of(entry.getString("dimension")));
+            state.deathMarks.put(UUID.fromString(key), GlobalPos.create(dimension, BlockPos.fromLong(entry.getLong("pos"))));
         }
 
         NbtCompound mazes = nbt.getCompound("envy_statues");

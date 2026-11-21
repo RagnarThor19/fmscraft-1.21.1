@@ -177,6 +177,9 @@ public class FmsCraftClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register(MugenControl::render);
         HudRenderCallback.EVENT.register(TomeWheelHud::render);
         HudRenderCallback.EVENT.register(BossScreen::render);
+        HudRenderCallback.EVENT.register(net.ragnar.fmscraft.client.DeathMarkHud::render);
+        ClientPlayNetworking.registerGlobalReceiver(net.ragnar.fmscraft.network.DeathMarkPayload.ID,
+                (payload, context) -> context.client().execute(() -> net.ragnar.fmscraft.client.DeathMarkHud.receive(payload)));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             TomeWheelHud.tick();
             VaultFog.tick();
@@ -208,6 +211,7 @@ public class FmsCraftClient implements ClientModInitializer {
             net.ragnar.fmscraft.client.PrideSky.clear();
             net.ragnar.fmscraft.client.SlothSky.clear();
             MugenControl.clear();
+            net.ragnar.fmscraft.client.DeathMarkHud.clear();
         }));
     }
 

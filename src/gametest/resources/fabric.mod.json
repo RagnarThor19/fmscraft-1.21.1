@@ -24,7 +24,8 @@
 			"net.ragnar.fmscraft.gametest.RaggimelGameTests",
 			"net.ragnar.fmscraft.gametest.OrnamixGameTests",
 			"net.ragnar.fmscraft.gametest.TrueEndingGameTests",
-			"net.ragnar.fmscraft.gametest.TpaGameTests"
+			"net.ragnar.fmscraft.gametest.TpaGameTests",
+			"net.ragnar.fmscraft.gametest.DeathMarkGameTests"
 		]
 	},
 	"mixins": [

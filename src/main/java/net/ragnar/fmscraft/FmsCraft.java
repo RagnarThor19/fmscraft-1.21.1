@@ -70,10 +70,12 @@ public class FmsCraft implements ModInitializer {
 		PayloadTypeRegistry.playS2C().register(net.ragnar.fmscraft.network.PrideSkyPayload.ID, net.ragnar.fmscraft.network.PrideSkyPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(net.ragnar.fmscraft.network.SlothSkyPayload.ID, net.ragnar.fmscraft.network.SlothSkyPayload.CODEC);
 		PayloadTypeRegistry.playS2C().register(net.ragnar.fmscraft.network.CreditsPayload.ID, net.ragnar.fmscraft.network.CreditsPayload.CODEC);
+		PayloadTypeRegistry.playS2C().register(net.ragnar.fmscraft.network.DeathMarkPayload.ID, net.ragnar.fmscraft.network.DeathMarkPayload.CODEC);
 		PayloadTypeRegistry.playC2S().register(net.ragnar.fmscraft.network.CreditsDonePayload.ID, net.ragnar.fmscraft.network.CreditsDonePayload.CODEC);
 
 		FragmentTriggers.register();
 		BossFights.register();
+		net.ragnar.fmscraft.world.DeathMarks.register();
 		Cinematics.register();
 		net.ragnar.fmscraft.fight.FightBots.register();
 		TomeWheel.register();

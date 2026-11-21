@@ -79,6 +79,14 @@ Open questions:
   are never prizes or loot here. The main and inner chest of every dungeon also hold a passive tome 5% of the time.
 - The Tome of TPA's `/tpa` and `/acc` never take anyone into or out of a boss's arena (`mixin/TpaMixin.java`): the way
   in is the portal, the way out is winning or dying.
+- **Death marks** (`world/DeathMarks.java`, `client/DeathMarkHud.java`): die in the Overworld, the Nether, the End or
+  the Twilight and lose your things, and a small, solid pale-teal diamond (the recovery compass's colour) sits at the top
+  of the screen over where they are, sliding as you turn; when they're behind you it waits at the edge as a little
+  arrow. In the Twilight it points at the grave you were buried in (the twilight mod buries rather than drops). It
+  fades out as you walk up and goes once you're within 4 blocks (or moves, if you die and lose your things somewhere
+  else first). Nothing for boss fights (our arenas and the twilight's Blank are their own dimensions, and put your
+  things somewhere else), keepInventory, an empty inventory or the void. Saved with the world, so it's still there
+  after a relog or restart. Hidden with the HUD (F1).
 - Defeated bosses can be fought again with another key.
 - Only one boss per arena: bosses are never saved with the world, and any boss in an arena that isn't the running
   fight's boss removes itself (so one left over from a crash can't become a second boss).
