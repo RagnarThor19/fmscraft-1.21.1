@@ -2,11 +2,15 @@ package net.ragnar.fmscraft.fight;
 
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.registry.tag.DamageTypeTags;
+import net.minecraft.util.Identifier;
 import net.minecraft.item.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.particle.ParticleTypes;
@@ -61,14 +65,21 @@ public final class BossFights {
     private static final Map<Sin, FightSession> SESSIONS = new EnumMap<>(Sin.class);
     // Teleports are deferred to the end of the tick so they never happen mid-collision or mid-death
     private static final Map<UUID, Consumer<ServerPlayerEntity>> PENDING = new LinkedHashMap<>();
+    /**
+     * Deaths are handled in a phase after everyone else's: another mod may still cancel a death (Ragnars Magic Mod's
+     * Tome of Living does), and once one has, ALLOW_DEATH stops asking. So whatever order the mods load in, by the time
+     * this runs the death is certain - nothing is chested and no fight is lost for a death that never happens.
+     */
+    private static final Identifier LAST = Identifier.of(FmsCraft.MOD_ID, "after_other_mods");
 
     private BossFights() {
     }
 
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(BossFights::tick);
-        ServerLivingEntityEvents.ALLOW_DEATH.register((entity, source, amount) -> {
-            if (entity instanceof ServerPlayerEntity player) onPlayerDeath(player);
+        ServerLivingEntityEvents.ALLOW_DEATH.addPhaseOrdering(Event.DEFAULT_PHASE, LAST);
+        ServerLivingEntityEvents.ALLOW_DEATH.register(LAST, (entity, source, amount) -> {
+            if (entity instanceof ServerPlayerEntity player) onPlayerDeath(player, source);
             return true;
         });
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> onDisconnect(handler.player));
@@ -180,6 +191,7 @@ public final class BossFights {
             ServerWorld arena = Arenas.world(p.getServer(), sin);
             ArenaLayout layout = Arenas.layout(sin);
             p.teleport(arena, layout.playerSpawn().x, layout.playerSpawn().y, layout.playerSpawn().z, layout.playerYaw(), 0f);
+            landSafely(p);
             p.playSoundToPlayer(SoundEvents.BLOCK_PORTAL_TRAVEL, SoundCategory.PLAYERS, 0.4f, 1.2f);
             if (SESSIONS.get(sin) != session || session.stage != FightSession.Stage.JOINING) return;
             if (intro != null) intro.onEnter(p, session, (int) (p.getServer().getTicks() - session.openedTick));
@@ -199,7 +211,18 @@ public final class BossFights {
         }
         BlockPos pos = target.pos();
         player.teleport(world, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, player.getYaw(), player.getPitch());
+        landSafely(player);
         state.clearReturn(player.getUuid());
+    }
+
+    /**
+     * Whoever was falling (knocked off a ledge, dropping into the void) when they were sent off arrives standing still,
+     * with none of that fall left to hurt them on their first step.
+     */
+    private static void landSafely(ServerPlayerEntity player) {
+        player.fallDistance = 0;
+        player.setVelocity(Vec3d.ZERO);
+        player.velocityModified = true;
     }
 
     // ---- Ticking ----
@@ -385,8 +408,8 @@ public final class BossFights {
         }
     }
 
-    private static void onPlayerDeath(ServerPlayerEntity player) {
-        if (holdsTotem(player)) return;
+    private static void onPlayerDeath(ServerPlayerEntity player, DamageSource source) {
+        if (totemWillSave(player, source)) return;
         FightSession session = liveSessionOf(player);
         if (session == null) {
             // Not in a fight, but dead in a boss's arena anyway (after the win on the way out, or never came through
@@ -489,7 +512,9 @@ public final class BossFights {
         return null;
     }
 
-    private static boolean holdsTotem(ServerPlayerEntity player) {
+    /** Whether a totem is about to save them: one in either hand, against anything a totem works on (not the void or /kill). */
+    private static boolean totemWillSave(ServerPlayerEntity player, DamageSource source) {
+        if (source.isIn(DamageTypeTags.BYPASSES_INVULNERABILITY)) return false;
         for (Hand hand : Hand.values()) {
             if (player.getStackInHand(hand).isOf(Items.TOTEM_OF_UNDYING)) return true;
         }

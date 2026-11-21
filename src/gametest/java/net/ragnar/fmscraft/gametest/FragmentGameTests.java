@@ -52,6 +52,7 @@ import net.ragnar.fmscraft.fragment.EnvyTrigger;
 import net.ragnar.fmscraft.fragment.LuckyStrike;
 import net.ragnar.fmscraft.fragment.LustTrigger;
 import net.ragnar.fmscraft.fragment.PrideTrigger;
+import net.ragnar.fmscraft.fragment.SlothTrigger;
 import net.ragnar.fmscraft.fragment.WrathTrigger;
 import net.ragnar.fmscraft.item.ModItems;
 import net.ragnar.fmscraft.sin.Sin;
@@ -516,10 +517,10 @@ public class FragmentGameTests implements FabricGameTest {
 
     // ---- Sloth ----
 
-    private static int killChickens(TestContext ctx, WolfEntity wolf, int count) {
+    private static int killChickens(TestContext ctx, net.minecraft.entity.LivingEntity killer, int count) {
         for (int i = 0; i < count; i++) {
             ChickenEntity chicken = ctx.spawnEntity(EntityType.CHICKEN, 2, 2, 2);
-            chicken.damage(ctx.getWorld().getDamageSources().mobAttack(wolf), 100f);
+            chicken.damage(ctx.getWorld().getDamageSources().mobAttack(killer), 100f);
         }
         return droppedFragments(ctx, Sin.SLOTH);
     }
@@ -529,9 +530,26 @@ public class FragmentGameTests implements FabricGameTest {
         ServerPlayerEntity owner = ctx.createMockCreativeServerPlayerInWorld();
         WolfEntity wolf = ctx.spawnEntity(EntityType.WOLF, 4, 2, 4);
         wolf.setOwner(owner);
-        // 5% chance: 300 kills with no fragment would happen about once in 5 million runs
+        // 8% chance: 300 kills with no fragment would happen about once in 10^11 runs
         int found = killChickens(ctx, wolf, 300);
-        ctx.assertTrue(found >= 1 && found <= 40, "expected ~15 Sloth fragments from 300 tamed wolf kills, got " + found);
+        ctx.assertTrue(found >= 9 && found <= 45, "expected ~24 Sloth fragments from 300 tamed wolf kills (8%), got " + found);
+        ctx.complete();
+    }
+
+    @GameTest(templateName = EMPTY_STRUCTURE)
+    public void slothRaisedUndeadKillsCanDropFragments(TestContext ctx) {
+        net.minecraft.entity.mob.ZombieEntity wild = ctx.spawnEntity(EntityType.ZOMBIE, 4, 2, 4);
+        wild.setAiDisabled(true);
+        ctx.assertEquals(killChickens(ctx, wild, 100), 0, "Sloth fragments from an ordinary zombie");
+
+        // One the Tome of the Dead raised carries Ragnars Magic Mod's command tag
+        net.minecraft.entity.mob.ZombieEntity raised = ctx.spawnEntity(EntityType.ZOMBIE, 5, 2, 5);
+        raised.setAiDisabled(true);
+        raised.addCommandTag(SlothTrigger.RAISED_UNDEAD_TAG);
+        int found = killChickens(ctx, raised, 300);
+        ctx.assertTrue(found >= 9 && found <= 45, "expected ~24 Sloth fragments from 300 raised undead kills (8%), got " + found);
+        wild.discard();
+        raised.discard();
         ctx.complete();
     }
 

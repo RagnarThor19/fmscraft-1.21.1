@@ -36,7 +36,7 @@ part of vanilla Minecraft:
 | Gluttony | Larus Armann | Eat an enchanted golden apple | 1 | Nether | Done |
 | Envy | Gudmundur Sigurdsson | Kill a **shivering Bogged**: a rare mossy skeleton that spawns anywhere in the Overworld a skeleton can (1.5% of natural skeleton spawns come out as one instead, a bit more common than a spider jockey; never from spawners or spawn eggs). It wears a carved pumpkin, carries an iron sword (so it fights in melee) and shivers like a freezing skeleton whenever it isn't after a player. It drops its pumpkin, and a fragment when a player kills it. To try one: `/fmscraft envyskeleton` spawns one in front of you. (It used to be rare chest loot in end cities, bastions, mansions and the Envy maze; that's gone.) | 1 | Overworld | Done |
 | Lust | Karl Phillip | The same player breeds all 25 "Two by Two" animals (tag `fmscraft:lust_breedables`). Progress shows in the action bar and resets after the reward, so it can be repeated | 5 | Twilight | Done |
-| Sloth | Patrik Atanaia | A tamed wolf (or tome summon from Ragnars Magic Mod) kills a mob: 5% chance | 1 | End | Done |
+| Sloth | Patrik Atanaia | A tamed wolf, a tome summon from Ragnars Magic Mod (Steve, Knight, Clones) or one of the Tome of the Dead's undead kills a mob: 8% chance | 1 | End | Done |
 
 Tuning knobs: `EnvyTrigger.CHANCE`, `LuckyStrike` (`GOLD_CHANCE`, `RARE_CHANCE`, `CHANCE`; which ores: tags
 `fmscraft:lucky_strike_gold`, `fmscraft:lucky_strike_rare` and `fmscraft:lucky_strike`), `PrideTrigger` (which skulls: tag `fmscraft:pride_skulls`),
@@ -74,8 +74,11 @@ Open questions:
   Advanced / 2/12 Master / 2/12 Passive (gold), then gets a random Ragnars Magic Mod tome of that tier. 12 slices (5/3/2/2), drawn as pixel art, clicks as
   slices pass, tier sound on landing. The server rolls the result first and gives the tome itself when the 10-second spin ends;
   the wheel only animates toward it, so lag or quitting can't change or lose the prize. Tomes are found by reading
-  the magic mod's `TomeItem` tiers at runtime (`compat/MagicTomes.java`), so new tomes join automatically. The main and
-  inner chest of every dungeon also hold a passive tome 5% of the time.
+  the magic mod's `TomeItem` tiers at runtime (`compat/MagicTomes.java`), so new tomes join automatically. Only tomes in
+  its `ModItems.TOMES` count (the ones its own loot uses): unique tomes like the Tome of TPA, which only librarians sell,
+  are never prizes or loot here. The main and inner chest of every dungeon also hold a passive tome 5% of the time.
+- The Tome of TPA's `/tpa` and `/acc` never take anyone into or out of a boss's arena (`mixin/TpaMixin.java`): the way
+  in is the portal, the way out is winning or dying.
 - Defeated bosses can be fought again with another key.
 - Only one boss per arena: bosses are never saved with the world, and any boss in an arena that isn't the running
   fight's boss removes itself (so one left over from a crash can't become a second boss).

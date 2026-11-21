@@ -18,6 +18,7 @@
 		"PlayerEntityMixin",
 		"ServerWorldMixin",
 		"SpawnHelperMixin",
+		"TpaMixin",
 		"VillagerEntityMixin"
 	],
 	"client": [

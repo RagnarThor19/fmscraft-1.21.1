@@ -10,7 +10,7 @@ package net.ragnar.fmscraft.fragment;
  *  - GLUTTONY eat an enchanted golden apple                              {@link GluttonyTrigger} (mixin)
  *  - ENVY     kill the rare shivering Bogged (pumpkin, iron sword)       {@link EnvyTrigger} (mixins)
  *  - LUST     one player breeds every animal in Two by Two -> 5           {@link LustTrigger} (mixin)
- *  - SLOTH    5% per kill by a tamed wolf or tome summon                 {@link SlothTrigger}
+ *  - SLOTH    8% per kill by a tamed wolf, tome summon or raised undead  {@link SlothTrigger}
  */
 public final class FragmentTriggers {
     private FragmentTriggers() {

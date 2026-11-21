@@ -8,6 +8,7 @@
 		"fabric-gametest": [
 			"net.ragnar.fmscraft.gametest.FragmentGameTests",
 			"net.ragnar.fmscraft.gametest.FightGameTests",
+			"net.ragnar.fmscraft.gametest.DeathSafetyGameTests",
 			"net.ragnar.fmscraft.gametest.GummssGameTests",
 			"net.ragnar.fmscraft.gametest.LalliGameTests",
 			"net.ragnar.fmscraft.gametest.EnvyGameTests",
@@ -22,7 +23,8 @@
 			"net.ragnar.fmscraft.gametest.RickyGameTests",
 			"net.ragnar.fmscraft.gametest.RaggimelGameTests",
 			"net.ragnar.fmscraft.gametest.OrnamixGameTests",
-			"net.ragnar.fmscraft.gametest.TrueEndingGameTests"
+			"net.ragnar.fmscraft.gametest.TrueEndingGameTests",
+			"net.ragnar.fmscraft.gametest.TpaGameTests"
 		]
 	},
 	"mixins": [
