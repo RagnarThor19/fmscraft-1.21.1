@@ -21,6 +21,8 @@ public class ModLanguageProvider extends FabricLanguageProvider {
     @Override
     public void generateTranslations(RegistryWrapper.WrapperLookup lookup, TranslationBuilder builder) {
         builder.add("itemGroup.fmscraft.fmscraft", "FMSCraft");
+        builder.add("gamerule.minecartSpeed", "Minecart speed");
+        builder.add("gamerule.minecartSpeed.description", "How many times as fast as normal minecarts go on rails (1 to 10)");
 
         for (Sin sin : Sin.values()) {
             String name = sin.displayName();

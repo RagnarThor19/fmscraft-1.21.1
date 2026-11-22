@@ -19,4 +19,16 @@ first so its jar is up to date. If you bump a mod's version, update the path in 
    from step 2 into its `mods/` folder and start it again.
 5. Every player needs the **same four jars** in their own `.minecraft/mods` folder, with Fabric Loader for 1.21.1.
 
+## Release (hosted server + Modrinth pack)
+
+1. Build all three mods as above (`gradlew build` in the other two, `gradlew build prepareServer` here).
+2. `python tools/release/make_mrpack.py` puts everything in `build/release/`:
+   - `server-mods/`: the four jars for the server's `mods` folder.
+   - `FMSCraft-<version>.mrpack`: the pack for players. Fabric API comes from Modrinth; our three jars are inside it.
+3. Host (e.g. ApexHosting): pick **Fabric**, Minecraft **1.21.1**, Fabric Loader **0.19.3 or newer**, then upload the
+   four jars from `server-mods/` into `mods/` and restart. The first start of a new world builds the arenas and the
+   True Ending shrine (about a minute, "Can't keep up" in the log is expected then); later starts are quick.
+4. Players: Modrinth App, **+** (create instance), **Import from file**, pick the `.mrpack`, then Play. It installs
+   Minecraft 1.21.1, Fabric and all four mods. After an update, import the new pack again.
+
 All three mods add blocks, items or entities, so they must be installed on both the server and every client.

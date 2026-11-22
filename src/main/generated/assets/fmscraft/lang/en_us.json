@@ -151,6 +151,8 @@
   "entity.fmscraft.raggimel_mirage": "RAGGIMEL",
   "entity.fmscraft.ricky": "RICKY",
   "entity.fmscraft.test_boss": "Test Boss",
+  "gamerule.minecartSpeed": "Minecart speed",
+  "gamerule.minecartSpeed.description": "How many times as fast as normal minecarts go on rails (1 to 10)",
   "item.fmscraft.envy_fragment": "Envy Fragment",
   "item.fmscraft.envy_key": "Envy Key",
   "item.fmscraft.gluttony_fragment": "Gluttony Fragment",

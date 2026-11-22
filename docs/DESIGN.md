@@ -87,6 +87,11 @@ Open questions:
   else first). Nothing for boss fights (our arenas and the twilight's Blank are their own dimensions, and put your
   things somewhere else), keepInventory, an empty inventory or the void. Saved with the world, so it's still there
   after a relog or restart. Hidden with the HUD (F1).
+- **Fast minecarts** (`world/FastMinecarts.java`, `mixin/AbstractMinecartEntityMixin.java`): the `minecartSpeed`
+  gamerule (1 to 10, default 1 = vanilla) makes carts on rails that many times as fast: `/gamerule minecartSpeed 4`.
+  Their top speed isn't raised (that throws them off curves and past detector rails); each tick they get that many goes
+  at their ordinary rail movement, so every curve, slope, powered, detector and activator rail works as in vanilla. Off
+  the rails they're vanilla, and they never run on into a chunk that isn't loaded and ticking.
 - Defeated bosses can be fought again with another key.
 - Only one boss per arena: bosses are never saved with the world, and any boss in an arena that isn't the running
   fight's boss removes itself (so one left over from a crash can't become a second boss).

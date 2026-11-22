@@ -76,6 +76,7 @@ public class FmsCraft implements ModInitializer {
 		FragmentTriggers.register();
 		BossFights.register();
 		net.ragnar.fmscraft.world.DeathMarks.register();
+		net.ragnar.fmscraft.world.FastMinecarts.register();
 		Cinematics.register();
 		net.ragnar.fmscraft.fight.FightBots.register();
 		TomeWheel.register();
